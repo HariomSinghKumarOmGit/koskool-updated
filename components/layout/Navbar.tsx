@@ -42,6 +42,12 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4 text-gray-300">
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1 text-[11px] bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded text-amber-300 font-bold transition"
+            >
+              <span>Admin Panel</span>
+            </Link>
             <span className="hidden md:inline-flex items-center gap-1 text-[11px]">
               <Award className="w-3.5 h-3.5 text-amber-400" />
               CBSE &amp; ICSE Uniform Approved

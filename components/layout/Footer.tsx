@@ -284,6 +284,12 @@ export default function Footer() {
           <p>© 2026 KOSKOOL. Owner: Vipul Singla. Factory: Sector 2, Bawana Industrial Area, Delhi. All rights reserved.</p>
 
           <div className="flex items-center gap-4">
+            <Link
+              href="/admin"
+              className="text-amber-400 hover:text-amber-300 font-bold transition flex items-center gap-1"
+            >
+              <span>Admin Portal</span>
+            </Link>
             <a
               href="https://wa.me/918130458265"
               target="_blank"

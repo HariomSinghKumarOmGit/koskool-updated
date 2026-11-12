@@ -1,3 +1,9 @@
+export interface ColorVariant {
+  name: string;
+  image: string;
+  slug?: string;
+}
+
 export interface Product {
   id: string;
   slug: string;
@@ -6,9 +12,9 @@ export interface Product {
   price: number;
   originalPrice: number;
   discountPercent?: number;
-  gender: 'boys' | 'girls' | 'kids' | 'unisex';
+  gender: 'boys' | 'girls' | 'kids' | 'unisex' | 'mens' | 'women';
   schoolLevel: ('kindergarten' | 'middle-wing' | 'senior-wing')[];
-  productType: 'school-shoes' | 'sports-shoes' | 'fabric-shoes' | 'bags' | 'accessories';
+  productType: 'school-shoes' | 'sports-shoes' | 'fabric-shoes' | 'bags' | 'accessories' | 'sandals' | 'daily-wear';
   accessoryCategory?:
     | 'bag-accessories'
     | 'geometry-accessories'
@@ -29,6 +35,10 @@ export interface Product {
   sizes: string[];
   colours: string[];
   primaryColour: string;
+  colorVariants?: ColorVariant[];
+  categoryOptions?: string[];
+  additionalInfo?: string;
+  shippingInfo?: string;
   capacity?: string;
   images: string[];
   rating: number;
@@ -43,6 +53,64 @@ export interface Product {
 }
 
 export const PRODUCTS: Product[] = [
+  // =================== URBANOZ FEATURED PRODUCT ===================
+  {
+    id: 'wgp53410-tan',
+    slug: 'mens-daily-wear-sandals-wgp53410-tan',
+    name: "Men's Daily Wear Sandals - WGP53410 Tan",
+    brand: 'URBANOZ',
+    price: 479,
+    originalPrice: 599,
+    discountPercent: 20,
+    gender: 'boys',
+    schoolLevel: ['middle-wing', 'senior-wing'],
+    productType: 'school-shoes',
+    sizes: ['6', '7', '8', '9', '10'],
+    colours: ['Tan', 'Olive', 'Brown', 'Black'],
+    primaryColour: 'Tan',
+    colorVariants: [
+      {
+        name: 'Olive',
+        image: '/cdn/shop/files/WGP53410-OLIVE-GENTS_0b87feae-f3ed-4f7f-ad4c-cab242583af4.v_1786511339_width_250.jpg',
+      },
+      {
+        name: 'Tan',
+        image: '/cdn/shop/files/WGP53410-TAN-GENTS_7608173e-b30c-4214-ad1d-02182418d1a2.v_1786511338_width_250.jpg',
+      },
+      {
+        name: 'Brown',
+        image: '/cdn/shop/files/WGP53410-BROWN-GENTS.v_1787833041_width_250.jpg',
+      },
+      {
+        name: 'Black',
+        image: '/cdn/shop/files/WGP53410-FULL-BLACK-GENTS.v_1791882447_width_250.jpg',
+      },
+    ],
+    categoryOptions: ['MENS', 'BOYS'],
+    images: [
+      '/cdn/shop/files/WGP53410-TAN-GENTS_7608173e-b30c-4214-ad1d-02182418d1a2.v_1786511338_width_1600.jpg',
+      '/cdn/shop/files/2_jpg_aa2d262c-cae2-4472-9629-a19d0d14dafa.v_1786511338_width_1600.jpg',
+      '/cdn/shop/files/3_jpg_f0a2d306-79d9-48b3-8474-fd7f5b3b2e9b.v_1786511338_width_1600.jpg',
+      '/cdn/shop/files/4_jpg_6888c3dd-6316-46eb-8bf8-bf550a997916.v_1786511338_width_1600.jpg',
+      '/cdn/shop/files/5_jpg_e833f12d-4312-4d71-a966-a93cedf1f630.v_1786511338_width_1600.jpg',
+    ],
+    rating: 5.0,
+    reviewCount: 2,
+    isPopular: true,
+    features: [
+      'Dual Adjustable Hook-and-Loop Straps',
+      'Ergonomic Cushioned Comfort Footbed',
+      'Lightweight Flexible PU Sole',
+      'Breathable Open-Toe Design',
+      'Suede-Finish PU Upper',
+    ],
+    description: `Experience premium comfort and modern casual styling with the Walkaroo Urbanoz WGP53410 Tan Comfort Sandal. Designed for men who appreciate superior comfort and effortless versatility, this sandal combines a soft PU upper, adjustable fit, and lightweight cushioning to keep you comfortable throughout the day. Ideal for daily wear, travel, indoor use, weekend outings, and relaxed outdoor activities, it delivers a perfect balance of function and style.\n\nCrafted in a rich Tan color, this sandal features a contemporary dual-strap design with adjustable hook-and-loop closures that allow a personalized and secure fit. The premium PU upper with a soft suede-like finish enhances the overall appearance while offering durability and everyday comfort. The open design promotes breathability, making it ideal for long hours of wear.\n\nThe sandal is equipped with a cushioned ergonomic footbed that provides soft underfoot support and improved walking comfort. The lightweight PU sole offers excellent flexibility, shock absorption, and stability, helping reduce foot fatigue during extended use.`,
+    additionalInfo: `Manufactured by: Walkaroo International Pvt Ltd. Plot No 10-12, SIDCO Industrial Estate, Malumichampatti, Coimbatore - 641050 India\nCommodity - Footwear\nNumber of Commodity - 2N (1 Pair)\nCountry of Origin - India\nCustomer Care: 011-6119-7311 customercare@walkaroo.in\nPlease Note: The color of the original product may slightly vary due to photography lighting and your screen brightness. All specifications mentioned above might vary by +/- 10%.`,
+    shippingInfo: `This item is eligible for our 7 day easy return policy. No questions asked.\nEstimated time of delivery: 2 to 6 working days.\nFree shipping on prepaid orders over ₹499. Cash on delivery available.`,
+    material: 'PU (Polyurethane) with Soft Suede Finish, Lightweight PU Sole',
+    closureType: 'Dual Adjustable Hook-and-Loop Straps',
+    inStock: true,
+  },
   // =================== BOYS SCHOOL SHOES ===================
   {
     id: 'ks-b-sch-01',
