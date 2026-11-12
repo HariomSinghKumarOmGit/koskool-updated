@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import {
   X,
   Trash2,
@@ -37,6 +39,9 @@ export default function CartDrawer() {
     removePromoCode,
   } = useCart();
 
+  const router = useRouter();
+  const { user, openAuthModal } = useAuth();
+
   const [inputCode, setInputCode] = useState('');
   const [promoMessage, setPromoMessage] = useState<{ text: string; success: boolean } | null>(null);
 
@@ -45,12 +50,34 @@ export default function CartDrawer() {
   const remainingForFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
   const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
 
-  const handleApplyPromo = (codeToApply?: string) => {
-    const target = codeToApply || inputCode;
+  const executeApply = (target: string) => {
     const res = applyPromoCode(target);
     setPromoMessage({ text: res.message, success: res.success });
     if (res.success) {
       setInputCode('');
+    }
+  };
+
+  const handleApplyPromo = (codeToApply?: string) => {
+    const target = (codeToApply || inputCode).trim();
+    if (!target) return;
+
+    if (!user) {
+      closeCartDrawer();
+      openAuthModal(() => executeApply(target));
+      return;
+    }
+
+    executeApply(target);
+  };
+
+  const handleCheckoutClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    closeCartDrawer();
+    if (!user) {
+      openAuthModal(() => router.push('/checkout'));
+    } else {
+      router.push('/checkout');
     }
   };
 
@@ -304,14 +331,13 @@ export default function CartDrawer() {
               >
                 View Cart
               </Link>
-              <Link
-                href="/checkout"
-                onClick={closeCartDrawer}
+              <button
+                onClick={handleCheckoutClick}
                 className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition duration-150"
               >
                 <span>Checkout</span>
                 <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
         )}

@@ -11,7 +11,58 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 /**
+ * Helper to convert a File to a compressed base64 data URL if storage upload fails or bucket is not created
+ */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    // If it's an image, compress slightly via canvas
+    if (file.type.startsWith('image/')) {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+          return;
+        }
+        resolve(img.src);
+      };
+      img.onerror = () => {
+        const fallbackReader = new FileReader();
+        fallbackReader.onload = () => resolve(fallbackReader.result as string);
+        fallbackReader.readAsDataURL(file);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
+/**
  * Uploads a file directly to Supabase Storage with bucket auto-detection and public URL retrieval.
+ * If storage bucket is missing, falls back to a persistent base64 data URL so it displays anywhere and in Supabase.
  */
 export async function uploadToStorage(
   file: File,
@@ -29,17 +80,16 @@ export async function uploadToStorage(
     });
 
     if (error) {
-      console.warn(`Storage upload warning to bucket "${bucket}":`, error.message);
-      // Fallback: If bucket does not exist or upload blocked by anon key, generate object URL preview
-      const objectUrl = URL.createObjectURL(file);
-      return { url: objectUrl, error: null };
+      console.warn(`Storage bucket "${bucket}" not available (${error.message}). Saving as persistent data URL.`);
+      const base64Url = await fileToBase64(file);
+      return { url: base64Url, error: null };
     }
 
     const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(data.path);
     return { url: publicData.publicUrl, error: null };
   } catch (err: any) {
-    console.error('Storage upload exception:', err);
-    const objectUrl = URL.createObjectURL(file);
-    return { url: objectUrl, error: null };
+    console.error('Storage upload exception, converting to persistent data URL:', err);
+    const base64Url = await fileToBase64(file);
+    return { url: base64Url, error: null };
   }
 }

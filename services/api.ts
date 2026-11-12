@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { PRODUCTS, Product } from '@/data/products';
+import { PRODUCTS, Product, getProductsByCollection } from '@/data/products';
 
 export interface Category {
   id: string;
@@ -88,13 +88,27 @@ export interface CustomerInquiry {
   created_at: string;
 }
 
-// In-memory / localStorage cache for immediate UI responsiveness
+// In-memory / localStorage cache for immediate UI responsiveness & minimal Supabase API calls
 const LOCAL_STORAGE_PRODUCTS_KEY = 'koskool_products_cache';
 const LOCAL_STORAGE_CATEGORIES_KEY = 'koskool_categories_cache';
 const LOCAL_STORAGE_BANNERS_KEY = 'koskool_banners_cache';
 const LOCAL_STORAGE_PROMOS_KEY = 'koskool_promos_cache';
 const LOCAL_STORAGE_ORDERS_KEY = 'koskool_orders_cache';
 const LOCAL_STORAGE_INQUIRIES_KEY = 'koskool_inquiries_cache';
+
+// In-memory response caches with 3-minute TTL to drastically reduce Supabase read egress
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+const CACHE_TTL_MS = 3 * 60 * 1000;
+const singleProductCache = new Map<string, CacheEntry<Product>>();
+const previewListCache = new Map<string, CacheEntry<Product[]>>();
+
+export function invalidateProductCaches() {
+  singleProductCache.clear();
+  previewListCache.clear();
+}
 
 // Helper to get or set local cache
 function getCache<T>(key: string, defaultVal: T): T {
@@ -267,6 +281,191 @@ const DEFAULT_BANNERS: PromotionalBanner[] = [
 // ==========================================
 // 1. PRODUCTS API
 // ==========================================
+
+export function formatDbProduct(item: any): Product {
+  return {
+    id: item.id,
+    slug: item.slug || item.id,
+    name: item.name,
+    brand: item.brand || 'KOSKOOL',
+    price: Number(item.price),
+    originalPrice: Number(item.original_price || item.price),
+    discountPercent: item.discount_percent,
+    gender: item.gender || 'boys',
+    schoolLevel: item.school_level || ['middle-wing'],
+    productType: item.product_type || 'school-shoes',
+    accessoryCategory: item.accessory_category,
+    bagCategory: item.bag_category,
+    sizes: item.sizes && item.sizes.length > 0 ? item.sizes : ['1', '2', '3', '4'],
+    colours: item.colours && item.colours.length > 0 ? item.colours : ['Black'],
+    primaryColour: item.primary_colour || 'Black',
+    capacity: item.capacity,
+    images: item.images && item.images.length > 0 ? item.images : ['/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'],
+    rating: Number(item.rating || 4.8),
+    reviewCount: Number(item.review_count || 100),
+    isPopular: item.is_popular,
+    isNewArrival: item.is_new_arrival,
+    features: item.features || [],
+    description: item.description || '',
+    material: item.material || '',
+    closureType: item.closure_type || '',
+    inStock: item.in_stock !== false,
+  };
+}
+
+/**
+ * Loads a single product on-demand by slug or ID with all images.
+ * Reduces API traffic by fetching ONLY the product the user is currently looking at.
+ */
+export async function getProductBySlugOrId(slugOrId: string): Promise<Product | null> {
+  if (!slugOrId) return null;
+
+  // 1. Check in-memory single product cache first
+  const cached = singleProductCache.get(slugOrId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  // 2. Fetch specific product from Supabase
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .or(`slug.eq.${slugOrId},id.eq.${slugOrId}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data) {
+      const prod = formatDbProduct(data);
+      singleProductCache.set(slugOrId, { data: prod, timestamp: Date.now() });
+      if (prod.slug !== slugOrId) singleProductCache.set(prod.slug, { data: prod, timestamp: Date.now() });
+      if (prod.id !== slugOrId) singleProductCache.set(prod.id, { data: prod, timestamp: Date.now() });
+      return prod;
+    }
+  } catch (err) {
+    console.warn('Supabase single product fetch warning:', err);
+  }
+
+  // 3. Fallback to local products list
+  const fallback = PRODUCTS.find((p) => p.slug === slugOrId || p.id === slugOrId) || null;
+  if (fallback) {
+    singleProductCache.set(slugOrId, { data: fallback, timestamp: Date.now() });
+  }
+  return fallback;
+}
+
+/**
+ * Loads a small preview set of products for Home page sections and carousels.
+ * Reduces Supabase API calls and egress by:
+ * - Requesting only 6-10 items
+ * - Returning only preview images (slice to 2 images max)
+ * - Caching results for 3 minutes
+ */
+export async function getPreviewProducts(options?: {
+  filter?: 'popular' | 'newArrival' | 'all';
+  category?: string;
+  limit?: number;
+}): Promise<Product[]> {
+  const filter = options?.filter || 'all';
+  const category = options?.category || 'all';
+  const limit = options?.limit || 8;
+  const cacheKey = `preview_${filter}_${category}_${limit}`;
+
+  const cached = previewListCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  try {
+    let query = supabase
+      .from('products')
+      .select('id, slug, name, brand, price, original_price, discount_percent, gender, school_level, product_type, sizes, colours, primary_colour, images, rating, review_count, is_popular, is_new_arrival, in_stock, display_order')
+      .eq('is_active', true);
+
+    if (category !== 'all') {
+      query = query.eq('product_type', category);
+    }
+    if (filter === 'popular') {
+      query = query.eq('is_popular', true);
+    } else if (filter === 'newArrival') {
+      query = query.eq('is_new_arrival', true);
+    }
+
+    query = query.order('display_order', { ascending: true }).limit(limit);
+
+    const { data, error } = await query;
+
+    if (!error && data && data.length > 0) {
+      const mapped = data.map((item: any) => {
+        const prod = formatDbProduct(item);
+        // Only keep first 2 preview images on home page to save memory and data
+        prod.images = prod.images.slice(0, 2);
+        return prod;
+      });
+
+      previewListCache.set(cacheKey, { data: mapped, timestamp: Date.now() });
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('Supabase getPreviewProducts fallback:', err);
+  }
+
+  // Fallback to local PRODUCTS
+  let local = PRODUCTS.filter((p) => {
+    if (category !== 'all' && p.productType !== category) return false;
+    if (filter === 'popular' && !p.isPopular) return false;
+    if (filter === 'newArrival' && !p.isNewArrival) return false;
+    return true;
+  }).slice(0, limit);
+
+  previewListCache.set(cacheKey, { data: local, timestamp: Date.now() });
+  return local;
+}
+
+/**
+ * Loads products for collection page with pagination and criteria.
+ */
+export async function getCollectionProducts(slug: string, options?: { limit?: number; page?: number }): Promise<{ products: Product[]; total: number }> {
+  const limit = options?.limit || 20;
+  const page = options?.page || 1;
+  const offset = (page - 1) * limit;
+
+  try {
+    let query = supabase.from('products').select('*', { count: 'exact' }).eq('is_active', true);
+
+    if (slug === 'boys' || slug === 'girls' || slug === 'kids' || slug === 'unisex') {
+      query = query.eq('gender', slug);
+    } else if (['school-shoes', 'sports-shoes', 'fabric-shoes', 'bags', 'accessories'].includes(slug)) {
+      query = query.eq('product_type', slug);
+    } else if (['kindergarten', 'middle-wing', 'senior-wing'].includes(slug)) {
+      query = query.contains('school_level', [slug]);
+    } else if (slug.includes('accessories')) {
+      query = query.eq('product_type', 'accessories');
+    } else if (slug.includes('bag')) {
+      query = query.eq('product_type', 'bags');
+    }
+
+    query = query.order('display_order', { ascending: true }).range(offset, offset + limit - 1);
+
+    const { data, count, error } = await query;
+    if (!error && data && data.length > 0) {
+      return {
+        products: data.map(formatDbProduct),
+        total: count || data.length,
+      };
+    }
+  } catch (err) {
+    console.warn('Supabase collection products fallback:', err);
+  }
+
+  // Fallback to local getProductsByCollection
+  const local = getProductsByCollection(slug);
+  return {
+    products: local.slice(offset, offset + limit),
+    total: local.length,
+  };
+}
+
 export async function getProducts(params?: {
   page?: number;
   limit?: number;
@@ -309,35 +508,7 @@ export async function getProducts(params?: {
     const { data, count, error } = await query;
 
     if (!error && data && data.length > 0) {
-      // Map DB products to Product interface
-      const formatted: Product[] = data.map((item: any, idx: number) => ({
-        id: item.id,
-        slug: item.slug || item.id,
-        name: item.name,
-        brand: item.brand || 'KOSKOOL',
-        price: Number(item.price),
-        originalPrice: Number(item.original_price || item.price),
-        discountPercent: item.discount_percent,
-        gender: item.gender || 'boys',
-        schoolLevel: item.school_level || ['middle-wing'],
-        productType: item.product_type || 'school-shoes',
-        accessoryCategory: item.accessory_category,
-        bagCategory: item.bag_category,
-        sizes: item.sizes || ['1', '2', '3', '4'],
-        colours: item.colours || ['Black'],
-        primaryColour: item.primary_colour || 'Black',
-        capacity: item.capacity,
-        images: item.images && item.images.length > 0 ? item.images : ['/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'],
-        rating: Number(item.rating || 4.8),
-        reviewCount: Number(item.review_count || 100),
-        isPopular: item.is_popular,
-        isNewArrival: item.is_new_arrival,
-        features: item.features || [],
-        description: item.description || '',
-        material: item.material || '',
-        closureType: item.closure_type || '',
-        inStock: item.in_stock !== false,
-      }));
+      const formatted: Product[] = data.map(formatDbProduct);
 
       return {
         products: formatted,
@@ -443,6 +614,7 @@ export async function createProduct(product: Partial<Product>): Promise<{ succes
   };
   cached.unshift(newProduct);
   setCache(LOCAL_STORAGE_PRODUCTS_KEY, cached);
+  invalidateProductCaches();
 
   return { success: true, data: newProduct };
 }
@@ -475,6 +647,7 @@ export async function updateProduct(id: string, updates: Partial<Product & { is_
     cached[idx] = { ...cached[idx], ...updates };
     setCache(LOCAL_STORAGE_PRODUCTS_KEY, cached);
   }
+  invalidateProductCaches();
 
   return { success: true };
 }
@@ -489,6 +662,7 @@ export async function deleteProduct(id: string) {
   const cached = getCache<any[]>(LOCAL_STORAGE_PRODUCTS_KEY, [...PRODUCTS]);
   const filtered = cached.filter((p) => p.id !== id);
   setCache(LOCAL_STORAGE_PRODUCTS_KEY, filtered);
+  invalidateProductCaches();
 
   return { success: true };
 }
@@ -514,6 +688,7 @@ export async function reorderProducts(reorderedList: { id: string; display_order
   });
   updated.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
   setCache(LOCAL_STORAGE_PRODUCTS_KEY, updated);
+  invalidateProductCaches();
 
   return { success: true };
 }

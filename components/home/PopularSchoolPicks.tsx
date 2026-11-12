@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PRODUCTS, Product } from '@/data/products';
 import ProductCard from '@/components/product/ProductCard';
 import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getPreviewProducts } from '@/services/api';
 
 export default function PopularSchoolPicks() {
   const [activeTab, setActiveTab] = useState<
@@ -22,10 +23,29 @@ export default function PopularSchoolPicks() {
     { id: 'accessories', label: 'Accessories' },
   ];
 
-  const filteredProducts = PRODUCTS.filter((p) => {
-    if (activeTab === 'all') return p.isPopular;
-    return p.productType === activeTab;
-  }).slice(0, 10);
+  // Load preview products with minimal images to save Supabase egress & client memory
+  const [products, setProducts] = useState<Product[]>(() => {
+    return PRODUCTS.filter((p) => p.isPopular).slice(0, 10);
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    getPreviewProducts({
+      filter: activeTab === 'all' ? 'popular' : 'all',
+      category: activeTab === 'all' ? 'all' : activeTab,
+      limit: 10,
+    }).then((items) => {
+      if (isMounted && items && items.length > 0) {
+        setProducts(items);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab]);
+
+  const filteredProducts = products;
 
   const checkScroll = () => {
     if (scrollRef.current) {

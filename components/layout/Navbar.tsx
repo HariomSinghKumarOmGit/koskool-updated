@@ -8,6 +8,7 @@ import MegaMenu from './MegaMenu';
 import MobileNav from './MobileNav';
 import SearchModal from './SearchModal';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   Search,
   ShoppingBag,
@@ -22,6 +23,7 @@ import {
 export default function Navbar() {
   const pathname = usePathname();
   const { totalItems, openCartDrawer } = useCart();
+  const { user, isAdmin, openAuthModal } = useAuth();
 
   const [activeMega, setActiveMega] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -136,6 +138,7 @@ export default function Navbar() {
                     {!item.isMega && hasColumns && isOpen && (
                       <div
                         className="absolute top-full left-1/2 -translate-x-1/2 w-80 bg-white rounded-b-2xl shadow-2xl border border-gray-100 p-6 z-50 animate-fadeIn"
+                        style={{ left: '50%', transform: 'translateX(-50%)' }}
                         onMouseEnter={() => setActiveMega(item.title)}
                       >
                         {item.columns!.map((col, idx) => (
@@ -191,13 +194,26 @@ export default function Navbar() {
               </button>
 
               {/* Login / Profile */}
-              <Link
-                href="/account/login"
-                className="p-2.5 rounded-full text-navy-900 hover:text-brand-600 hover:bg-gray-100 transition hidden sm:inline-flex"
-                aria-label="Account"
-              >
-                <User className="w-5 h-5" />
-              </Link>
+              {user ? (
+                <Link
+                  href={isAdmin ? '/admin' : '/account/login'}
+                  className="flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-gray-100 hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
+                  aria-label="Account"
+                >
+                  <User className="w-3.5 h-3.5 text-brand-600" />
+                  <span className="hidden md:inline max-w-[100px] truncate">
+                    {isAdmin ? 'Admin' : user.name.split(' ')[0]}
+                  </span>
+                </Link>
+              ) : (
+                <button
+                  onClick={() => openAuthModal()}
+                  className="p-2.5 rounded-full text-navy-900 hover:text-brand-600 hover:bg-gray-100 transition hidden sm:inline-flex"
+                  aria-label="Sign In"
+                >
+                  <User className="w-5 h-5" />
+                </button>
+              )}
 
               {/* Shopping Cart Drawer Trigger */}
               <button

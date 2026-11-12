@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PRODUCTS, Product } from '@/data/products';
 import { useCart } from '@/context/CartContext';
+import { getPreviewProducts } from '@/services/api';
 import {
   ShoppingBag,
   Check,
@@ -21,8 +22,22 @@ export default function QuickAddToCartSection() {
   const { addToCart, applyPromoCode, appliedPromo, removePromoCode, discountAmount, promoCodes } = useCart();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Quick items to display
-  const quickItems = PRODUCTS.filter((p) => p.isPopular).slice(0, 6);
+  // Quick items to display with live Supabase integration
+  const [quickItems, setQuickItems] = useState<Product[]>(() =>
+    PRODUCTS.filter((p) => p.isPopular).slice(0, 6)
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    getPreviewProducts({ filter: 'popular', limit: 6 }).then((items) => {
+      if (isMounted && items && items.length > 0) {
+        setQuickItems(items);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Local state for selected size per product
   const [selectedSizes, setSelectedSizes] = useState<{ [productId: string]: string }>({});

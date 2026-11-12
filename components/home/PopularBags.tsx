@@ -1,17 +1,32 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PRODUCTS } from '@/data/products';
+import { PRODUCTS, Product } from '@/data/products';
 import ProductCard from '@/components/product/ProductCard';
 import { ArrowRight, Backpack, ChevronLeft, ChevronRight } from 'lucide-react';
+import { getPreviewProducts } from '@/services/api';
 
 export default function PopularBags() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const bagProducts = PRODUCTS.filter((p) => p.productType === 'bags');
+  const [bagProducts, setBagProducts] = useState<Product[]>(() =>
+    PRODUCTS.filter((p) => p.productType === 'bags')
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    getPreviewProducts({ category: 'bags', limit: 8 }).then((items) => {
+      if (isMounted && items && items.length > 0) {
+        setBagProducts(items);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const checkScroll = () => {
     if (scrollRef.current) {

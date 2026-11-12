@@ -7,6 +7,8 @@ import SchoolBundlesSection from '@/components/home/SchoolBundlesSection';
 import ExploreAccessories from '@/components/home/ExploreAccessories';
 import PopularBags from '@/components/home/PopularBags';
 import PopularSchoolPicks from '@/components/home/PopularSchoolPicks';
+import FeaturedProductShowcase from '@/components/home/FeaturedProductShowcase';
+import BannerSectionShowcase from '@/components/home/BannerSectionShowcase';
 import SchoolTrustReviews from '@/components/home/SchoolTrustReviews';
 
 export default function HomePage() {
@@ -39,7 +41,13 @@ export default function HomePage() {
       {/* 9. Popular School Picks (Interactive Tabs & Left/Right Arrow Carousel) */}
       <PopularSchoolPicks />
 
-      {/* 10. School Trust & Parent Reviews */}
+      {/* 10. Featured Product Tab Showcase (Walkaroo Urbanoz WGP53410) */}
+      <FeaturedProductShowcase />
+
+      {/* 11. Separate Section Banners (Bounceez & Bloomsy with 4-Item Responsive Grid) */}
+      <BannerSectionShowcase />
+
+      {/* 12. School Trust & Parent Reviews */}
       <SchoolTrustReviews />
     </div>
   );

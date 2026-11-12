@@ -1,19 +1,8 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import {
-  ShieldCheck,
-  Award,
-  Heart,
-  Target,
-  Sparkles,
-  MapPin,
-  Phone,
-  Mail,
-  CheckCircle2,
-  Users,
-  Compass,
-} from 'lucide-react';
+import { Sparkles, Heart, Award, Compass, ShieldCheck, MapPin } from 'lucide-react';
+import QuotationInquiryForm from '@/components/home/QuotationInquiryForm';
 
 export const metadata = {
   title: 'About KOSKOOL | Dedicated School Footwear & Accessories',
@@ -209,6 +198,11 @@ export default function AboutPage() {
 
           <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />
         </div>
+      </section>
+
+      {/* Institutional Quotation & Inquiry Form */}
+      <section className="py-12 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <QuotationInquiryForm />
       </section>
     </div>
   );

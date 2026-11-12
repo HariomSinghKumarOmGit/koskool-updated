@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   Trash2,
   Plus,
@@ -15,9 +17,13 @@ import {
   Tag,
   Check,
   Settings,
+  Lock,
 } from 'lucide-react';
+import { getPromoCodes } from '@/services/api';
 
 export default function CartPage() {
+  const router = useRouter();
+  const { user, openAuthModal } = useAuth();
   const {
     items,
     removeFromCart,
@@ -31,17 +37,61 @@ export default function CartPage() {
     appliedPromo,
     applyPromoCode,
     removePromoCode,
+    addPromoCode,
   } = useCart();
 
   const [couponInput, setCouponInput] = useState('');
   const [couponStatus, setCouponStatus] = useState<{ text: string; success: boolean } | null>(null);
 
-  const handleApply = (codeToApply?: string) => {
-    const target = codeToApply || couponInput;
-    const res = applyPromoCode(target);
+  // Sync latest promo codes from Supabase
+  useEffect(() => {
+    getPromoCodes().then((dbPromos) => {
+      dbPromos.forEach((p) => {
+        if (!promoCodes.some((existing) => existing.code === p.code)) {
+          addPromoCode({
+            code: p.code,
+            description: p.description,
+            discountType: p.discount_type,
+            discountValue: p.discount_value,
+            minOrderValue: p.min_order_amount,
+            maxDiscount: p.max_discount_amount,
+            isActive: p.is_active,
+          });
+        }
+      });
+    });
+  }, []);
+
+  const executeApply = (targetCode: string) => {
+    const res = applyPromoCode(targetCode);
     setCouponStatus({ text: res.message, success: res.success });
     if (res.success) {
       setCouponInput('');
+    }
+  };
+
+  const handleApply = (codeToApply?: string) => {
+    const target = (codeToApply || couponInput).trim();
+    if (!target) {
+      setCouponStatus({ text: 'Please enter a promo code.', success: false });
+      return;
+    }
+
+    // Require Login for applying promo code as explicitly requested by user
+    if (!user) {
+      openAuthModal(() => executeApply(target));
+      return;
+    }
+
+    executeApply(target);
+  };
+
+  const handleProceedToCheckout = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) {
+      openAuthModal(() => router.push('/checkout'));
+    } else {
+      router.push('/checkout');
     }
   };
 
@@ -71,11 +121,16 @@ export default function CartPage() {
     <div className="bg-gray-50 min-h-screen py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h1 className="text-2xl sm:text-3xl font-black text-navy-950">
-            Shopping Cart ({totalItems} {totalItems === 1 ? 'item' : 'items'})
-          </h1>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-navy-950">
+              Shopping Cart ({totalItems} {totalItems === 1 ? 'item' : 'items'})
+            </h1>
+            <p className="text-xs text-gray-500">
+              Direct dispatch from Sector 2, Bawana Industrial Area, Delhi
+            </p>
+          </div>
           <Link
-            href="/admin"
+            href="/admin/promo-codes"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-navy-950 transition"
           >
             <Settings className="w-3.5 h-3.5" />
@@ -190,10 +245,17 @@ export default function CartPage() {
 
               {/* Promo Code Form */}
               <div className="pt-2 border-t border-gray-100 space-y-2">
-                <label className="text-[11px] font-black uppercase tracking-wider text-navy-950 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-brand-600" />
-                  Apply Store Promo Code
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-navy-950 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-brand-600" />
+                    Apply Store Promo Code
+                  </label>
+                  {!user && (
+                    <span className="text-[10px] text-amber-600 font-bold">
+                      Login required to apply
+                    </span>
+                  )}
+                </div>
 
                 {appliedPromo ? (
                   <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2.5 rounded-xl text-xs font-bold">
@@ -217,7 +279,7 @@ export default function CartPage() {
                       type="text"
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                      placeholder="e.g. WELCOME10"
+                      placeholder="e.g. KOSKOOL10, FIRSTSTEP"
                       className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs uppercase font-bold text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                     <button
@@ -264,13 +326,13 @@ export default function CartPage() {
                 )}
               </div>
 
-              <Link
-                href="/checkout"
+              <button
+                onClick={handleProceedToCheckout}
                 className="w-full inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-sm py-3.5 px-6 rounded-xl shadow-lg hover:shadow-brand-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0"
               >
                 <span>Proceed to Checkout</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>

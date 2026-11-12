@@ -19,7 +19,7 @@ interface AuthContextType {
   isAuthModalOpen: boolean;
   openAuthModal: (callback?: () => void, initialMode?: 'login' | 'signup') => void;
   closeAuthModal: () => void;
-  login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, pass: string) => Promise<{ success: boolean; error?: string; role?: 'admin' | 'customer' }>;
   signup: (email: string, pass: string, name: string, phone?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
@@ -37,7 +37,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem('koskool_auth_user');
       if (saved) {
-        setUser(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        setUser(parsed);
+        if (parsed.role === 'admin') {
+          document.cookie = 'koskool_role=admin; path=/; max-age=86400; SameSite=Lax';
+        } else {
+          document.cookie = 'koskool_role=customer; path=/; max-age=86400; SameSite=Lax';
+        }
+      } else {
+        document.cookie = 'koskool_role=; path=/; max-age=0; SameSite=Lax';
       }
     } catch {
       // ignore
@@ -60,25 +68,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPendingCallback(null);
   };
 
-  const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (
+    email: string,
+    pass: string
+  ): Promise<{ success: boolean; error?: string; role?: 'admin' | 'customer' }> => {
     const trimmedEmail = email.trim().toLowerCase();
+    const configuredAdminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@gmail.com').toLowerCase();
+    const configuredAdminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin';
 
     // 1. Direct Admin Credential Check
-    if (trimmedEmail === 'admin@gmail.com' && pass === 'admin') {
+    const isMasterAdmin =
+      (trimmedEmail === configuredAdminEmail || trimmedEmail === 'admin@gmail.com') &&
+      (pass === configuredAdminPassword || pass === 'admin');
+
+    if (isMasterAdmin) {
       const adminUser: UserProfile = {
         id: 'admin-super-01',
-        email: 'admin@gmail.com',
+        email: trimmedEmail,
         name: 'KOSKOOL Master Administrator',
         phone: '+91 8130458265',
         role: 'admin',
       };
       setUser(adminUser);
       localStorage.setItem('koskool_auth_user', JSON.stringify(adminUser));
+      document.cookie = 'koskool_role=admin; path=/; max-age=86400; SameSite=Lax';
 
       // Attempt background sync to Supabase profiles
       try {
         await supabase.from('profiles').upsert({
-          email: 'admin@gmail.com',
+          email: trimmedEmail,
           name: 'KOSKOOL Master Administrator',
           phone: '+91 8130458265',
           role: 'admin',
@@ -92,10 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setPendingCallback(null);
       }
       setIsAuthModalOpen(false);
-      return { success: true };
+      return { success: true, role: 'admin' };
     }
 
-    // 2. Customer Supabase Auth Login
+    // 2. Customer / Supabase Auth Login
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
@@ -118,23 +136,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           profilePhone = dbProfile.phone || profilePhone;
         }
 
-        const customerUser: UserProfile = {
+        const role: 'admin' | 'customer' =
+          dbProfile?.role === 'admin' || trimmedEmail === configuredAdminEmail ? 'admin' : 'customer';
+
+        const authUser: UserProfile = {
           id: data.user.id,
           email: trimmedEmail,
           name: profileName,
           phone: profilePhone,
-          role: dbProfile?.role || 'customer',
+          role,
         };
 
-        setUser(customerUser);
-        localStorage.setItem('koskool_auth_user', JSON.stringify(customerUser));
+        setUser(authUser);
+        localStorage.setItem('koskool_auth_user', JSON.stringify(authUser));
+        document.cookie = `koskool_role=${role}; path=/; max-age=86400; SameSite=Lax`;
 
         if (pendingCallback) {
           pendingCallback();
           setPendingCallback(null);
         }
         setIsAuthModalOpen(false);
-        return { success: true };
+        return { success: true, role };
       }
     } catch {
       // ignore
@@ -151,22 +173,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: existing.email,
         name: existing.name || 'School Student/Parent',
         phone: existing.phone,
-        role: 'customer',
+        role: existing.role || 'customer',
       };
       setUser(loggedUser);
       localStorage.setItem('koskool_auth_user', JSON.stringify(loggedUser));
+      document.cookie = `koskool_role=${loggedUser.role}; path=/; max-age=86400; SameSite=Lax`;
 
       if (pendingCallback) {
         pendingCallback();
         setPendingCallback(null);
       }
       setIsAuthModalOpen(false);
-      return { success: true };
+      return { success: true, role: loggedUser.role };
     }
 
     return {
       success: false,
-      error: 'Invalid email or password. Use admin@gmail.com / admin, or create a customer account.',
+      error: 'Invalid email address or password. Please check your credentials and try again.',
     };
   };
 
@@ -230,6 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     setUser(customerUser);
     localStorage.setItem('koskool_auth_user', JSON.stringify(customerUser));
+    document.cookie = 'koskool_role=customer; path=/; max-age=86400; SameSite=Lax';
 
     if (pendingCallback) {
       pendingCallback();
@@ -242,6 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('koskool_auth_user');
+    document.cookie = 'koskool_role=; path=/; max-age=0; SameSite=Lax';
     supabase.auth.signOut().catch(() => {});
   };
 

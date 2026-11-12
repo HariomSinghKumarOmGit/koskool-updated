@@ -46,6 +46,40 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>(INITIAL_PROMO_CODES);
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
 
+  // Helper to load promo codes from localStorage syncing with koskool_promos_cache
+  const loadStoredPromos = (): PromoCode[] => {
+    try {
+      // Check primary cache first
+      const apiCache = localStorage.getItem('koskool_promos_cache');
+      const standardCache = localStorage.getItem('koskool_promocodes');
+
+      if (apiCache) {
+        const parsed = JSON.parse(apiCache);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((p: any) => ({
+            id: p.id || `pr-${Math.random()}`,
+            code: (p.code || '').toUpperCase(),
+            discountType: p.discount_type || p.discountType || 'percentage',
+            discountValue: Number(p.discount_value || p.discountValue || 10),
+            minOrderValue: Number(p.min_order_amount || p.minOrderValue || 0),
+            maxDiscount: p.max_discount_amount || p.maxDiscount,
+            description: p.description || '',
+            isActive: p.is_active !== undefined ? p.is_active : p.isActive !== undefined ? p.isActive : true,
+            usageCount: p.usage_count || p.usageCount || 0,
+            createdAt: p.created_at || '2026-01-01',
+          }));
+        }
+      }
+
+      if (standardCache) {
+        return JSON.parse(standardCache);
+      }
+    } catch {
+      // ignore
+    }
+    return INITIAL_PROMO_CODES;
+  };
+
   // Load cart and promo codes from localStorage on mount
   useEffect(() => {
     try {
@@ -54,12 +88,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setItems(JSON.parse(savedCart));
       }
 
-      const savedPromos = localStorage.getItem('koskool_promocodes');
-      if (savedPromos) {
-        setPromoCodes(JSON.parse(savedPromos));
-      } else {
-        localStorage.setItem('koskool_promocodes', JSON.stringify(INITIAL_PROMO_CODES));
-      }
+      const loadedPromos = loadStoredPromos();
+      setPromoCodes(loadedPromos);
 
       const savedApplied = localStorage.getItem('koskool_applied_promo');
       if (savedApplied) {
@@ -79,10 +109,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items]);
 
-  // Save promo codes to localStorage on changes
+  // Save promo codes to localStorage in both formats on changes
   useEffect(() => {
     try {
       localStorage.setItem('koskool_promocodes', JSON.stringify(promoCodes));
+
+      // Also sync to koskool_promos_cache
+      const forApi = promoCodes.map((p) => ({
+        id: p.id,
+        code: p.code,
+        description: p.description,
+        discount_type: p.discountType,
+        discount_value: p.discountValue,
+        min_order_amount: p.minOrderValue,
+        max_discount_amount: p.maxDiscount,
+        is_active: p.isActive,
+        usage_count: p.usageCount,
+      }));
+      localStorage.setItem('koskool_promos_cache', JSON.stringify(forApi));
     } catch {
       // ignore
     }
@@ -164,7 +208,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Calculate discount dynamically based on applied promo code and subtotal
   const discountAmount = useMemo(() => {
     if (!appliedPromo) return 0;
-    // Check if subtotal still meets min order requirement
     if (subtotal < appliedPromo.minOrderValue) return 0;
 
     if (appliedPromo.discountType === 'percentage') {
@@ -186,12 +229,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Apply promo code action
   const applyPromoCode = (codeStr: string) => {
+    // Refresh promo codes from storage in case newly added in another tab
+    const freshPromos = loadStoredPromos();
+    setPromoCodes(freshPromos);
+
     const cleanCode = codeStr.trim().toUpperCase();
     if (!cleanCode) {
       return { success: false, message: 'Please enter a promo code.' };
     }
 
-    const found = promoCodes.find((p) => p.code.toUpperCase() === cleanCode);
+    const found = freshPromos.find((p) => p.code.toUpperCase() === cleanCode);
     if (!found) {
       return { success: false, message: `Promo code "${cleanCode}" is invalid.` };
     }
@@ -212,7 +259,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setAppliedPromo(found);
     return {
       success: true,
-      message: `Promo code "${found.code}" applied! You saved with ${
+      message: `Promo code "${found.code}" applied! You saved ${
         found.discountType === 'percentage' ? `${found.discountValue}% OFF` : `₹${found.discountValue} Flat OFF`
       }.`,
     };
