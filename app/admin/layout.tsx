@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   ChevronRight,
   Plus,
+  SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 
 interface NavItem {
@@ -32,10 +34,11 @@ interface NavItem {
 
 const NAVIGATION: NavItem[] = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'Products', href: '/admin/products', icon: Package },
+  { name: 'Homepage & Layout', href: '/admin/homepage', icon: SlidersHorizontal, badge: 'Live Order' },
+  { name: 'Hero Slides', href: '/admin/hero', icon: ImageIcon },
   { name: 'Categories', href: '/admin/categories', icon: Layers },
-  { name: 'Promotional Board', href: '/admin/banners', icon: ImageIcon },
-  { name: 'Hero Section (Locked)', href: '/admin/hero', icon: Lock },
+  { name: 'Products', href: '/admin/products', icon: Package },
+  { name: 'Promotional Board', href: '/admin/banners', icon: Sparkles },
   { name: 'Deliveries / Orders', href: '/admin/orders', icon: Truck },
   { name: 'Messages & Quotes', href: '/admin/inquiries', icon: MessageSquare },
   { name: 'Promo Codes', href: '/admin/promo-codes', icon: TicketPercent },

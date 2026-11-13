@@ -145,7 +145,7 @@ export default function ProductFilters({
         <div className="space-y-2.5 pt-3 border-t border-gray-100">
           <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">Size (UK/India)</h4>
           <div className="flex flex-wrap gap-1.5">
-            {availableSizes.map((sz) => {
+            {availableSizes.slice(0, 5).map((sz) => {
               const selected = filters.sizes.includes(sz);
               return (
                 <button
@@ -170,7 +170,7 @@ export default function ProductFilters({
         <div className="space-y-2.5 pt-3 border-t border-gray-100">
           <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">Colour</h4>
           <div className="space-y-1.5">
-            {availableColours.map((c) => (
+            {availableColours.slice(0, 5).map((c) => (
               <label key={c} className="flex items-center gap-2.5 text-xs text-gray-700 cursor-pointer select-none">
                 <input
                   type="checkbox"

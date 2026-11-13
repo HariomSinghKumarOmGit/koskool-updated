@@ -46,8 +46,7 @@ function BannerProductCard({ product }: { product: Product }) {
     setAdded(true);
     setTimeout(() => {
       setAdded(false);
-      openCartDrawer();
-    }, 600);
+    }, 1200);
   };
 
   const imageSrc = product.images[0] || '/cdn/shop/files/WGP53410-TAN-GENTS_7608173e-b30c-4214-ad1d-02182418d1a2.v_1786511338_width_1600.jpg';

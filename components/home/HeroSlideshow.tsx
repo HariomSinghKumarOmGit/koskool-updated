@@ -4,81 +4,117 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Pause, Play, Sparkles } from 'lucide-react';
 
-interface Slide {
-  id: number;
-  desktopImage: string;
-  mobileImage: string;
-  badge: string;
-  title: string;
-  subtitle: string;
-  primaryCtaText: string;
-  primaryCtaLink: string;
-  secondaryCtaText: string;
-  secondaryCtaLink: string;
-  tertiaryCtaText: string;
-  tertiaryCtaLink: string;
+
+import {
+  getHeroSlides,
+  HeroSlide,
+  DEFAULT_HERO_SLIDES,
+  getPromotionalBanners,
+  PromotionalBanner,
+} from '@/services/api';
+
+// Combines the hard-coded static hero slides with active promotional board banners
+function combineSlidesAndBanners(
+  baseHeroSlides: HeroSlide[],
+  promotionalBanners: PromotionalBanner[]
+): HeroSlide[] {
+  // Always ensure all 3 static hard-coded slides are active and present
+  const base = (baseHeroSlides && baseHeroSlides.length > 0 ? baseHeroSlides : DEFAULT_HERO_SLIDES)
+    .filter((s) => s.is_active !== false)
+    .sort((a, b) => (Number(a.display_order) || 0) - (Number(b.display_order) || 0));
+
+  const activePromos = (promotionalBanners || [])
+    .filter((b) => b.is_active)
+    .sort((a, b) => (Number(a.display_order) || 1) - (Number(b.display_order) || 1));
+
+  if (activePromos.length === 0) {
+    return base;
+  }
+
+  // Start with all static slides so they are NEVER lost or overwritten
+  const combined: HeroSlide[] = [...base];
+
+  // Insert each promotional banner at its exact requested 1-based position number
+  for (const promo of activePromos) {
+    const promoSlide: HeroSlide = {
+      id: `promo-${promo.id}`,
+      desktopImage: promo.image_url,
+      mobileImage: promo.image_url,
+      badge: promo.badge || 'SPECIAL PROMO',
+      title: promo.title,
+      subtitle: promo.subtitle,
+      primaryCtaText: promo.primary_cta_text || 'Shop Now',
+      primaryCtaLink: promo.primary_cta_link || '/collections/boys',
+      secondaryCtaText: promo.secondary_cta_text || 'Explore Collection',
+      secondaryCtaLink: promo.secondary_cta_link || '/collections/girls',
+      tertiaryCtaText: 'Explore Accessories',
+      tertiaryCtaLink: '/collections/accessories',
+      display_order: Number(promo.display_order) || 1,
+      is_active: true,
+    };
+
+    // 1-based position number -> 0-based insert index
+    const targetIndex = Math.max(0, Math.min(combined.length, (Number(promo.display_order) || 1) - 1));
+    combined.splice(targetIndex, 0, promoSlide);
+  }
+
+  return combined;
 }
 
-const SLIDES: Slide[] = [
-  {
-    id: 1,
-    desktopImage: '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg',
-    mobileImage: '/cdn/shop/files/School-Mobile-Banner_fbefffb6-4e80-496e-83b5-bf4a835d0fad.v_1767783342_width_1000.jpg',
-    badge: 'KOSKOOL OFFICIAL 2026',
-    title: 'Every Step Begins with KOSKOOL.',
-    subtitle: 'Discover school-ready footwear and everyday essentials for every stage of their school journey.',
-    primaryCtaText: 'Shop Boys',
-    primaryCtaLink: '/collections/boys',
-    secondaryCtaText: 'Shop Girls',
-    secondaryCtaLink: '/collections/girls',
-    tertiaryCtaText: 'Explore Accessories',
-    tertiaryCtaLink: '/collections/accessories',
-  },
-  {
-    id: 2,
-    desktopImage: '/cdn/shop/files/Sports-Shoe-Web-Banner_934e3fd0-00bd-4c35-a071-b8943d6e32a6.v_1778128141_width_5760.jpg',
-    mobileImage: '/cdn/shop/files/Sports-Shoe-Mobile-Web-Banner_69c9e92b-1fbd-4f10-b3ec-b73554dfe45c.v_1778128140_width_1000.jpg',
-    badge: 'PT & SPORTS UNIFORM',
-    title: 'Built for High-Speed Drills & PT Days.',
-    subtitle: 'Non-marking white sports soles with honeycomb shock-absorption for all sports grounds.',
-    primaryCtaText: "Boys' Sports",
-    primaryCtaLink: '/collections/boys-sports-shoes-middle-wing',
-    secondaryCtaText: "Girls' Sports",
-    secondaryCtaLink: '/collections/girls-sports-shoes-middle-wing',
-    tertiaryCtaText: 'Explore Bags',
-    tertiaryCtaLink: '/collections/bags',
-  },
-  {
-    id: 3,
-    desktopImage: '/cdn/shop/files/Kids-Banner.v_1768369268_width_5760.jpg',
-    mobileImage: '/cdn/shop/files/Kids-Mobile-Banner.v_1768369268_width_1000.jpg',
-    badge: 'KINDERGARTEN SPECIAL',
-    title: 'Tiny Steps, Sturdy Foundations.',
-    subtitle: 'Easy-strap velcro shoes and lightweight bags engineered for nursery & junior students.',
-    primaryCtaText: 'Kindergarten Footwear',
-    primaryCtaLink: '/collections/kindergarten',
-    secondaryCtaText: 'Kids Accessories',
-    secondaryCtaLink: '/collections/kids-accessories',
-    tertiaryCtaText: 'Junior Bags',
-    tertiaryCtaLink: '/collections/kids-school-bags',
-  },
-];
-
 export default function HeroSlideshow() {
+  const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDynamicSlides() {
+      try {
+        const [loadedHero, loadedPromos] = await Promise.all([
+          getHeroSlides().catch(() => DEFAULT_HERO_SLIDES),
+          getPromotionalBanners().catch(() => []),
+        ]);
+
+        if (isMounted) {
+          const merged = combineSlidesAndBanners(loadedHero, loadedPromos);
+          if (merged.length > 0) {
+            setSlides(merged);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load hero slides:', err);
+      }
+    }
+
+    loadDynamicSlides();
+
+    const handleUpdate = () => {
+      loadDynamicSlides();
+    };
+
+    window.addEventListener('koskool_homepage_config_updated', handleUpdate);
+    window.addEventListener('koskool_data_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('koskool_homepage_config_updated', handleUpdate);
+      window.removeEventListener('koskool_data_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && slides.length > 0) {
       timerRef.current = setInterval(() => {
         nextSlide();
       }, 5500);
@@ -86,9 +122,10 @@ export default function HeroSlideshow() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, currentSlide]);
+  }, [isPlaying, currentSlide, slides.length]);
 
-  const active = SLIDES[currentSlide];
+  const activeIndex = currentSlide < slides.length ? currentSlide : 0;
+  const active = slides[activeIndex] || DEFAULT_HERO_SLIDES[0];
 
   return (
     <div
@@ -98,11 +135,11 @@ export default function HeroSlideshow() {
     >
       {/* Visual Banner Area - 100% clean, no text collision, subjects in forefront */}
       <div className="relative w-full aspect-[1000/1250] md:aspect-[5760/2345] max-h-[82vh] overflow-hidden group">
-        {SLIDES.map((slide, idx) => (
+        {slides.map((slide, idx) => (
           <div
             key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-              idx === currentSlide ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
+            className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
+              idx === activeIndex ? 'opacity-100 z-10 pointer-events-auto' : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
             <Link
@@ -115,7 +152,7 @@ export default function HeroSlideshow() {
                 <img
                   src={slide.desktopImage}
                   alt={slide.title}
-                  className="w-full h-full object-cover md:object-contain object-center"
+                  className="w-full h-full object-cover object-center"
                   loading={idx === 0 ? 'eager' : 'lazy'}
                 />
               </picture>
@@ -188,12 +225,12 @@ export default function HeroSlideshow() {
             {/* Slider Dots & Autoplay toggle */}
             <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-white/15">
               <div className="flex items-center gap-1.5">
-                {SLIDES.map((_, idx) => (
+                {slides.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentSlide(idx)}
                     className={`h-2 transition-all duration-300 rounded-full ${
-                      idx === currentSlide
+                      idx === activeIndex
                         ? 'w-7 bg-brand-500 shadow-sm'
                         : 'w-2 bg-white/40 hover:bg-white/70'
                     }`}

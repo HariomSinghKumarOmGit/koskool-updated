@@ -30,18 +30,27 @@ export default function PopularSchoolPicks() {
 
   useEffect(() => {
     let isMounted = true;
-    getPreviewProducts({
-      filter: activeTab === 'all' ? 'popular' : 'all',
-      category: activeTab === 'all' ? 'all' : activeTab,
-      limit: 10,
-    }).then((items) => {
-      if (isMounted && items && items.length > 0) {
-        setProducts(items);
-      }
-    });
+    const fetchItems = () => {
+      getPreviewProducts({
+        filter: 'all',
+        category: activeTab === 'all' ? 'all' : activeTab,
+        limit: 12,
+      }).then((items) => {
+        if (isMounted && items && items.length > 0) {
+          setProducts(items);
+        }
+      });
+    };
+
+    fetchItems();
+
+    window.addEventListener('koskool_products_updated', fetchItems);
+    window.addEventListener('storage', fetchItems);
 
     return () => {
       isMounted = false;
+      window.removeEventListener('koskool_products_updated', fetchItems);
+      window.removeEventListener('storage', fetchItems);
     };
   }, [activeTab]);
 
@@ -66,7 +75,7 @@ export default function PopularSchoolPicks() {
   };
 
   return (
-    <section className="py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
+    <section className="scroll-mt-24 py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
           <div className="space-y-2 max-w-2xl">

@@ -63,9 +63,9 @@ export const PRODUCTS: Product[] = [
     price: 479,
     originalPrice: 599,
     discountPercent: 20,
-    gender: 'boys',
-    schoolLevel: ['middle-wing', 'senior-wing'],
-    productType: 'school-shoes',
+    gender: 'mens',
+    schoolLevel: [],
+    productType: 'sandals',
     sizes: ['6', '7', '8', '9', '10'],
     colours: ['Tan', 'Olive', 'Brown', 'Black'],
     primaryColour: 'Tan',
@@ -370,8 +370,9 @@ export const PRODUCTS: Product[] = [
     colours: ['Black'],
     primaryColour: 'Black',
     images: [
-      '/cdn/shop/files/WGE53354-BLACK-GENTS_4d4814a1-64d8-45b9-a7b8-722cf22d3c8e.v_1786511261_width_1600.jpg',
-      '/cdn/shop/files/W1030-BLACK-GENTS_37127caa-12a4-4e9c-914b-f06d017577a5.v_1786513424_width_1600.jpg',
+      '/cdn/shop/files/wv502-black-kids_2_1_1_cfc2bfd3-3fbc-4a7e-b6ec-b0fb79d563ee-xllili.v_1786513107_width_1200.jpg',
+      '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      '/cdn/shop/files/wv502-black-kids_3_1_1_b78da248-35cc-4ce4-93f8-d30088c45e81-gyn8mu.v_1786513107_width_1200.jpg',
     ],
     rating: 4.9,
     reviewCount: 412,
@@ -424,8 +425,9 @@ export const PRODUCTS: Product[] = [
     colours: ['Black'],
     primaryColour: 'Black',
     images: [
-      '/cdn/shop/files/WC4713-BLACK-GENTS-1_849cfb04-8054-440c-8678-773e22576047.v_1786512675_width_1600.jpg',
-      '/cdn/shop/files/WGP58090-BLACK-GENTS_b5b4c509-016f-4659-b460-d6d86ffac5b8.v_1787997065_width_1600.jpg',
+      '/cdn/shop/files/wv502-black-kids_3_1_1_b78da248-35cc-4ce4-93f8-d30088c45e81-gyn8mu.v_1786513107_width_1200.jpg',
+      '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      '/cdn/shop/files/wv502-black-kids_2_1_1_cfc2bfd3-3fbc-4a7e-b6ec-b0fb79d563ee-xllili.v_1786513107_width_1200.jpg',
     ],
     rating: 4.9,
     reviewCount: 248,
@@ -592,8 +594,9 @@ export const PRODUCTS: Product[] = [
     colours: ['Black'],
     primaryColour: 'Black',
     images: [
-      '/cdn/shop/files/WE2362-Black-Ladies_37f3a155-dc4d-48d2-97a2-c5d95c6c7d49.v_1786512084_width_1600.jpg',
-      '/cdn/shop/files/WLP72046-BLACK-LADIES_41b98928-a58a-4372-9e7a-51b28c1dd8f1.v_1786511270_width_1600.jpg',
+      '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      '/cdn/shop/files/wv502-black-kids_5_1_1_9bcd70d3-22e9-4b4b-b284-4ab342eee4d2-1parwzm.v_1786513107_width_1200.jpg',
+      '/cdn/shop/files/wv502-black-kids_2_1_1_cfc2bfd3-3fbc-4a7e-b6ec-b0fb79d563ee-xllili.v_1786513107_width_1200.jpg',
     ],
     rating: 4.9,
     reviewCount: 420,
@@ -619,8 +622,8 @@ export const PRODUCTS: Product[] = [
     colours: ['Black'],
     primaryColour: 'Black',
     images: [
-      '/cdn/shop/files/WLP74038-BLACK-LADIES_d907da5e-41b3-4f74-bb9a-6930ae5ba1df.v_1786511253_width_416.jpg',
-      '/cdn/shop/files/WS9166-Black_47efd3ba-3c7a-4204-96bc-eabc164ccfd3.v_1786511809_width_416.jpg',
+      '/cdn/shop/files/wv502-black-kids_4_1_1_28dd9409-7b94-4c81-b85b-01d9daa1bd06-18er2km.v_1786513107_width_1200.jpg',
+      '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
     ],
     rating: 4.8,
     reviewCount: 310,
@@ -1160,140 +1163,146 @@ export const PRODUCTS: Product[] = [
 ];
 
 // Helper functions for filtering products across collections
-export function getProductsByCollection(slug: string): Product[] {
+export function filterProductsByCollection(productList: Product[], slug: string): Product[] {
   switch (slug) {
     // BOYS FOOTWEAR (9 collections)
     case 'boys-school-shoes-kindergarten':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'school-shoes' && p.schoolLevel.includes('kindergarten'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'school-shoes' && p.schoolLevel.includes('kindergarten'));
     case 'boys-school-shoes-middle-wing':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'school-shoes' && p.schoolLevel.includes('middle-wing'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'school-shoes' && p.schoolLevel.includes('middle-wing'));
     case 'boys-school-shoes-senior-wing':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'school-shoes' && p.schoolLevel.includes('senior-wing'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'school-shoes' && p.schoolLevel.includes('senior-wing'));
 
     case 'boys-sports-shoes-kindergarten':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'sports-shoes' && p.schoolLevel.includes('kindergarten'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'sports-shoes' && p.schoolLevel.includes('kindergarten'));
     case 'boys-sports-shoes-middle-wing':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'sports-shoes' && p.schoolLevel.includes('middle-wing'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'sports-shoes' && p.schoolLevel.includes('middle-wing'));
     case 'boys-sports-shoes-senior-wing':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'sports-shoes' && p.schoolLevel.includes('senior-wing'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'sports-shoes' && p.schoolLevel.includes('senior-wing'));
 
     case 'boys-fabric-shoes-kindergarten':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'fabric-shoes' && p.schoolLevel.includes('kindergarten'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'fabric-shoes' && p.schoolLevel.includes('kindergarten'));
     case 'boys-fabric-shoes-middle-wing':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'fabric-shoes' && p.schoolLevel.includes('middle-wing'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'fabric-shoes' && p.schoolLevel.includes('middle-wing'));
     case 'boys-fabric-shoes-senior-wing':
-      return PRODUCTS.filter((p) => p.gender === 'boys' && p.productType === 'fabric-shoes' && p.schoolLevel.includes('senior-wing'));
+      return productList.filter((p) => (p.gender === 'boys' || p.gender === 'unisex') && p.productType === 'fabric-shoes' && p.schoolLevel.includes('senior-wing'));
 
     // GIRLS FOOTWEAR (9 collections)
     case 'girls-school-shoes-kindergarten':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'school-shoes' && p.schoolLevel.includes('kindergarten'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'school-shoes' && p.schoolLevel.includes('kindergarten'));
     case 'girls-school-shoes-middle-wing':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'school-shoes' && p.schoolLevel.includes('middle-wing'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'school-shoes' && p.schoolLevel.includes('middle-wing'));
     case 'girls-school-shoes-senior-wing':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'school-shoes' && p.schoolLevel.includes('senior-wing'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'school-shoes' && p.schoolLevel.includes('senior-wing'));
 
     case 'girls-sports-shoes-kindergarten':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'sports-shoes' && p.schoolLevel.includes('kindergarten'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'sports-shoes' && p.schoolLevel.includes('kindergarten'));
     case 'girls-sports-shoes-middle-wing':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'sports-shoes' && p.schoolLevel.includes('middle-wing'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'sports-shoes' && p.schoolLevel.includes('middle-wing'));
     case 'girls-sports-shoes-senior-wing':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'sports-shoes' && p.schoolLevel.includes('senior-wing'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'sports-shoes' && p.schoolLevel.includes('senior-wing'));
 
     case 'girls-fabric-shoes-kindergarten':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'fabric-shoes' && p.schoolLevel.includes('kindergarten'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'fabric-shoes' && p.schoolLevel.includes('kindergarten'));
     case 'girls-fabric-shoes-middle-wing':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'fabric-shoes' && p.schoolLevel.includes('middle-wing'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'fabric-shoes' && p.schoolLevel.includes('middle-wing'));
     case 'girls-fabric-shoes-senior-wing':
-      return PRODUCTS.filter((p) => p.gender === 'girls' && p.productType === 'fabric-shoes' && p.schoolLevel.includes('senior-wing'));
+      return productList.filter((p) => (p.gender === 'girls' || p.gender === 'unisex') && p.productType === 'fabric-shoes' && p.schoolLevel.includes('senior-wing'));
 
     // HIGH-LEVEL PARENT SHORTCUTS
     case 'boys':
-      return PRODUCTS.filter((p) => p.gender === 'boys' || p.gender === 'unisex');
+      return productList.filter((p) => p.gender === 'boys' || p.gender === 'unisex');
     case 'girls':
-      return PRODUCTS.filter((p) => p.gender === 'girls' || p.gender === 'unisex');
+      return productList.filter((p) => p.gender === 'girls' || p.gender === 'unisex');
     case 'school-shoes':
-      return PRODUCTS.filter((p) => p.productType === 'school-shoes');
+      return productList.filter((p) => p.productType === 'school-shoes');
     case 'sports-shoes':
-      return PRODUCTS.filter((p) => p.productType === 'sports-shoes');
+      return productList.filter((p) => p.productType === 'sports-shoes');
     case 'fabric-shoes':
-      return PRODUCTS.filter((p) => p.productType === 'fabric-shoes');
+      return productList.filter((p) => p.productType === 'fabric-shoes');
+    case 'sandals':
+      return productList.filter((p) => p.productType === 'sandals');
     case 'kindergarten':
-      return PRODUCTS.filter((p) => p.schoolLevel.includes('kindergarten'));
+      return productList.filter((p) => p.schoolLevel && p.schoolLevel.includes('kindergarten'));
     case 'middle-wing':
-      return PRODUCTS.filter((p) => p.schoolLevel.includes('middle-wing'));
+      return productList.filter((p) => p.schoolLevel && p.schoolLevel.includes('middle-wing'));
     case 'senior-wing':
-      return PRODUCTS.filter((p) => p.schoolLevel.includes('senior-wing'));
+      return productList.filter((p) => p.schoolLevel && p.schoolLevel.includes('senior-wing'));
 
     // BOYS ACCESSORIES
     case 'boys-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && (p.gender === 'boys' || p.gender === 'unisex'));
+      return productList.filter((p) => p.productType === 'accessories' && (p.gender === 'boys' || p.gender === 'unisex'));
     case 'boys-bag-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'bag-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'bag-accessories');
     case 'boys-geometry-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'geometry-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'geometry-accessories');
     case 'boys-stationery-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && (p.accessoryCategory === 'stationery-accessories' || p.accessoryCategory === 'pencil-cases'));
+      return productList.filter((p) => p.productType === 'accessories' && (p.accessoryCategory === 'stationery-accessories' || p.accessoryCategory === 'pencil-cases'));
     case 'boys-school-essentials':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'school-essentials');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'school-essentials');
     case 'boys-water-bottles':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'water-bottles');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'water-bottles');
     case 'boys-pencil-cases':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'pencil-cases');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'pencil-cases');
 
     // GIRLS ACCESSORIES
     case 'girls-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && (p.gender === 'girls' || p.gender === 'unisex'));
+      return productList.filter((p) => p.productType === 'accessories' && (p.gender === 'girls' || p.gender === 'unisex'));
     case 'girls-hair-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'hair-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'hair-accessories');
     case 'girls-bag-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'bag-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'bag-accessories');
     case 'girls-dress-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'dress-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'dress-accessories');
     case 'girls-stationery-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && (p.accessoryCategory === 'stationery-accessories' || p.accessoryCategory === 'pencil-cases'));
+      return productList.filter((p) => p.productType === 'accessories' && (p.accessoryCategory === 'stationery-accessories' || p.accessoryCategory === 'pencil-cases'));
     case 'girls-school-essentials':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'school-essentials');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'school-essentials');
     case 'girls-water-bottles':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'water-bottles');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'water-bottles');
     case 'girls-pencil-cases':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'pencil-cases');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'pencil-cases');
 
     // KIDS ACCESSORIES
     case 'kids-accessories':
     case 'accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories');
+      return productList.filter((p) => p.productType === 'accessories');
     case 'kids-head-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'head-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'head-accessories');
     case 'kids-face-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'face-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'face-accessories');
     case 'kids-hair-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'hair-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'hair-accessories');
     case 'kids-bag-accessories':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'bag-accessories');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'bag-accessories');
     case 'kids-school-essentials':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'school-essentials');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'school-essentials');
     case 'kids-water-bottles':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'water-bottles');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'water-bottles');
     case 'kids-pencil-cases':
-      return PRODUCTS.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'pencil-cases');
+      return productList.filter((p) => p.productType === 'accessories' && p.accessoryCategory === 'pencil-cases');
 
     // BAGS
     case 'bags':
-      return PRODUCTS.filter((p) => p.productType === 'bags');
+      return productList.filter((p) => p.productType === 'bags');
     case 'boys-school-bags':
-      return PRODUCTS.filter((p) => p.productType === 'bags' && (p.gender === 'boys' || p.gender === 'unisex'));
+      return productList.filter((p) => p.productType === 'bags' && (p.gender === 'boys' || p.gender === 'unisex'));
     case 'girls-school-bags':
-      return PRODUCTS.filter((p) => p.productType === 'bags' && (p.gender === 'girls' || p.gender === 'unisex'));
+      return productList.filter((p) => p.productType === 'bags' && (p.gender === 'girls' || p.gender === 'unisex'));
     case 'kids-school-bags':
-      return PRODUCTS.filter((p) => p.productType === 'bags' && (p.gender === 'kids' || p.schoolLevel.includes('kindergarten')));
+      return productList.filter((p) => p.productType === 'bags' && (p.gender === 'kids' || (p.schoolLevel && p.schoolLevel.includes('kindergarten'))));
     case 'school-backpacks':
-      return PRODUCTS.filter((p) => p.productType === 'bags' && (p.bagCategory === 'school-backpacks' || p.bagCategory === 'multi-compartment-bags'));
+      return productList.filter((p) => p.productType === 'bags' && (p.bagCategory === 'school-backpacks' || p.bagCategory === 'multi-compartment-bags' || !p.bagCategory));
     case 'multi-compartment-bags':
-      return PRODUCTS.filter((p) => p.productType === 'bags' && p.bagCategory === 'multi-compartment-bags');
+      return productList.filter((p) => p.productType === 'bags' && (p.bagCategory === 'multi-compartment-bags' || p.name.toLowerCase().includes('multi-compartment') || p.description.toLowerCase().includes('compartment')));
 
     default:
-      return PRODUCTS;
+      return productList;
   }
+}
+
+export function getProductsByCollection(slug: string): Product[] {
+  return filterProductsByCollection(PRODUCTS, slug);
 }
 
 export function getCollectionTitle(slug: string): { title: string; subtitle: string; category: string } {

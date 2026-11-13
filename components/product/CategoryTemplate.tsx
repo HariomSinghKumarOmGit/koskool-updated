@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/data/products';
@@ -20,6 +20,10 @@ export interface CategoryTemplateProps {
   category?: string;
   badge?: string;
   products: Product[];
+  allCatalogProducts?: Product[];
+  initialGender?: string;
+  initialProductType?: string;
+  initialSchoolLevel?: string;
   showBanner?: boolean;
 }
 
@@ -29,16 +33,44 @@ export default function CategoryTemplate({
   category = 'Collection',
   badge = 'Official Walkaroo & KOSKOOL',
   products: baseProducts,
+  allCatalogProducts,
+  initialGender,
+  initialProductType,
+  initialSchoolLevel,
   showBanner = true,
 }: CategoryTemplateProps) {
-  // Drawer open state (smooth left-to-right transition)
+  // Drawer open state (smooth left-to-right transition or static sidebar)
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   // Active subcategory tab
   const [activeSubcategory, setActiveSubcategory] = useState<string>('all');
 
+  // Master product pool (if allCatalogProducts is passed, use it so user can cross-filter)
+  const masterProducts = useMemo(() => {
+    return allCatalogProducts && allCatalogProducts.length > 0 ? allCatalogProducts : baseProducts;
+  }, [allCatalogProducts, baseProducts]);
+
+  // Filter states
+  const [selectedGenders, setSelectedGenders] = useState<string[]>(() => {
+    if (initialGender) return [initialGender];
+    return [];
+  });
+  const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>(() => {
+    if (initialProductType) return [initialProductType];
+    return [];
+  });
+  const [selectedSchoolLevels, setSelectedSchoolLevels] = useState<string[]>(() => {
+    if (initialSchoolLevel) return [initialSchoolLevel];
+    return [];
+  });
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [selectedColours, setSelectedColours] = useState<string[]>([]);
+
   // Accordion section states inside filter drawer
   const [accordionState, setAccordionState] = useState<{ [key: string]: boolean }>({
+    gender: true,
+    category: true,
+    schoolLevel: true,
     size: true,
     colour: true,
     price: true,
@@ -48,19 +80,147 @@ export default function CategoryTemplate({
     setAccordionState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Filter states
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [selectedColours, setSelectedColours] = useState<string[]>([]);
-  const [priceMax, setPriceMax] = useState<number>(2500);
+  // Determine dynamic collection min and max prices
+  const { minCollectionPrice, maxCollectionPrice } = useMemo(() => {
+    if (!masterProducts || masterProducts.length === 0) {
+      return { minCollectionPrice: 0, maxCollectionPrice: 2500 };
+    }
+    const prices = masterProducts.map((p) => p.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return {
+      minCollectionPrice: Math.floor(min / 50) * 50,
+      maxCollectionPrice: Math.ceil(max / 50) * 50,
+    };
+  }, [masterProducts]);
+
+  const [priceMax, setPriceMax] = useState<number>(() => maxCollectionPrice || 2500);
   const [priceMin, setPriceMin] = useState<number>(0);
   const [sortBy, setSortBy] = useState<string>('featured');
 
+  // Keep priceMax updated if collection changes and price hasn't been manually adjusted
+  useEffect(() => {
+    if (maxCollectionPrice > 0) {
+      setPriceMax(maxCollectionPrice);
+    }
+  }, [maxCollectionPrice]);
+
+  // Gender options with live counts
+  const genderOptions = useMemo(() => {
+    const counts: Record<string, number> = {
+      boys: 0,
+      girls: 0,
+      kids: 0,
+    };
+    masterProducts.forEach((p) => {
+      const g = p.gender?.toLowerCase();
+      if (g === 'boys') counts.boys = (counts.boys || 0) + 1;
+      else if (g === 'girls') counts.girls = (counts.girls || 0) + 1;
+      else if (g === 'kids') counts.kids = (counts.kids || 0) + 1;
+      else if (g === 'unisex') {
+        counts.boys = (counts.boys || 0) + 1;
+        counts.girls = (counts.girls || 0) + 1;
+        counts.kids = (counts.kids || 0) + 1;
+      } else if (g) {
+        counts[g] = (counts[g] || 0) + 1;
+      }
+    });
+
+    const list: { id: string; label: string; count: number }[] = [
+      { id: 'boys', label: 'Boys', count: counts.boys || 0 },
+      { id: 'girls', label: 'Girls', count: counts.girls || 0 },
+      { id: 'kids', label: 'Kids / Unisex', count: counts.kids || 0 },
+    ];
+    if (counts.women) list.push({ id: 'women', label: 'Women', count: counts.women });
+    if (counts.mens) list.push({ id: 'mens', label: 'Mens', count: counts.mens });
+    return list;
+  }, [masterProducts]);
+
+  // Category filter options with counts
+  const categoryFilterOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    masterProducts.forEach((p) => {
+      if (selectedGenders.length > 0) {
+        const matchesGender = selectedGenders.some((g) => {
+          if (g === 'boys') return p.gender === 'boys' || p.gender === 'unisex';
+          if (g === 'girls') return p.gender === 'girls' || p.gender === 'unisex';
+          if (g === 'kids') return p.gender === 'kids' || p.gender === 'unisex';
+          if (g === 'women') return p.gender === 'women';
+          if (g === 'mens') return p.gender === 'mens';
+          return p.gender === g;
+        });
+        if (!matchesGender) return;
+      }
+      counts[p.productType] = (counts[p.productType] || 0) + 1;
+    });
+
+    const standard: { id: string; label: string }[] = [
+      { id: 'school-shoes', label: 'School Shoes' },
+      { id: 'sports-shoes', label: 'Sports & PT Shoes' },
+      { id: 'fabric-shoes', label: 'Canvas & Fabric (Fibre)' },
+      { id: 'bags', label: 'School Backpacks' },
+      { id: 'accessories', label: 'Accessories' },
+    ];
+
+    return standard
+      .map((item) => ({
+        ...item,
+        count: counts[item.id] || 0,
+      }))
+      .filter((item) => item.count > 0 || selectedProductTypes.includes(item.id));
+  }, [masterProducts, selectedGenders, selectedProductTypes]);
+
+  // School Wing options with counts
+  const schoolWingOptions = useMemo(() => {
+    const counts: Record<string, number> = {
+      kindergarten: 0,
+      'middle-wing': 0,
+      'senior-wing': 0,
+    };
+
+    masterProducts.forEach((p) => {
+      if (selectedGenders.length > 0) {
+        const matchesGender = selectedGenders.some((g) => {
+          if (g === 'boys') return p.gender === 'boys' || p.gender === 'unisex';
+          if (g === 'girls') return p.gender === 'girls' || p.gender === 'unisex';
+          if (g === 'kids') return p.gender === 'kids' || p.gender === 'unisex';
+          return p.gender === g;
+        });
+        if (!matchesGender) return;
+      }
+
+      if (p.schoolLevel) {
+        p.schoolLevel.forEach((lvl) => {
+          counts[lvl] = (counts[lvl] || 0) + 1;
+        });
+      }
+    });
+
+    return [
+      { id: 'kindergarten', label: 'Kindergarten', count: counts['kindergarten'] || 0 },
+      { id: 'middle-wing', label: 'Middle Wing', count: counts['middle-wing'] || 0 },
+      { id: 'senior-wing', label: 'Senior Wing', count: counts['senior-wing'] || 0 },
+    ].filter((item) => item.count > 0 || selectedSchoolLevels.includes(item.id));
+  }, [masterProducts, selectedGenders, selectedSchoolLevels]);
+
   // Dynamically compute subcategories with accurate live counts
   const subcategories = useMemo(() => {
+    const relevantPool = masterProducts.filter((p) => {
+      if (selectedGenders.length > 0) {
+        const matchGender = selectedGenders.some((g) => {
+          if (g === 'boys') return p.gender === 'boys' || p.gender === 'unisex';
+          if (g === 'girls') return p.gender === 'girls' || p.gender === 'unisex';
+          if (g === 'kids') return p.gender === 'kids' || p.gender === 'unisex';
+          return p.gender === g;
+        });
+        if (!matchGender) return false;
+      }
+      return true;
+    });
+
     const counts: Record<string, number> = {};
 
-    baseProducts.forEach((p) => {
-      // Group by productType or schoolLevel or category
+    relevantPool.forEach((p) => {
       if (p.productType === 'school-shoes') counts['School Shoes'] = (counts['School Shoes'] || 0) + 1;
       else if (p.productType === 'sports-shoes') counts['Sports & PT'] = (counts['Sports & PT'] || 0) + 1;
       else if (p.productType === 'fabric-shoes') counts['Canvas & Fabric'] = (counts['Canvas & Fabric'] || 0) + 1;
@@ -73,7 +233,7 @@ export default function CategoryTemplate({
     });
 
     const list = [
-      { id: 'all', label: 'All Items', count: baseProducts.length },
+      { id: 'all', label: 'All Items', count: relevantPool.length },
     ];
 
     Object.entries(counts).forEach(([label, count]) => {
@@ -83,14 +243,14 @@ export default function CategoryTemplate({
     // If only 1 category exists, sub-divide by school wing if available
     if (list.length <= 2) {
       const wingCounts: Record<string, number> = {};
-      baseProducts.forEach((p) => {
-        p.schoolLevel.forEach((lvl) => {
+      relevantPool.forEach((p) => {
+        p.schoolLevel?.forEach((lvl) => {
           const formatted = lvl.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
           wingCounts[formatted] = (wingCounts[formatted] || 0) + 1;
         });
       });
       if (Object.keys(wingCounts).length > 1) {
-        const wingList = [{ id: 'all', label: 'All Items', count: baseProducts.length }];
+        const wingList = [{ id: 'all', label: 'All Items', count: relevantPool.length }];
         Object.entries(wingCounts).forEach(([label, count]) => {
           wingList.push({ id: label, label, count });
         });
@@ -99,61 +259,193 @@ export default function CategoryTemplate({
     }
 
     return list;
-  }, [baseProducts]);
+  }, [masterProducts, selectedGenders]);
 
-  // Extract available sizes with live counts from this collection
+  // Extract available sizes with live counts from this collection (curated to top 4-5 sizes)
   const sizeCounts = useMemo(() => {
+    const relevantPool = masterProducts.filter((p) => {
+      if (selectedGenders.length > 0) {
+        const matchGender = selectedGenders.some((g) => {
+          if (g === 'boys') return p.gender === 'boys' || p.gender === 'unisex';
+          if (g === 'girls') return p.gender === 'girls' || p.gender === 'unisex';
+          if (g === 'kids') return p.gender === 'kids' || p.gender === 'unisex';
+          return p.gender === g;
+        });
+        if (!matchGender) return false;
+      }
+      return true;
+    });
+
     const counts: Record<string, number> = {};
-    baseProducts.forEach((p) => {
-      p.sizes.forEach((s) => {
+    relevantPool.forEach((p) => {
+      p.sizes?.forEach((s) => {
         counts[s] = (counts[s] || 0) + 1;
       });
     });
 
-    // Order logically
-    const allKnown = ['9C', '10C', '11C', '12C', '13C', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Standard'];
-    const present = Object.keys(counts);
-    const sorted = allKnown.filter((s) => present.includes(s));
-    present.forEach((s) => {
-      if (!sorted.includes(s)) sorted.push(s);
+    // Standard popular footwear sizes (4 to 5 sizes: 6, 7, 8, 9, 10)
+    const preferredSizes = ['6', '7', '8', '9', '10'];
+    const presentSizes = Object.keys(counts);
+
+    let topSizes: string[] = [];
+    const availablePreferred = preferredSizes.filter((s) => counts[s] && counts[s] > 0);
+
+    if (availablePreferred.length >= 4) {
+      topSizes = availablePreferred.slice(0, 5);
+    } else {
+      // Fallback: Pick top 5 most common sizes for specialized collections (e.g. kids)
+      const sortedByCount = [...presentSizes].sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
+      topSizes = sortedByCount.slice(0, 5);
+    }
+
+    // Always include any currently selected sizes so they remain toggleable
+    selectedSizes.forEach((sz) => {
+      if (!topSizes.includes(sz) && counts[sz] !== undefined) {
+        topSizes.push(sz);
+      }
     });
 
-    return sorted.map((sz) => ({
+    return topSizes.map((sz) => ({
       size: sz,
       count: counts[sz] || 0,
     }));
-  }, [baseProducts]);
+  }, [masterProducts, selectedGenders, selectedSizes]);
 
-  // Extract available colours present in this collection
+  // Extract available specific colours (curated to top 4-5 core colors)
   const colourPalette = useMemo(() => {
-    const defaultPalette = [
+    const COLOR_HEX_MAP: Record<string, string> = {
+      black: '#111827',
+      'deep black': '#0a0a0a',
+      'solid black': '#000000',
+      white: '#FFFFFF',
+      tan: '#D29054',
+      brown: '#633B18',
+      navy: '#1E3A8A',
+      'navy blue': '#1E3A8A',
+      blue: '#2563EB',
+      'sky blue': '#38BDF8',
+      teal: '#0D9488',
+      olive: '#556B2F',
+      grey: '#6B7280',
+      'slate grey': '#64748B',
+      'charcoal grey': '#374151',
+      maroon: '#800000',
+      pink: '#EC4899',
+      'pastel pink': '#F9A8D4',
+      'dusty rose': '#FDA4AF',
+      mauve: '#C084FC',
+      plum: '#581C87',
+      purple: '#7E22CE',
+      lilac: '#C4B5FD',
+      lavender: '#E9D5FF',
+      red: '#DC2626',
+      'red & navy': '#B91C1C',
+      'yellow & blue': '#FBBF24',
+      'fluorescent yellow': '#EAB308',
+      camel: '#C19A6B',
+      coffee: '#4A2E18',
+      peach: '#FDBA74',
+      rust: '#B45309',
+      silver: '#D1D5DB',
+      green: '#16A34A',
+    };
+
+    // 5 core footwear colors
+    const coreColors = [
       { name: 'Black', hex: '#111827' },
-      { name: 'White', hex: '#FFFFFF' },
-      { name: 'Tan', hex: '#D29054' },
       { name: 'Brown', hex: '#633B18' },
-      { name: 'Navy', hex: '#1E3A8A' },
-      { name: 'Blue', hex: '#3B82F6' },
-      { name: 'Olive', hex: '#556B2F' },
-      { name: 'Grey', hex: '#9CA3AF' },
-      { name: 'Maroon', hex: '#800000' },
-      { name: 'Pink', hex: '#F472B6' },
+      { name: 'Tan', hex: '#D29054' },
+      { name: 'Navy Blue', hex: '#1E3A8A' },
+      { name: 'White', hex: '#FFFFFF' },
     ];
 
-    // Filter to colours that exist in baseProducts if possible
-    const presentColours = new Set<string>();
-    baseProducts.forEach((p) => {
-      p.colours.forEach((c) => presentColours.add(c.toLowerCase()));
-      if (p.primaryColour) presentColours.add(p.primaryColour.toLowerCase());
+    const presentMap = new Map<string, string>();
+    const colorCounts: Record<string, number> = {};
+
+    masterProducts.forEach((p) => {
+      const pColours = [...(p.colours || []), ...(p.primaryColour ? [p.primaryColour] : [])];
+      pColours.forEach((c) => {
+        const clean = c.trim();
+        if (clean) {
+          const lk = clean.toLowerCase();
+          if (!presentMap.has(lk)) {
+            presentMap.set(lk, clean);
+          }
+          colorCounts[lk] = (colorCounts[lk] || 0) + 1;
+        }
+      });
     });
 
-    const matched = defaultPalette.filter((c) => presentColours.has(c.name.toLowerCase()));
-    return matched.length >= 3 ? matched : defaultPalette;
-  }, [baseProducts]);
+    // Check if the core colors have presence in this collection
+    const availableCore = coreColors.filter((core) => {
+      const lk = core.name.toLowerCase();
+      return (
+        presentMap.has(lk) ||
+        (lk === 'black' && (presentMap.has('deep black') || presentMap.has('solid black'))) ||
+        (lk === 'navy blue' && (presentMap.has('navy') || presentMap.has('blue'))) ||
+        (lk === 'brown' && (presentMap.has('coffee') || presentMap.has('rust'))) ||
+        (lk === 'tan' && presentMap.has('camel'))
+      );
+    });
+
+    let resultPalette: { name: string; hex: string }[] = [];
+    if (availableCore.length >= 4) {
+      resultPalette = availableCore.slice(0, 5);
+    } else {
+      // Fallback: pick top 5 most common colors in this collection
+      const sorted = Array.from(presentMap.entries())
+        .sort((a, b) => (colorCounts[b[0]] || 0) - (colorCounts[a[0]] || 0))
+        .slice(0, 5);
+
+      resultPalette = sorted.map(([lowerKey, displayName]) => ({
+        name: displayName,
+        hex: COLOR_HEX_MAP[lowerKey] || '#4B5563',
+      }));
+    }
+
+    // Always keep any selected colours visible so user can unselect them
+    selectedColours.forEach((sc) => {
+      if (!resultPalette.some((p) => p.name.toLowerCase() === sc.toLowerCase())) {
+        const lk = sc.toLowerCase();
+        resultPalette.push({
+          name: sc,
+          hex: COLOR_HEX_MAP[lk] || '#4B5563',
+        });
+      }
+    });
+
+    return resultPalette;
+  }, [masterProducts, selectedColours]);
 
   // Filter application
   const filteredProducts = useMemo(() => {
-    return baseProducts
+    return masterProducts
       .filter((p) => {
+        // Gender filter
+        if (selectedGenders.length > 0) {
+          const matchGender = selectedGenders.some((g) => {
+            if (g === 'boys') return p.gender === 'boys' || p.gender === 'unisex';
+            if (g === 'girls') return p.gender === 'girls' || p.gender === 'unisex';
+            if (g === 'kids') return p.gender === 'kids' || p.gender === 'unisex';
+            if (g === 'women') return p.gender === 'women' || (p.gender as string) === 'womens';
+            if (g === 'mens') return p.gender === 'mens';
+            return p.gender === g;
+          });
+          if (!matchGender) return false;
+        }
+
+        // Product type filter
+        if (selectedProductTypes.length > 0) {
+          const matchType = selectedProductTypes.includes(p.productType);
+          if (!matchType) return false;
+        }
+
+        // School level / wing filter
+        if (selectedSchoolLevels.length > 0) {
+          const matchLevel = p.schoolLevel?.some((lvl) => selectedSchoolLevels.includes(lvl));
+          if (!matchLevel) return false;
+        }
+
         // Subcategory tab filter
         if (activeSubcategory !== 'all') {
           const typeMatch =
@@ -164,7 +456,7 @@ export default function CategoryTemplate({
             (activeSubcategory === 'Accessories' && p.productType === 'accessories') ||
             (p.subcategory === activeSubcategory);
 
-          const wingMatch = p.schoolLevel.some((lvl) => {
+          const wingMatch = p.schoolLevel?.some((lvl) => {
             const formatted = lvl.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
             return formatted.toLowerCase() === activeSubcategory.toLowerCase();
           });
@@ -176,15 +468,29 @@ export default function CategoryTemplate({
 
         // Size filter
         if (selectedSizes.length > 0) {
-          const hasSize = p.sizes.some((s) => selectedSizes.includes(s));
+          const hasSize = p.sizes?.some((s) => selectedSizes.includes(s));
           if (!hasSize) return false;
         }
 
         // Colour filter
         if (selectedColours.length > 0) {
-          const hasColour = p.colours.some((c) =>
-            selectedColours.some((sc) => sc.toLowerCase() === c.toLowerCase())
-          );
+          const productColours = [
+            ...(p.colours || []),
+            ...(p.primaryColour ? [p.primaryColour] : []),
+          ];
+          const hasColour = productColours.some((c) => {
+            const cl = c.trim().toLowerCase();
+            return selectedColours.some((sc) => {
+              const scl = sc.trim().toLowerCase();
+              if (cl === scl) return true;
+              if (scl === 'black' && cl.includes('black')) return true;
+              if (scl === 'navy blue' && (cl.includes('navy') || cl === 'blue')) return true;
+              if (scl === 'brown' && (cl.includes('brown') || cl.includes('coffee') || cl.includes('rust'))) return true;
+              if (scl === 'tan' && (cl.includes('tan') || cl.includes('camel'))) return true;
+              if (scl === 'white' && cl.includes('white')) return true;
+              return false;
+            });
+          });
           if (!hasColour) return false;
         }
 
@@ -201,10 +507,45 @@ export default function CategoryTemplate({
         if (sortBy === 'rating') return b.rating - a.rating;
         return (b.reviewCount || 0) - (a.reviewCount || 0);
       });
-  }, [baseProducts, activeSubcategory, selectedSizes, selectedColours, priceMin, priceMax, sortBy]);
+  }, [
+    masterProducts,
+    selectedGenders,
+    selectedProductTypes,
+    selectedSchoolLevels,
+    activeSubcategory,
+    selectedSizes,
+    selectedColours,
+    priceMin,
+    priceMax,
+    sortBy,
+  ]);
 
   const activeFiltersCount =
-    selectedSizes.length + selectedColours.length + (priceMax < 2500 || priceMin > 0 ? 1 : 0);
+    selectedGenders.length +
+    selectedProductTypes.length +
+    selectedSchoolLevels.length +
+    selectedSizes.length +
+    selectedColours.length +
+    (priceMax < maxCollectionPrice || priceMin > minCollectionPrice ? 1 : 0) +
+    (activeSubcategory !== 'all' ? 1 : 0);
+
+  const toggleGender = (gId: string) => {
+    setSelectedGenders((prev) =>
+      prev.includes(gId) ? prev.filter((g) => g !== gId) : [...prev, gId]
+    );
+  };
+
+  const toggleProductType = (ptId: string) => {
+    setSelectedProductTypes((prev) =>
+      prev.includes(ptId) ? prev.filter((pt) => pt !== ptId) : [...prev, ptId]
+    );
+  };
+
+  const toggleSchoolLevel = (lvlId: string) => {
+    setSelectedSchoolLevels((prev) =>
+      prev.includes(lvlId) ? prev.filter((lvl) => lvl !== lvlId) : [...prev, lvlId]
+    );
+  };
 
   const toggleSize = (sz: string) => {
     setSelectedSizes((prev) =>
@@ -219,10 +560,13 @@ export default function CategoryTemplate({
   };
 
   const resetAllFilters = () => {
+    setSelectedGenders([]);
+    setSelectedProductTypes([]);
+    setSelectedSchoolLevels([]);
     setSelectedSizes([]);
     setSelectedColours([]);
-    setPriceMin(0);
-    setPriceMax(2500);
+    setPriceMin(minCollectionPrice);
+    setPriceMax(maxCollectionPrice);
     setSortBy('featured');
     setActiveSubcategory('all');
   };
@@ -272,14 +616,22 @@ export default function CategoryTemplate({
           {/* Left: "Show filters" Pill Button */}
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setIsFilterDrawerOpen(true)}
-              className="inline-flex items-center gap-2 rounded-full border border-[#f05a50] text-[#f05a50] hover:bg-[#fff5f5] px-5 py-2 text-xs font-bold transition shadow-sm"
-              aria-label="Open Filters Drawer"
+              onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
+              className={`inline-flex items-center gap-2 rounded-full border px-5 py-2 text-xs font-bold transition shadow-sm ${
+                isFilterDrawerOpen
+                  ? 'bg-[#f05a50] text-white border-[#f05a50]'
+                  : 'border-[#f05a50] text-[#f05a50] hover:bg-[#fff5f5]'
+              }`}
+              aria-label={isFilterDrawerOpen ? 'Hide Filters' : 'Show Filters'}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Show filters</span>
+              <span>{isFilterDrawerOpen ? 'Hide filters' : 'Show filters'}</span>
               {activeFiltersCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#f05a50] text-white text-[10px] font-bold flex items-center justify-center">
+                <span
+                  className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                    isFilterDrawerOpen ? 'bg-white text-[#f05a50]' : 'bg-[#f05a50] text-white'
+                  }`}
+                >
                   {activeFiltersCount}
                 </span>
               )}
@@ -336,86 +688,406 @@ export default function CategoryTemplate({
 
         </div>
 
-        {/* 4. Product Cards Grid (Matching Image 1: 4 columns on desktop) */}
-        {filteredProducts.length === 0 ? (
-          <div className="bg-white rounded-3xl p-16 text-center border border-gray-100 shadow-sm space-y-4 my-8">
-            <div className="w-16 h-16 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto">
-              <Sparkles className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">No products match your filters</h3>
-              <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1">
-                Try selecting different sizes or colors, or reset your filters to see all available products.
-              </p>
-            </div>
-            <button
-              onClick={resetAllFilters}
-              className="bg-gray-950 hover:bg-black text-white text-xs font-bold px-6 py-2.5 rounded-full shadow transition"
-            >
-              Reset All Filters
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 pt-4">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between"
-              >
-                <Link
-                  href={`/products/${product.slug}`}
-                  className="block relative aspect-square bg-[#fbfbfb] rounded-2xl overflow-hidden border border-gray-100 p-4 transition-transform group-hover:scale-[1.02]"
-                >
-                  <Image
-                    src={product.images[0] || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'}
-                    alt={product.name}
-                    fill
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    className="object-contain p-3 transition-transform duration-300 group-hover:scale-105"
-                  />
-                  {product.discountPercent && (
-                    <span className="absolute top-3 left-3 bg-[#e86b62] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow">
-                      {product.discountPercent}% OFF
+        {/* 4. Filter Sidebar (When Open) & Product Cards Grid */}
+        <div className="flex items-start gap-8 pt-4">
+          {/* Side Filter Column (Visible inline when open on desktop, staying in place without dimming products) */}
+          {isFilterDrawerOpen && (
+            <aside className="hidden lg:block w-72 shrink-0 bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-6 sticky top-24">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-950">Filters</h3>
+                  {activeFiltersCount > 0 && (
+                    <span className="text-[11px] font-bold bg-[#f05a50] text-white px-2 py-0.5 rounded-full">
+                      {activeFiltersCount}
                     </span>
                   )}
-                </Link>
-
-                <div className="pt-3 pb-1 space-y-1">
-                  <span className="text-[11px] uppercase tracking-wider text-gray-600 font-bold block">
-                    {product.brand}
-                  </span>
-                  <Link
-                    href={`/products/${product.slug}`}
-                    className="text-xs sm:text-sm font-semibold text-gray-900 group-hover:text-brand-600 transition line-clamp-1 block"
-                  >
-                    {product.name}
-                  </Link>
-                  <div className="text-xs sm:text-sm font-bold text-gray-950 pt-0.5">
-                    ₹ {product.price.toFixed(2)}
-                  </div>
                 </div>
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={resetAllFilters}
+                    className="text-xs text-[#f05a50] hover:underline font-semibold"
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
-            ))}
+
+              {/* Section 0: Department / Gender */}
+              {genderOptions.length > 0 && (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => toggleAccordion('gender')}
+                    className="w-full flex items-center justify-between text-left font-bold text-sm text-gray-900"
+                  >
+                    <span>Department</span>
+                    {accordionState.gender ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+
+                  {accordionState.gender && (
+                    <div className="space-y-2 pt-1">
+                      {genderOptions.map((g) => {
+                        const isChecked = selectedGenders.includes(g.id);
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => toggleGender(g.id)}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                              isChecked
+                                ? 'bg-black text-white border-black shadow-sm'
+                                : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-400'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
+                                  isChecked ? 'bg-white text-black border-white' : 'border-gray-400 bg-white'
+                                }`}
+                              >
+                                {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                              </div>
+                              <span>{g.label}</span>
+                            </div>
+                            <span
+                              className={`text-[10px] ${
+                                isChecked ? 'text-gray-300' : 'text-gray-400'
+                              }`}
+                            >
+                              ({g.count})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section 1: Category / Product Type */}
+              {categoryFilterOptions.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <button
+                    onClick={() => toggleAccordion('category')}
+                    className="w-full flex items-center justify-between text-left font-bold text-sm text-gray-900"
+                  >
+                    <span>Category</span>
+                    {accordionState.category ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+
+                  {accordionState.category && (
+                    <div className="space-y-2 pt-1">
+                      {categoryFilterOptions.map((cat) => {
+                        const isChecked = selectedProductTypes.includes(cat.id);
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => toggleProductType(cat.id)}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                              isChecked
+                                ? 'bg-black text-white border-black shadow-sm'
+                                : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-400'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
+                                  isChecked ? 'bg-white text-black border-white' : 'border-gray-400 bg-white'
+                                }`}
+                              >
+                                {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                              </div>
+                              <span>{cat.label}</span>
+                            </div>
+                            <span
+                              className={`text-[10px] ${
+                                isChecked ? 'text-gray-300' : 'text-gray-400'
+                              }`}
+                            >
+                              ({cat.count})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section 2: School Wing / Level */}
+              {schoolWingOptions.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <button
+                    onClick={() => toggleAccordion('schoolLevel')}
+                    className="w-full flex items-center justify-between text-left font-bold text-sm text-gray-900"
+                  >
+                    <span>School Wing</span>
+                    {accordionState.schoolLevel ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+
+                  {accordionState.schoolLevel && (
+                    <div className="space-y-2 pt-1">
+                      {schoolWingOptions.map((wing) => {
+                        const isChecked = selectedSchoolLevels.includes(wing.id);
+                        return (
+                          <button
+                            key={wing.id}
+                            type="button"
+                            onClick={() => toggleSchoolLevel(wing.id)}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                              isChecked
+                                ? 'bg-black text-white border-black shadow-sm'
+                                : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-400'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
+                                  isChecked ? 'bg-white text-black border-white' : 'border-gray-400 bg-white'
+                                }`}
+                              >
+                                {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                              </div>
+                              <span>{wing.label}</span>
+                            </div>
+                            <span
+                              className={`text-[10px] ${
+                                isChecked ? 'text-gray-300' : 'text-gray-400'
+                              }`}
+                            >
+                              ({wing.count})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section 3: Size */}
+              {sizeCounts.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <button
+                    onClick={() => toggleAccordion('size')}
+                    className="w-full flex items-center justify-between text-left font-bold text-sm text-gray-900"
+                  >
+                    <span>Size</span>
+                    {accordionState.size ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+
+                  {accordionState.size && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {sizeCounts.map((item) => {
+                        const isChecked = selectedSizes.includes(item.size);
+                        return (
+                          <button
+                            key={item.size}
+                            type="button"
+                            onClick={() => toggleSize(item.size)}
+                            className={`min-w-9 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                              isChecked
+                                ? 'bg-black text-white border-black shadow-sm'
+                                : 'bg-white text-gray-800 border-gray-200 hover:border-gray-400'
+                            }`}
+                          >
+                            <span>{item.size}</span>
+                            <span className={`text-[10px] ml-1 ${isChecked ? 'text-gray-300' : 'text-gray-400'}`}>
+                              ({item.count})
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section 4: Colour */}
+              {colourPalette.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <button
+                    onClick={() => toggleAccordion('colour')}
+                    className="w-full flex items-center justify-between text-left font-bold text-sm text-gray-900"
+                  >
+                    <span>Colour</span>
+                    {accordionState.colour ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+
+                  {accordionState.colour && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {colourPalette.map((col) => {
+                        const isSelected = selectedColours.includes(col.name);
+                        return (
+                          <button
+                            key={col.name}
+                            type="button"
+                            onClick={() => toggleColour(col.name)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${
+                              isSelected
+                                ? 'border-black bg-gray-50 font-bold shadow-sm'
+                                : 'border-gray-200 bg-white hover:border-gray-400 text-gray-700'
+                            }`}
+                            title={col.name}
+                          >
+                            <span
+                              className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block shrink-0 shadow-xs"
+                              style={{ backgroundColor: col.hex }}
+                            />
+                            <span>{col.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Section 5: Price */}
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <button
+                  onClick={() => toggleAccordion('price')}
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-gray-900"
+                >
+                  <span>Price Range</span>
+                  {accordionState.price ? (
+                    <ChevronUp className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  )}
+                </button>
+
+                {accordionState.price && (
+                  <div className="space-y-3 pt-1">
+                    <input
+                      type="range"
+                      min={minCollectionPrice}
+                      max={maxCollectionPrice}
+                      step="50"
+                      value={priceMax}
+                      onChange={(e) => setPriceMax(Number(e.target.value))}
+                      className="w-full accent-[#f05a50] cursor-pointer"
+                    />
+                    <div className="flex items-center justify-between text-xs text-gray-600 font-medium">
+                      <span>₹ {priceMin}</span>
+                      <span className="font-bold text-[#f05a50]">Up to ₹ {priceMax}</span>
+                      <span>₹ {maxCollectionPrice}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </aside>
+          )}
+
+          {/* Product Cards Grid */}
+          <div className="flex-1 min-w-0">
+            {filteredProducts.length === 0 ? (
+              <div className="bg-white rounded-3xl p-16 text-center border border-gray-100 shadow-sm space-y-4 my-4">
+                <div className="w-16 h-16 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto">
+                  <Sparkles className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">No products match your filters</h3>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1">
+                    Try selecting different sizes or colors, or reset your filters to see all available products.
+                  </p>
+                </div>
+                <button
+                  onClick={resetAllFilters}
+                  className="bg-gray-950 hover:bg-black text-white text-xs font-bold px-6 py-2.5 rounded-full shadow transition"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`grid gap-4 sm:gap-6 ${
+                  isFilterDrawerOpen
+                    ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3'
+                    : 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                }`}
+              >
+                {filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between"
+                  >
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="block relative aspect-square bg-[#fbfbfb] rounded-2xl overflow-hidden border border-gray-100 p-4 transition-transform group-hover:scale-[1.02]"
+                    >
+                      <Image
+                        src={product.images[0] || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'}
+                        alt={product.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="object-contain p-3 transition-transform duration-300 group-hover:scale-105"
+                      />
+                      {product.discountPercent && (
+                        <span className="absolute top-3 left-3 bg-[#e86b62] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow">
+                          {product.discountPercent}% OFF
+                        </span>
+                      )}
+                    </Link>
+
+                    <div className="pt-3 pb-1 space-y-1">
+                      <span className="text-[11px] uppercase tracking-wider text-gray-600 font-bold block">
+                        {product.brand}
+                      </span>
+                      <Link
+                        href={`/products/${product.slug}`}
+                        className="text-xs sm:text-sm font-semibold text-gray-900 group-hover:text-brand-600 transition line-clamp-1 block"
+                      >
+                        {product.name}
+                      </Link>
+                      <div className="text-xs sm:text-sm font-bold text-gray-950 pt-0.5">
+                        ₹ {product.price.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
       </div>
 
       {/* =================================================================== */}
-      {/* 5. SLIDE-OVER FILTERS DRAWER (Matching Image 2: Slides Left to Right) */}
+      {/* 5. SLIDE-OVER FILTERS DRAWER (For Mobile / Small screens only) */}
       {/* =================================================================== */}
-      {/* Dark overlay backdrop */}
+      {/* Dark overlay backdrop on mobile */}
       <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300 ${
+        className={`lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300 ${
           isFilterDrawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setIsFilterDrawerOpen(false)}
         aria-hidden="true"
       />
 
-      {/* Slide-in panel: Moving smoothly from Left to Right */}
+      {/* Slide-in panel for mobile */}
       <div
-        className={`fixed inset-y-0 left-0 max-w-sm sm:max-w-md w-full bg-white z-50 shadow-2xl flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
+        className={`lg:hidden fixed inset-y-0 left-0 max-w-sm sm:max-w-md w-full bg-white z-50 shadow-2xl flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
           isFilterDrawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         role="dialog"
@@ -455,7 +1127,160 @@ export default function CategoryTemplate({
             </select>
           </div>
 
-          {/* Section 1: Size */}
+          {/* Section 0: Department / Gender */}
+          {genderOptions.length > 0 && (
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={() => toggleAccordion('gender')}
+                className="w-full flex items-center justify-between text-left font-bold text-base text-gray-900 pb-3"
+              >
+                <span>Department</span>
+                {accordionState.gender ? (
+                  <ChevronUp className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-600" />
+                )}
+              </button>
+
+              {accordionState.gender && (
+                <div className="space-y-2 pt-1">
+                  {genderOptions.map((g) => {
+                    const isChecked = selectedGenders.includes(g.id);
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => toggleGender(g.id)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold border transition ${
+                          isChecked
+                            ? 'bg-black text-white border-black shadow-sm'
+                            : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              isChecked ? 'bg-white text-black border-white' : 'border-gray-400 bg-white'
+                            }`}
+                          >
+                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <span>{g.label}</span>
+                        </div>
+                        <span className={`text-[11px] ${isChecked ? 'text-gray-300' : 'text-gray-400'}`}>
+                          ({g.count})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section 1: Category / Product Type */}
+          {categoryFilterOptions.length > 0 && (
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={() => toggleAccordion('category')}
+                className="w-full flex items-center justify-between text-left font-bold text-base text-gray-900 pb-3"
+              >
+                <span>Category</span>
+                {accordionState.category ? (
+                  <ChevronUp className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-600" />
+                )}
+              </button>
+
+              {accordionState.category && (
+                <div className="space-y-2 pt-1">
+                  {categoryFilterOptions.map((cat) => {
+                    const isChecked = selectedProductTypes.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => toggleProductType(cat.id)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold border transition ${
+                          isChecked
+                            ? 'bg-black text-white border-black shadow-sm'
+                            : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              isChecked ? 'bg-white text-black border-white' : 'border-gray-400 bg-white'
+                            }`}
+                          >
+                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <span>{cat.label}</span>
+                        </div>
+                        <span className={`text-[11px] ${isChecked ? 'text-gray-300' : 'text-gray-400'}`}>
+                          ({cat.count})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section 2: School Wing / Level */}
+          {schoolWingOptions.length > 0 && (
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={() => toggleAccordion('schoolLevel')}
+                className="w-full flex items-center justify-between text-left font-bold text-base text-gray-900 pb-3"
+              >
+                <span>School Wing</span>
+                {accordionState.schoolLevel ? (
+                  <ChevronUp className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-600" />
+                )}
+              </button>
+
+              {accordionState.schoolLevel && (
+                <div className="space-y-2 pt-1">
+                  {schoolWingOptions.map((wing) => {
+                    const isChecked = selectedSchoolLevels.includes(wing.id);
+                    return (
+                      <button
+                        key={wing.id}
+                        type="button"
+                        onClick={() => toggleSchoolLevel(wing.id)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold border transition ${
+                          isChecked
+                            ? 'bg-black text-white border-black shadow-sm'
+                            : 'bg-gray-50 text-gray-800 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              isChecked ? 'bg-white text-black border-white' : 'border-gray-400 bg-white'
+                            }`}
+                          >
+                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <span>{wing.label}</span>
+                        </div>
+                        <span className={`text-[11px] ${isChecked ? 'text-gray-300' : 'text-gray-400'}`}>
+                          ({wing.count})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section 3: Size */}
           {sizeCounts.length > 0 && (
             <div className="border-t border-gray-100 pt-4">
               <button
@@ -471,24 +1296,25 @@ export default function CategoryTemplate({
               </button>
 
               {accordionState.size && (
-                <div className="space-y-2.5 pt-1 pl-1">
+                <div className="flex flex-wrap gap-2 pt-1">
                   {sizeCounts.map((item) => {
                     const isChecked = selectedSizes.includes(item.size);
                     return (
-                      <label
+                      <button
                         key={item.size}
-                        className="flex items-center gap-3 cursor-pointer group text-sm text-gray-800"
+                        type="button"
+                        onClick={() => toggleSize(item.size)}
+                        className={`min-w-9 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
+                          isChecked
+                            ? 'bg-black text-white border-black shadow-sm'
+                            : 'bg-white text-gray-800 border-gray-200 hover:border-gray-400'
+                        }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleSize(item.size)}
-                          className="w-4 h-4 rounded border-gray-300 text-gray-950 focus:ring-0 cursor-pointer"
-                        />
-                        <span className="group-hover:text-black">
-                          {item.size} <span className="text-gray-400">({item.count})</span>
+                        <span>{item.size}</span>
+                        <span className={`text-[10px] ml-1 ${isChecked ? 'text-gray-300' : 'text-gray-400'}`}>
+                          ({item.count})
                         </span>
-                      </label>
+                      </button>
                     );
                   })}
                 </div>
@@ -496,7 +1322,7 @@ export default function CategoryTemplate({
             </div>
           )}
 
-          {/* Section 2: Colour */}
+          {/* Section 4: Colour */}
           {colourPalette.length > 0 && (
             <div className="border-t border-gray-100 pt-4">
               <button
@@ -519,22 +1345,18 @@ export default function CategoryTemplate({
                       <button
                         key={col.name}
                         onClick={() => toggleColour(col.name)}
-                        className={`w-9 h-9 rounded-md transition-all relative flex items-center justify-center ${
-                          isSelected ? 'ring-2 ring-black ring-offset-2' : 'hover:scale-105 border border-gray-200'
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${
+                          isSelected
+                            ? 'border-black bg-gray-50 font-bold shadow-sm'
+                            : 'border-gray-200 bg-white hover:border-gray-400 text-gray-700'
                         }`}
-                        style={{ backgroundColor: col.hex }}
                         title={col.name}
-                        aria-label={`Filter by ${col.name}`}
                       >
-                        {isSelected && (
-                          <Check
-                            className={`w-4 h-4 ${
-                              ['Black', 'Brown', 'Navy', 'Olive', 'Maroon'].includes(col.name)
-                                ? 'text-white'
-                                : 'text-black'
-                            }`}
-                          />
-                        )}
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block shrink-0 shadow-xs"
+                          style={{ backgroundColor: col.hex }}
+                        />
+                        <span>{col.name}</span>
                       </button>
                     );
                   })}
@@ -561,17 +1383,17 @@ export default function CategoryTemplate({
               <div className="space-y-4 pt-2">
                 <input
                   type="range"
-                  min="0"
-                  max="2500"
+                  min={minCollectionPrice}
+                  max={maxCollectionPrice}
                   step="50"
                   value={priceMax}
                   onChange={(e) => setPriceMax(Number(e.target.value))}
-                  className="w-full accent-black cursor-pointer"
+                  className="w-full accent-[#f05a50] cursor-pointer"
                 />
-                <div className="flex items-center justify-between text-xs text-gray-600">
+                <div className="flex items-center justify-between text-xs text-gray-600 font-medium">
                   <span>₹ {priceMin}</span>
-                  <span className="font-bold text-black">Up to ₹ {priceMax}</span>
-                  <span>₹ 2500</span>
+                  <span className="font-bold text-[#f05a50]">Up to ₹ {priceMax}</span>
+                  <span>₹ {maxCollectionPrice}</span>
                 </div>
               </div>
             )}

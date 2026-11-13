@@ -18,13 +18,23 @@ export default function PopularBags() {
 
   useEffect(() => {
     let isMounted = true;
-    getPreviewProducts({ category: 'bags', limit: 8 }).then((items) => {
-      if (isMounted && items && items.length > 0) {
-        setBagProducts(items);
-      }
-    });
+    const fetchBags = () => {
+      getPreviewProducts({ category: 'bags', limit: 8 }).then((items) => {
+        if (isMounted && items && items.length > 0) {
+          setBagProducts(items);
+        }
+      });
+    };
+
+    fetchBags();
+
+    window.addEventListener('koskool_products_updated', fetchBags);
+    window.addEventListener('storage', fetchBags);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('koskool_products_updated', fetchBags);
+      window.removeEventListener('storage', fetchBags);
     };
   }, []);
 
@@ -47,7 +57,7 @@ export default function PopularBags() {
   };
 
   return (
-    <section className="py-12 sm:py-16 bg-white border-b border-gray-200 overflow-hidden">
+    <section className="scroll-mt-24 py-12 sm:py-16 bg-white border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
           <div className="space-y-2 max-w-xl">

@@ -1,3 +1,6 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import HeroSlideshow from '@/components/home/HeroSlideshow';
 import MarqueeTicker from '@/components/home/MarqueeTicker';
 import ShopByFootwear from '@/components/home/ShopByFootwear';
@@ -10,45 +13,70 @@ import PopularSchoolPicks from '@/components/home/PopularSchoolPicks';
 import FeaturedProductShowcase from '@/components/home/FeaturedProductShowcase';
 import BannerSectionShowcase from '@/components/home/BannerSectionShowcase';
 import SchoolTrustReviews from '@/components/home/SchoolTrustReviews';
+import { getHomepageSections, HomepageSection, DEFAULT_HOMEPAGE_SECTIONS } from '@/services/api';
+
+const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
+  hero: HeroSlideshow,
+  marquee: MarqueeTicker,
+  shop_footwear: ShopByFootwear,
+  quick_cart: QuickAddToCartSection,
+  school_level: ShopBySchoolLevel,
+  school_bundles: SchoolBundlesSection,
+  explore_accessories: ExploreAccessories,
+  popular_bags: PopularBags,
+  popular_picks: PopularSchoolPicks,
+  featured_spotlight: FeaturedProductShowcase,
+  banner_showcase: BannerSectionShowcase,
+  trust_reviews: SchoolTrustReviews,
+};
 
 export default function HomePage() {
+  const [sections, setSections] = useState<HomepageSection[]>(DEFAULT_HOMEPAGE_SECTIONS);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSections = async () => {
+      try {
+        const secs = await getHomepageSections();
+        if (isMounted && secs && secs.length > 0) {
+          setSections(secs);
+        }
+      } catch (err) {
+        console.error('Failed to load dynamic homepage sections:', err);
+      }
+    };
+
+    fetchSections();
+
+    // Listen for live updates from Admin Panel
+    const handleUpdate = () => {
+      fetchSections();
+    };
+
+    window.addEventListener('koskool_homepage_config_updated', handleUpdate);
+    window.addEventListener('koskool_data_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('koskool_homepage_config_updated', handleUpdate);
+      window.removeEventListener('koskool_data_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  // Filter only active sections and render in ordered sequence
+  const activeSections = sections
+    .filter((sec) => sec.is_active !== false)
+    .sort((a, b) => a.display_order - b.display_order);
+
   return (
     <div className="flex flex-col min-h-screen overflow-x-hidden">
-      {/* 1. Hero Banner Slideshow */}
-      <HeroSlideshow />
-
-      {/* 2. Marquee Ticker */}
-      <MarqueeTicker />
-
-      {/* 3. Shop by Footwear (Interactive Left/Right Arrow Carousel) */}
-      <ShopByFootwear />
-
-      {/* 4. Dedicated Add to Cart Section with Live Admin Promo Code Discounts */}
-      <QuickAddToCartSection />
-
-      {/* 5. Shop by School Level (Interactive Left/Right Arrow Carousel) */}
-      <ShopBySchoolLevel />
-
-      {/* 6. Curated Uniform Bundles (1-Click Add Complete Kit to Cart) */}
-      <SchoolBundlesSection />
-
-      {/* 7. Explore Accessories (Interactive Left/Right Arrow Carousel) */}
-      <ExploreAccessories />
-
-      {/* 8. Popular School Bags (Interactive Left/Right Arrow Carousel) */}
-      <PopularBags />
-
-      {/* 9. Popular School Picks (Interactive Tabs & Left/Right Arrow Carousel) */}
-      <PopularSchoolPicks />
-
-      {/* 10. Featured Product Tab Showcase (Walkaroo Urbanoz WGP53410) */}
-      <FeaturedProductShowcase />
-
-      {/* 11. Separate Section Banners (Bounceez & Bloomsy with 4-Item Responsive Grid) */}
-      <BannerSectionShowcase />
-
-      {/* 12. School Trust & Parent Reviews */}
-      <SchoolTrustReviews />
+      {activeSections.map((sec) => {
+        const Component = SECTION_COMPONENTS[sec.id];
+        if (!Component) return null;
+        return <Component key={sec.id} />;
+      })}
     </div>
   );
 }

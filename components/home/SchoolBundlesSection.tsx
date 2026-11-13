@@ -75,12 +75,12 @@ export default function SchoolBundlesSection() {
       items: [
         {
           name: 'Ergonomic Spine-Relief School Bag',
-          image: '/cdn/shop/files/B-03-Blue_dffb94c0-fe3e-43f1-b9ea-47c3e38c9fe4.v_1786512984_width_1600.jpg',
+          image: '/cdn/shop/files/WC4713-BLACK-GENTS-1_849cfb04-8054-440c-8678-773e22576047.v_1786512675_width_1600.jpg',
           desc: '32L capacity with heavy book compartments',
         },
         {
           name: 'Stainless Steel Insulated Bottle 750ml',
-          image: '/cdn/shop/files/WC8732-BLACK-3_170895c1-cace-4e16-bd8b-e759711e48ab.v_1786512759_width_1600.jpg',
+          image: '/cdn/shop/files/SGE24001-WhiteBlue_0f422c14-0bd9-47ae-8183-cac6302b38b8.v_1786512168_width_1600.jpg',
           desc: 'BPA-free 24-hr temperature insulation',
         },
         {
@@ -102,17 +102,17 @@ export default function SchoolBundlesSection() {
       items: [
         {
           name: 'Junior Easy-Strap Velcro Shoes',
-          image: '/cdn/shop/files/WV501-White_0ff19875-a8fa-4a33-8a3d-4c312759e697.v_1786513303_width_1600.jpg',
+          image: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
           desc: 'Ultra lightweight under 200g with soft flex',
         },
         {
           name: 'Featherlight Junior School Backpack',
-          image: '/cdn/shop/files/K-BAG-01-Kids_f78693c1.v_1786512984_width_1600.jpg',
+          image: '/cdn/shop/files/WK722-MAROON-KIDS.v_1786511451_width_1600.jpg',
           desc: 'Cute character print with padded straps',
         },
         {
           name: 'Anti-Spill Sipper Bottle & Soft Case',
-          image: '/cdn/shop/files/WK388-BEIGEPINK-KIDS_b512b642-18fc-430d-b9bf-2420aabca356.v_1786511561_width_1600.jpg',
+          image: '/cdn/shop/files/WK473-PINK_KIDS_ea22c13b-148c-4214-8320-c907acb7d395.v_1786512672_width_1600.jpg',
           desc: 'Easy-hold grip handle for toddlers',
         },
       ],
@@ -146,7 +146,7 @@ export default function SchoolBundlesSection() {
   };
 
   return (
-    <section className="py-12 sm:py-16 bg-navy-950 text-white overflow-hidden">
+    <section className="scroll-mt-24 py-12 sm:py-16 bg-navy-950 text-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header with Title & Left/Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">
@@ -163,7 +163,7 @@ export default function SchoolBundlesSection() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-end shrink-0">
+          <div className="flex lg:hidden items-center gap-2 self-start sm:self-end shrink-0">
             <button
               onClick={() => scroll('left')}
               className="w-10 h-10 rounded-full border border-white/20 bg-white/10 text-white hover:bg-white hover:text-navy-950 flex items-center justify-center transition shadow-sm"
@@ -181,10 +181,10 @@ export default function SchoolBundlesSection() {
           </div>
         </div>
 
-        {/* Horizontal Carousel of Bundles */}
+        {/* Responsive slider on mobile/tablet, balanced 3-column grid on desktop */}
         <div
           ref={scrollRef}
-          className="flex overflow-x-auto no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
+          className="flex lg:grid lg:grid-cols-3 overflow-x-auto lg:overflow-visible no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
         >
           {bundles.map((bundle) => {
             const isAdded = !!addedBundles[bundle.id];
@@ -192,7 +192,7 @@ export default function SchoolBundlesSection() {
             return (
               <div
                 key={bundle.id}
-                className="w-[86vw] sm:w-[360px] md:w-[400px] flex-shrink-0 snap-start"
+                className="w-[86vw] sm:w-[360px] lg:w-auto flex-shrink-0 snap-start flex flex-col"
               >
                 <div className="bg-white/5 border border-white/15 rounded-3xl p-5 sm:p-6 flex flex-col justify-between h-full backdrop-blur-md shadow-2xl hover:border-brand-500/50 transition duration-300">
                   <div className="space-y-4">

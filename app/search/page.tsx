@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PRODUCTS, Product } from '@/data/products';
+import { getAllCatalogProducts } from '@/services/api';
 import CategoryTemplate from '@/components/product/CategoryTemplate';
 import { Search } from 'lucide-react';
 
@@ -10,23 +11,38 @@ function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   const [query, setQuery] = useState(initialQuery);
+  const [catalog, setCatalog] = useState<Product[]>(PRODUCTS);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAllCatalogProducts().then((items) => {
+      if (isMounted && items && items.length > 0) {
+        setCatalog(items);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const results = useMemo(() => {
     if (!query.trim()) {
-      return PRODUCTS;
+      return catalog;
     }
     const q = query.toLowerCase().trim();
-    return PRODUCTS.filter((p) => {
+    return catalog.filter((p) => {
       return (
         p.name.toLowerCase().includes(q) ||
+        p.slug.toLowerCase().includes(q) ||
         p.gender.toLowerCase().includes(q) ||
         p.productType.toLowerCase().includes(q) ||
-        p.schoolLevel.some((lvl) => lvl.toLowerCase().includes(q)) ||
-        p.colours.some((c) => c.toLowerCase().includes(q)) ||
-        p.description.toLowerCase().includes(q)
+        (p.schoolLevel && p.schoolLevel.some((lvl) => lvl.toLowerCase().includes(q))) ||
+        (p.colours && p.colours.some((c) => c.toLowerCase().includes(q))) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
+        (p.material && p.material.toLowerCase().includes(q))
       );
     });
-  }, [query]);
+  }, [query, catalog]);
 
   return (
     <div className="bg-white min-h-screen">

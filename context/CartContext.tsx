@@ -13,7 +13,7 @@ export interface CartItem {
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: Product, size?: string, colour?: string, quantity?: number) => void;
+  addToCart: (product: Product, size?: string, colour?: string, quantity?: number, openDrawer?: boolean) => void;
   removeFromCart: (productId: string, size: string) => void;
   updateQuantity: (productId: string, size: string, quantity: number) => void;
   clearCart: () => void;
@@ -145,7 +145,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [appliedPromo]);
 
-  const addToCart = (product: Product, size?: string, colour?: string, quantity = 1) => {
+  const addToCart = (product: Product, size?: string, colour?: string, quantity = 1, openDrawer = false) => {
     const itemSize = size || product.sizes[0] || 'Standard';
     const itemColour = colour || product.primaryColour;
 
@@ -171,7 +171,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    setIsCartDrawerOpen(true);
+    if (openDrawer) {
+      setIsCartDrawerOpen(true);
+    }
   };
 
   const removeFromCart = (productId: string, size: string) => {

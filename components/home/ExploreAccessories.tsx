@@ -56,7 +56,7 @@ export default function ExploreAccessories() {
   };
 
   return (
-    <section className="py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
+    <section className="scroll-mt-24 py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header with Left & Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">
@@ -73,7 +73,7 @@ export default function ExploreAccessories() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-end shrink-0">
+          <div className="flex md:hidden items-center gap-2 self-start sm:self-end shrink-0">
             <button
               onClick={() => scroll('left')}
               disabled={!canScrollLeft}
@@ -101,16 +101,16 @@ export default function ExploreAccessories() {
           </div>
         </div>
 
-        {/* Carousel Slider */}
+        {/* Carousel Slider on mobile, 3-column grid on desktop */}
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="flex overflow-x-auto no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
+          className="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
         >
           {cards.map((card, idx) => (
             <div
               key={idx}
-              className="w-[84vw] sm:w-[320px] md:w-[360px] flex-shrink-0 snap-start"
+              className="w-[84vw] sm:w-[320px] md:w-auto flex-shrink-0 snap-start"
             >
               <Link
                 href={card.href}

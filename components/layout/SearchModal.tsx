@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { PRODUCTS, Product } from '@/data/products';
+import { getAllCatalogProducts } from '@/services/api';
 import { Search, X, ChevronRight, ArrowUpRight } from 'lucide-react';
 
 interface SearchModalProps {
@@ -14,7 +15,20 @@ interface SearchModalProps {
 export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
+  const [catalog, setCatalog] = useState<Product[]>(PRODUCTS);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getAllCatalogProducts().then((items) => {
+      if (isMounted && items && items.length > 0) {
+        setCatalog(items);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,19 +46,20 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }
 
     const q = query.toLowerCase().trim();
-    const filtered = PRODUCTS.filter((p) => {
+    const filtered = catalog.filter((p) => {
       return (
         p.name.toLowerCase().includes(q) ||
+        p.slug.toLowerCase().includes(q) ||
         p.gender.toLowerCase().includes(q) ||
         p.productType.toLowerCase().includes(q) ||
-        p.schoolLevel.some((lvl) => lvl.toLowerCase().includes(q)) ||
-        p.colours.some((c) => c.toLowerCase().includes(q)) ||
-        p.description.toLowerCase().includes(q) ||
-        p.material.toLowerCase().includes(q)
+        (p.schoolLevel && p.schoolLevel.some((lvl) => lvl.toLowerCase().includes(q))) ||
+        (p.colours && p.colours.some((c) => c.toLowerCase().includes(q))) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
+        (p.material && p.material.toLowerCase().includes(q))
       );
     });
     setResults(filtered.slice(0, 8));
-  }, [query]);
+  }, [query, catalog]);
 
   if (!isOpen) return null;
 

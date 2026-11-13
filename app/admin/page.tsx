@@ -18,6 +18,8 @@ import {
   ExternalLink,
   ShieldCheck,
   RefreshCw,
+  SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { getDashboardMetrics, Order } from '@/services/api';
 import { Product } from '@/data/products';
@@ -178,15 +180,35 @@ export default function AdminDashboardPage() {
         <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider">
           Quick Management Actions
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Link
+            href="/admin/homepage"
+            className="flex items-center gap-3 p-3.5 rounded-2xl bg-brand-50 hover:bg-brand-100 transition border border-brand-200 font-bold text-xs text-brand-950"
+          >
+            <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0">
+              <SlidersHorizontal className="w-4 h-4" />
+            </div>
+            <span>Homepage Order &amp; Prices</span>
+          </Link>
+
+          <Link
+            href="/admin/hero"
+            className="flex items-center gap-3 p-3.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 transition border border-indigo-200 font-bold text-xs text-indigo-950"
+          >
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <span>Hero Slides</span>
+          </Link>
+
           <Link
             href="/admin/products"
             className="flex items-center gap-3 p-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 transition border border-gray-200 font-bold text-xs text-navy-950"
           >
-            <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
               <Plus className="w-4 h-4" />
             </div>
-            <span>New Product</span>
+            <span>Products</span>
           </Link>
 
           <Link
@@ -196,17 +218,17 @@ export default function AdminDashboardPage() {
             <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
               <Layers className="w-4 h-4" />
             </div>
-            <span>New Category</span>
+            <span>Categories</span>
           </Link>
 
           <Link
             href="/admin/banners"
             className="flex items-center gap-3 p-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 transition border border-gray-200 font-bold text-xs text-navy-950"
           >
-            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0">
               <TrendingUp className="w-4 h-4" />
             </div>
-            <span>Promo Banner</span>
+            <span>Promo Banners</span>
           </Link>
 
           <Link
@@ -216,7 +238,7 @@ export default function AdminDashboardPage() {
             <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
               <TicketPercent className="w-4 h-4" />
             </div>
-            <span>New Coupon</span>
+            <span>Promo Codes</span>
           </Link>
         </div>
       </div>

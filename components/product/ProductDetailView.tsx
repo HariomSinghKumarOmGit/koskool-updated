@@ -34,8 +34,53 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   const defaultProduct = PRODUCTS.find((p) => p.slug === 'mens-daily-wear-sandals-wgp53410-tan') || PRODUCTS[0];
   const product = initialProduct || defaultProduct;
 
+  const categoryOptions = React.useMemo(() => {
+    if (product.categoryOptions && product.categoryOptions.length > 0) {
+      return product.categoryOptions;
+    }
+    const g = product.gender?.toLowerCase();
+    if (g === 'women' || g === 'womens') return ['WOMENS', 'GIRLS'];
+    if (g === 'girls') return ['GIRLS', 'WOMENS'];
+    if (g === 'boys') return ['BOYS', 'MENS'];
+    if (g === 'mens') return ['MENS', 'BOYS'];
+    if (g === 'kids') return ['KIDS', 'BOYS', 'GIRLS'];
+    if (g === 'unisex') return ['UNISEX', 'BOYS', 'GIRLS'];
+    return [product.gender?.toUpperCase() || 'GENERAL'];
+  }, [product]);
+
   const [selectedColour, setSelectedColour] = useState<string>(product.primaryColour || 'Tan');
-  const [selectedCategory, setSelectedCategory] = useState<string>(product.categoryOptions?.[0] || 'MENS');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    if (product.categoryOptions?.[0]) return product.categoryOptions[0];
+    const g = product.gender?.toLowerCase();
+    if (g === 'women' || g === 'womens') return 'WOMENS';
+    if (g === 'girls') return 'GIRLS';
+    if (g === 'boys') return 'BOYS';
+    if (g === 'mens') return 'MENS';
+    if (g === 'kids') return 'KIDS';
+    return product.gender?.toUpperCase() || 'BOYS';
+  });
+
+  React.useEffect(() => {
+    if (product) {
+      setSelectedColour(product.primaryColour || 'Tan');
+      const g = product.gender?.toLowerCase();
+      const defaultCat = product.categoryOptions?.[0] || 
+        (g === 'women' || g === 'womens' ? 'WOMENS' :
+         g === 'girls' ? 'GIRLS' :
+         g === 'boys' ? 'BOYS' :
+         g === 'mens' ? 'MENS' :
+         g === 'kids' ? 'KIDS' : (product.gender?.toUpperCase() || 'BOYS'));
+      setSelectedCategory(defaultCat);
+      setSelectedSize(product.sizes?.[0] || '6');
+    }
+  }, [product]);
+
+  React.useEffect(() => {
+    if (categoryOptions.length > 0 && !categoryOptions.includes(selectedCategory)) {
+      setSelectedCategory(categoryOptions[0]);
+    }
+  }, [categoryOptions, selectedCategory]);
+
   const [selectedSize, setSelectedSize] = useState<string>(product.sizes[0] || '6');
   const [quantity, setQuantity] = useState<number>(1);
   const [showSizeModal, setShowSizeModal] = useState<boolean>(false);
@@ -66,25 +111,25 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
     openCartDrawer();
   };
 
-  // Color variants setup
-  const colorVariants = product.colorVariants || [
-    {
-      name: 'Olive',
-      image: '/cdn/shop/files/WGP53410-OLIVE-GENTS_0b87feae-f3ed-4f7f-ad4c-cab242583af4.v_1786511339_width_250.jpg',
-    },
-    {
-      name: 'Tan',
-      image: '/cdn/shop/files/WGP53410-TAN-GENTS_7608173e-b30c-4214-ad1d-02182418d1a2.v_1786511338_width_250.jpg',
-    },
-    {
-      name: 'Brown',
-      image: '/cdn/shop/files/WGP53410-BROWN-GENTS.v_1787833041_width_250.jpg',
-    },
-    {
-      name: 'Black',
-      image: '/cdn/shop/files/WGP53410-FULL-BLACK-GENTS.v_1791882447_width_250.jpg',
-    },
-  ];
+  // Color variants setup: use product variants, colours, or primaryColour without hardcoded fallbacks
+  const colorVariants = React.useMemo(() => {
+    if (product.colorVariants && product.colorVariants.length > 0) {
+      return product.colorVariants;
+    }
+    if (product.colours && product.colours.length > 0) {
+      return product.colours.map((name, i) => ({
+        name,
+        image: product.images[i] || product.images[0] || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      }));
+    }
+    if (product.primaryColour) {
+      return [{
+        name: product.primaryColour,
+        image: product.images[0] || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      }];
+    }
+    return [];
+  }, [product]);
 
   // Images for current selection
   const galleryImages = product.images.length > 0 ? product.images : [
@@ -100,7 +145,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   ).slice(0, 4);
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className={`bg-white ${isHomePage ? '' : 'min-h-screen'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
         {/* Breadcrumb Navigation */}
         {!isHomePage && (
@@ -154,16 +199,39 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
               {product.brand}
             </div>
 
-            {/* 2. Title & Pricing */}
+            {/* 2. Title & Pricing (Real Price and Crossed-out Original MRP matching Image 3) */}
             <div className="space-y-2">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
                 {product.name}
               </h1>
 
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl sm:text-2xl font-extrabold text-gray-950">
-                  MRP ₹ {product.price.toFixed(2)}
-                </span>
+              <div className="flex items-baseline gap-3 flex-wrap pt-0.5">
+                {/* Real / Selling Price */}
+                <div className="flex items-baseline font-black text-gray-950">
+                  <span className="text-xl sm:text-2xl font-bold mr-0.5 leading-none">₹</span>
+                  <span className="text-3xl sm:text-4xl tracking-tight leading-none">
+                    {Math.floor(product.price) === product.price
+                      ? product.price.toLocaleString('en-IN')
+                      : product.price.toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Strikethrough / Crossed-out Original Price as shown in Image 3 */}
+                {product.originalPrice && product.originalPrice > product.price && (
+                  <span className="text-lg sm:text-xl text-gray-500 line-through font-semibold decoration-gray-600 decoration-[1.5px]">
+                    ₹{Math.floor(product.originalPrice) === product.originalPrice
+                      ? product.originalPrice.toLocaleString('en-IN')
+                      : product.originalPrice.toFixed(2)}
+                  </span>
+                )}
+
+                {/* Discount Percentage Badge */}
+                {(product.discountPercent || (product.originalPrice && product.originalPrice > product.price)) && (
+                  <span className="text-xs font-black text-brand-600 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-md uppercase">
+                    {product.discountPercent || Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                  </span>
+                )}
+
                 <span className="text-xs text-gray-500 font-normal">
                   (Inclusive of all taxes)
                 </span>
@@ -175,56 +243,71 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className="w-4 h-4 fill-amber-400 text-amber-400"
+                      className={`w-4 h-4 ${
+                        i < Math.floor(product.rating || 5)
+                          ? 'fill-amber-400 text-amber-400'
+                          : i < (product.rating || 5)
+                          ? 'fill-amber-300 text-amber-300'
+                          : 'fill-gray-200 text-gray-200'
+                      }`}
                     />
                   ))}
                 </div>
-                <span className="text-xs text-gray-700 font-medium ml-1">
-                  {product.reviewCount} reviews
+                <span className="text-xs text-gray-700 font-semibold ml-1">
+                  {product.reviewCount ?? 100} reviews
                 </span>
               </div>
             </div>
 
             {/* 4. Colour Swatches */}
-            <div className="space-y-2 pt-1">
-              <div className="text-xs text-gray-900 font-medium">
-                Colour: <span className="font-semibold text-gray-950">{selectedColour}</span>
+            {colorVariants.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <div className="text-xs text-gray-900 font-medium">
+                  Colour: <span className="font-semibold text-gray-950">{selectedColour}</span>
+                </div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {colorVariants.map((variant) => {
+                    const isSelected = selectedColour.toLowerCase() === variant.name.toLowerCase();
+                    return (
+                      <button
+                        key={variant.name}
+                        type="button"
+                        onClick={() => setSelectedColour(variant.name)}
+                        className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 overflow-hidden bg-white p-1 transition-all flex items-center justify-center ${
+                          isSelected
+                            ? 'border-gray-900 shadow-sm ring-1 ring-gray-900'
+                            : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                        aria-label={`Select colour ${variant.name}`}
+                        title={variant.name}
+                      >
+                        {variant.image ? (
+                          <Image
+                            src={variant.image}
+                            alt={variant.name}
+                            fill
+                            className="object-contain p-1"
+                            sizes="64px"
+                          />
+                        ) : (
+                          <span className="text-[10px] font-bold text-gray-800 text-center px-1">
+                            {variant.name}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex items-center gap-2.5">
-                {colorVariants.map((variant) => {
-                  const isSelected = selectedColour.toLowerCase() === variant.name.toLowerCase();
-                  return (
-                    <button
-                      key={variant.name}
-                      type="button"
-                      onClick={() => setSelectedColour(variant.name)}
-                      className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 overflow-hidden bg-white p-1 transition-all flex items-center justify-center ${
-                        isSelected
-                          ? 'border-gray-900 shadow-sm'
-                          : 'border-gray-200 hover:border-gray-400'
-                      }`}
-                      aria-label={`Select colour ${variant.name}`}
-                    >
-                      <Image
-                        src={variant.image}
-                        alt={variant.name}
-                        fill
-                        className="object-contain p-1"
-                        sizes="64px"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            )}
 
-            {/* 5. Category Selection: MENS / BOYS */}
+            {/* 5. Category Selection */}
             <div className="space-y-2 pt-1">
               <div className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                 CATEGORY: {selectedCategory}
               </div>
-              <div className="flex items-center gap-2">
-                {['MENS', 'BOYS'].map((cat) => {
+              <div className="flex items-center gap-2 flex-wrap">
+                {categoryOptions.map((cat) => {
                   const isSelected = selectedCategory === cat;
                   return (
                     <button
@@ -233,7 +316,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                       onClick={() => setSelectedCategory(cat)}
                       className={`px-5 py-2 text-xs font-bold rounded-md transition-all ${
                         isSelected
-                          ? 'bg-[#374151] text-white shadow-sm'
+                          ? 'bg-[#374151] text-white shadow-sm ring-1 ring-[#374151]'
                           : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -319,7 +402,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                     <span>Added to Cart!</span>
                   </>
                 ) : (
-                  <span>Select an option</span>
+                  <span>Add to Cart</span>
                 )}
               </button>
             </div>
@@ -347,6 +430,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                   rel="noopener noreferrer"
                   className="text-gray-600 hover:text-blue-600 transition font-bold"
                   aria-label="Share on Facebook"
+                  suppressHydrationWarning
                 >
                   f
                 </a>
@@ -492,7 +576,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
 
         {/* ================= RECOMMENDED PRODUCTS SECTION ================= */}
         {/* Appears after the last image when scrolling down as requested */}
-        {recommendedProducts.length > 0 && (
+        {!isHomePage && recommendedProducts.length > 0 && (
           <div className="pt-16 border-t border-gray-200 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>

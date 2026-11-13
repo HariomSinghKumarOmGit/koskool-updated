@@ -51,6 +51,8 @@ export default function AdminCategoriesPage() {
     slug: '',
     description: '',
     image_url: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+    starting_price: '₹499',
+    badge: 'Uniform Approved',
   });
 
   // Reorder State
@@ -102,6 +104,8 @@ export default function AdminCategoriesPage() {
       slug: '',
       description: '',
       image_url: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      starting_price: '₹499',
+      badge: 'Uniform Approved',
     });
     setEditingCategory(null);
     setIsModalOpen(true);
@@ -116,6 +120,8 @@ export default function AdminCategoriesPage() {
       slug: cat.slug,
       description: cat.description || '',
       image_url: cat.image_url || '',
+      starting_price: cat.starting_price || '₹499',
+      badge: cat.badge || 'Uniform Approved',
     });
     setIsModalOpen(true);
   };
@@ -425,6 +431,29 @@ export default function AdminCategoriesPage() {
                   placeholder="e.g. Senior Wing Formal Uniform"
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Starting Price</label>
+                  <input
+                    type="text"
+                    value={formData.starting_price}
+                    onChange={(e) => setFormData({ ...formData, starting_price: e.target.value })}
+                    placeholder="e.g. ₹499"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-emerald-700 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Badge Tag</label>
+                  <input
+                    type="text"
+                    value={formData.badge}
+                    onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
+                    placeholder="e.g. Uniform Approved"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
               </div>
 
               <div>

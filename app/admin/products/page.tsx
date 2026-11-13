@@ -689,15 +689,16 @@ export default function AdminProductsPage() {
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 font-bold focus:outline-none"
                   >
                     <option value="school-shoes">School Shoes</option>
-                    <option value="sports-shoes">Sports Shoes</option>
-                    <option value="fabric-shoes">Fabric Shoes</option>
-                    <option value="bags">Bags</option>
+                    <option value="sports-shoes">Sports & PT Shoes</option>
+                    <option value="fabric-shoes">Canvas & Fabric Shoes (Fibre)</option>
+                    <option value="bags">School Bags</option>
                     <option value="accessories">Accessories</option>
+                    <option value="sandals">Sandals</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Gender</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Gender / Dept</label>
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
@@ -705,6 +706,8 @@ export default function AdminProductsPage() {
                   >
                     <option value="boys">Boys</option>
                     <option value="girls">Girls</option>
+                    <option value="women">Women</option>
+                    <option value="mens">Mens</option>
                     <option value="kids">Kids</option>
                     <option value="unisex">Unisex</option>
                   </select>
@@ -719,6 +722,79 @@ export default function AdminProductsPage() {
                     placeholder="e.g. Velcro Hook-and-Loop"
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 focus:outline-none"
                   />
+                </div>
+              </div>
+
+              {/* School Wing & Sizes */}
+              <div className="space-y-3 pt-2 border-t border-gray-100">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    School Wing / Level
+                  </label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[
+                      { id: 'kindergarten', label: 'Kindergarten' },
+                      { id: 'middle-wing', label: 'Middle Wing' },
+                      { id: 'senior-wing', label: 'Senior Wing' },
+                    ].map((wing) => {
+                      const isChecked = formData.schoolLevel?.includes(wing.id);
+                      return (
+                        <button
+                          key={wing.id}
+                          type="button"
+                          onClick={() => {
+                            const current = formData.schoolLevel || [];
+                            const updated = current.includes(wing.id)
+                              ? current.filter((w: string) => w !== wing.id)
+                              : [...current, wing.id];
+                            setFormData({ ...formData, schoolLevel: updated });
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                            isChecked
+                              ? 'bg-navy-950 text-white shadow-sm'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          <span>{wing.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Available Sizes (Click to toggle)
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      '6', '7', '8', '9', '10', '11', '1', '2', '3', '4', '5',
+                      '9C', '10C', '11C', '12C', '13C'
+                    ].map((sz) => {
+                      const isChecked = formData.sizes?.includes(sz);
+                      return (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() => {
+                            const current = formData.sizes || [];
+                            const updated = current.includes(sz)
+                              ? current.filter((s: string) => s !== sz)
+                              : [...current, sz];
+                            setFormData({ ...formData, sizes: updated });
+                          }}
+                          className={`min-w-8 px-2 py-1 rounded-md text-xs font-bold transition ${
+                            isChecked
+                              ? 'bg-brand-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {sz}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

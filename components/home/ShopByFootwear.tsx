@@ -1,67 +1,49 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, ShieldCheck } from 'lucide-react';
+import { getFootwearCategories, FootwearCategoryCard, DEFAULT_FOOTWEAR_CATEGORIES } from '@/services/api';
 
 export default function ShopByFootwear() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [categories, setCategories] = useState<FootwearCategoryCard[]>(DEFAULT_FOOTWEAR_CATEGORIES);
 
-  const categories = [
-    {
-      id: 'school-shoes',
-      title: 'School Shoes',
-      subtitle: 'Uniform-ready black & white formal shoes engineered with scuff-resistant leather and anti-skid grip.',
-      image: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
-      tag: 'Morning Assembly Ready',
-      href: '/collections/school-shoes',
-      features: ['Velcro & Lace-Up', 'Cushioned Insoles', 'Scuff Resistant'],
-      startingPrice: '₹499',
-    },
-    {
-      id: 'sports-shoes',
-      title: 'PT & Sports Shoes',
-      subtitle: 'All-white PT & athletic sneakers designed for playground speed, drill days, and physical training.',
-      image: '/cdn/shop/files/SGE24001-WhiteBlue_0f422c14-0bd9-47ae-8183-cac6302b38b8.v_1786512168_width_1600.jpg',
-      tag: 'PT & Games Approved',
-      href: '/collections/sports-shoes',
-      features: ['Honeycomb Air-Mesh', 'Non-Marking Soles', 'EVA Cushioning'],
-      startingPrice: '₹549',
-    },
-    {
-      id: 'fabric-shoes',
-      title: 'Fabric & Canvas Shoes',
-      subtitle: 'Pure cotton vulcanized canvas shoes built for drill exercises, march pasts, and summer breathability.',
-      image: '/cdn/shop/files/WE1356-Black_3dd08639-1ba0-4c08-86fb-b5ddf6184a12.v_1781172079_width_1600.jpg',
-      tag: 'Drill & Summer Comfort',
-      href: '/collections/fabric-shoes',
-      features: ['Washable Canvas', 'Flexible Gum Sole', 'Cool Airflow'],
-      startingPrice: '₹399',
-    },
-    {
-      id: 'girls-ballerinas',
-      title: 'Girls Uniform Ballerinas',
-      subtitle: 'Classic Mary Jane slip-ons with secure buckle/velcro straps and memory foam footbed for all-day comfort.',
-      image: '/cdn/shop/files/WG328-Black_2_c10bf7d3-ff4d-45f8-8bb3-4ca2fb62bc12.v_1781172151_width_1600.jpg',
-      tag: 'Girls Daily Assembly',
-      href: '/collections/girls',
-      features: ['Padded Collar', 'Arch Support', 'Non-Slip Sole'],
-      startingPrice: '₹449',
-    },
-    {
-      id: 'kindergarten-velcro',
-      title: 'Junior Easy-Strap Shoes',
-      subtitle: 'Super lightweight self-fastening velcro shoes designed specifically for nursery and kindergarten students.',
-      image: '/cdn/shop/files/WV501-White_0ff19875-a8fa-4a33-8a3d-4c312759e697.v_1786513303_width_1600.jpg',
-      tag: 'Early Steps Special',
-      href: '/collections/kindergarten',
-      features: ['Dual Velcro', 'Under 200g Weight', 'Toe Protection'],
-      startingPrice: '₹429',
-    },
-  ];
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFootwear() {
+      try {
+        const loaded = await getFootwearCategories();
+        const active = loaded.filter((c) => c.is_active !== false);
+        if (isMounted && active.length > 0) {
+          active.sort((a, b) => a.display_order - b.display_order);
+          setCategories(active);
+        }
+      } catch (e) {
+        console.error('Failed to load footwear categories:', e);
+      }
+    }
+
+    loadFootwear();
+
+    const handleUpdate = () => {
+      loadFootwear();
+    };
+
+    window.addEventListener('koskool_homepage_config_updated', handleUpdate);
+    window.addEventListener('koskool_data_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('koskool_homepage_config_updated', handleUpdate);
+      window.removeEventListener('koskool_data_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const checkScroll = () => {
     if (scrollRef.current) {
@@ -82,7 +64,7 @@ export default function ShopByFootwear() {
   };
 
   return (
-    <section className="py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
+    <section className="scroll-mt-24 py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header with Left & Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">

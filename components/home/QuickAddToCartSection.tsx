@@ -29,13 +29,23 @@ export default function QuickAddToCartSection() {
 
   useEffect(() => {
     let isMounted = true;
-    getPreviewProducts({ filter: 'popular', limit: 6 }).then((items) => {
-      if (isMounted && items && items.length > 0) {
-        setQuickItems(items);
-      }
-    });
+    const fetchQuick = () => {
+      getPreviewProducts({ filter: 'popular', limit: 6 }).then((items) => {
+        if (isMounted && items && items.length > 0) {
+          setQuickItems(items);
+        }
+      });
+    };
+
+    fetchQuick();
+
+    window.addEventListener('koskool_products_updated', fetchQuick);
+    window.addEventListener('storage', fetchQuick);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('koskool_products_updated', fetchQuick);
+      window.removeEventListener('storage', fetchQuick);
     };
   }, []);
 
@@ -82,7 +92,7 @@ export default function QuickAddToCartSection() {
   const activePromos = promoCodes.filter((p) => p.isActive);
 
   return (
-    <section className="py-12 sm:py-16 bg-gradient-to-b from-white to-gray-50 border-b border-gray-200 overflow-hidden">
+    <section className="scroll-mt-24 py-12 sm:py-16 bg-gradient-to-b from-white to-gray-50 border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header with Title and Left/Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
@@ -126,16 +136,16 @@ export default function QuickAddToCartSection() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs sm:text-sm font-black">
-                  Admin Promo Discount Active
+                  Special School Promos &amp; Offers
                 </span>
                 <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                  Reduces Cart Price
+                  Instant Discount
                 </span>
               </div>
               <p className="text-[11px] text-gray-300">
                 {appliedPromo
                   ? `Applied: ${appliedPromo.code} (-₹${discountAmount} OFF)`
-                  : 'Enter code or click any offer below to reduce checkout total!'}
+                  : 'Enter code or choose any offer below to reduce checkout total!'}
               </p>
             </div>
           </div>
@@ -171,13 +181,6 @@ export default function QuickAddToCartSection() {
                 </button>
               </div>
             )}
-
-            <Link
-              href="/admin"
-              className="text-[11px] text-gray-400 hover:text-white underline decoration-dotted transition"
-            >
-              Manage in Admin
-            </Link>
           </div>
         </div>
 
@@ -230,7 +233,7 @@ export default function QuickAddToCartSection() {
                     <span className="text-[10px] font-black uppercase text-brand-600 bg-brand-50 px-2 py-0.5 rounded">
                       {product.brand}
                     </span>
-                    <h3 className="text-sm font-bold text-navy-950 mt-1 line-clamp-1 group-hover:text-brand-600 transition">
+                    <h3 className="text-sm font-bold text-navy-950 mt-1 line-clamp-2 min-h-[2.5rem] leading-snug break-words group-hover:text-brand-600 transition">
                       {product.name}
                     </h3>
 
