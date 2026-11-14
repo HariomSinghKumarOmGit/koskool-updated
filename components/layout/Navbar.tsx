@@ -21,7 +21,7 @@ import {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { totalItems, openCartDrawer } = useCart();
+  const { totalItems } = useCart();
   const { user, isAdmin, openAuthModal } = useAuth();
 
   const [activeMega, setActiveMega] = useState<string | null>(null);
@@ -214,9 +214,9 @@ export default function Navbar() {
                 </button>
               )}
 
-              {/* Shopping Cart Drawer Trigger */}
-              <button
-                onClick={openCartDrawer}
+              {/* Shopping Cart Trigger */}
+              <Link
+                href="/cart"
                 className="relative p-2.5 rounded-full text-navy-900 hover:text-brand-600 hover:bg-gray-100 transition"
                 aria-label="View Cart"
               >
@@ -226,7 +226,7 @@ export default function Navbar() {
                     {totalItems}
                   </span>
                 )}
-              </button>
+              </Link>
             </div>
           </div>
         </div>

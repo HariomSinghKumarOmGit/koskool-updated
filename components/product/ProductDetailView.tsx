@@ -28,7 +28,7 @@ interface ProductDetailViewProps {
 
 export default function ProductDetailView({ product: initialProduct, isHomePage = false }: ProductDetailViewProps) {
   const router = useRouter();
-  const { addToCart, openCartDrawer } = useCart();
+  const { addToCart } = useCart();
 
   // Find featured or requested product
   const defaultProduct = PRODUCTS.find((p) => p.slug === 'mens-daily-wear-sandals-wgp53410-tan') || PRODUCTS[0];
@@ -108,7 +108,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
 
   const handleBuyItNow = () => {
     addToCart(product, selectedSize, selectedColour, quantity);
-    openCartDrawer();
+    router.push('/cart');
   };
 
   // Color variants setup: use product variants, colours, or primaryColour without hardcoded fallbacks
