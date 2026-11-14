@@ -62,12 +62,6 @@ export default function CartDrawer() {
     const target = (codeToApply || inputCode).trim();
     if (!target) return;
 
-    if (!user) {
-      closeCartDrawer();
-      openAuthModal(() => executeApply(target));
-      return;
-    }
-
     executeApply(target);
   };
 

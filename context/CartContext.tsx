@@ -38,10 +38,26 @@ interface CartContextType {
   resetPromoCodesToDefaults: () => void;
 }
 
+const getInitialDemoItems = (): CartItem[] => {
+  const p1 = PRODUCTS.find((p) => p.id === 'wgp53358-brown');
+  const p2 = PRODUCTS.find((p) => p.id === 'wgp53283-tan');
+  const p3 = PRODUCTS.find((p) => p.id === 'wgp53283-black');
+  const p4 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-blue');
+  const p5 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-black');
+
+  const initial: CartItem[] = [];
+  if (p1) initial.push({ product: p1, selectedSize: '7', selectedColour: 'Brown', quantity: 1 });
+  if (p2) initial.push({ product: p2, selectedSize: '9', selectedColour: 'Tan', quantity: 1 });
+  if (p3) initial.push({ product: p3, selectedSize: '8', selectedColour: 'Black', quantity: 1 });
+  if (p4) initial.push({ product: p4, selectedSize: '', selectedColour: 'Blue', quantity: 1 });
+  if (p5) initial.push({ product: p5, selectedSize: '', selectedColour: 'Black', quantity: 1 });
+  return initial;
+};
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(getInitialDemoItems);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>(INITIAL_PROMO_CODES);
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
@@ -84,9 +100,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('koskool_cart');
+      const hasCleared = localStorage.getItem('koskool_cart_cleared') === 'true';
+      let loadedItems: CartItem[] | null = null;
+
       if (savedCart) {
         const parsed = JSON.parse(savedCart);
-        setItems(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedItems = parsed;
+        } else if (hasCleared) {
+          loadedItems = [];
+        }
+      }
+
+      if (loadedItems !== null) {
+        setItems(loadedItems);
       } else {
         // Initialize with default demo items matching reference screenshots
         const p1 = PRODUCTS.find((p) => p.id === 'wgp53358-brown');
@@ -193,10 +220,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (openDrawer) {
       setIsCartDrawerOpen(true);
     }
+
+    try {
+      localStorage.removeItem('koskool_cart_cleared');
+    } catch {}
   };
 
   const removeFromCart = (productId: string, size: string) => {
-    setItems((prev) => prev.filter((item) => !(item.product.id === productId && item.selectedSize === size)));
+    setItems((prev) => {
+      const next = prev.filter((item) => !(item.product.id === productId && item.selectedSize === size));
+      if (next.length === 0) {
+        try {
+          localStorage.setItem('koskool_cart_cleared', 'true');
+        } catch {}
+      }
+      return next;
+    });
   };
 
   const updateQuantity = (productId: string, size: string, quantity: number) => {
@@ -217,6 +256,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clearCart = () => {
     setItems([]);
     setAppliedPromo(null);
+    try {
+      localStorage.setItem('koskool_cart_cleared', 'true');
+    } catch {}
   };
 
   const totalItems = useMemo(() => items.reduce((acc, item) => acc + item.quantity, 0), [items]);
