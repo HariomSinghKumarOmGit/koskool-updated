@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, Phone, User, MessageSquare, Send, CheckCircle2, Building, Sparkles } from 'lucide-react';
+import { Mail, Phone, User, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { createInquiry } from '@/services/api';
 
 export default function QuotationInquiryForm() {
@@ -41,10 +41,6 @@ export default function QuotationInquiryForm() {
   return (
     <div id="contact" className="bg-white rounded-3xl p-6 sm:p-10 border border-gray-200 shadow-xl space-y-6">
       <div className="space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-50 text-brand-600 text-[10px] font-black uppercase tracking-wider border border-brand-200">
-          <Building className="w-3.5 h-3.5" />
-          Factory-Direct Inquiries &amp; Quotations
-        </div>
         <h2 className="text-xl sm:text-2xl font-black text-navy-950">
           Request an Institutional Quotation or Send a Message
         </h2>

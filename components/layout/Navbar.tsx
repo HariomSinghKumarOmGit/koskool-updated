@@ -16,7 +16,6 @@ import {
   Menu,
   ChevronDown,
   Phone,
-  Sparkles,
   Award,
 } from 'lucide-react';
 

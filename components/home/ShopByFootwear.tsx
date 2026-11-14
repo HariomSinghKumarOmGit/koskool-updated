@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 import { getFootwearCategories, FootwearCategoryCard, DEFAULT_FOOTWEAR_CATEGORIES } from '@/services/api';
 
 export default function ShopByFootwear() {
@@ -69,10 +69,6 @@ export default function ShopByFootwear() {
         {/* Section Header with Left & Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">
           <div className="text-left space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-200">
-              <Sparkles className="w-3.5 h-3.5" />
-              Footwear Essentials
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
               Shop by Footwear
             </h2>
@@ -134,9 +130,6 @@ export default function ShopByFootwear() {
                     sizes="(max-width: 640px) 85vw, 360px"
                     className="object-contain p-4 group-hover:scale-105 transition-transform duration-500"
                   />
-                  <span className="absolute top-4 left-4 bg-navy-950/85 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow-sm">
-                    {cat.tag}
-                  </span>
 
                   <span className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-md text-navy-950 text-[10px] font-black px-2.5 py-1 rounded-lg shadow-sm border border-gray-200">
                     From {cat.startingPrice}
@@ -155,16 +148,9 @@ export default function ShopByFootwear() {
                   </div>
 
                   <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <div className="flex flex-wrap gap-1.5 max-w-[75%]">
-                      {cat.features.slice(0, 2).map((feat, fIdx) => (
-                        <span
-                          key={fIdx}
-                          className="text-[10px] font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md"
-                        >
-                          {feat}
-                        </span>
-                      ))}
-                    </div>
+                    <span className="text-xs font-bold text-navy-950 group-hover:text-brand-600 transition">
+                      View Collection
+                    </span>
                     <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center group-hover:bg-brand-600 group-hover:text-white transition shrink-0 ml-2 shadow-sm">
                       <ArrowRight className="w-4 h-4" />
                     </div>

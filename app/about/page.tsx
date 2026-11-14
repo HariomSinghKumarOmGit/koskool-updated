@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Sparkles, Heart, Award, Compass, ShieldCheck, MapPin } from 'lucide-react';
+import { Heart, Award, Compass, ShieldCheck, MapPin } from 'lucide-react';
 import QuotationInquiryForm from '@/components/home/QuotationInquiryForm';
 
 export const metadata = {
@@ -16,10 +16,6 @@ export default function AboutPage() {
       {/* Hero Header */}
       <div className="relative bg-navy-950 text-white py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center space-y-4 relative z-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-600/30 text-brand-300 text-xs font-black uppercase tracking-wider border border-brand-500/40">
-            <Sparkles className="w-3.5 h-3.5" />
-            Our Mission &amp; Purpose
-          </div>
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
             Every Step Begins with KOSKOOL.
           </h1>

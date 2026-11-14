@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  School,
 } from 'lucide-react';
 
 export default function SchoolTrustReviews() {
@@ -124,10 +123,6 @@ export default function SchoolTrustReviews() {
         <div>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
             <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-navy-950 bg-navy-50 px-3 py-1 rounded-full border border-navy-200">
-                <School className="w-3.5 h-3.5 text-brand-600" />
-                School Approved
-              </div>
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
                 Trusted by 50,000+ Indian Parents &amp; Schools
               </h2>

@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-  Sparkles,
   Check,
 } from 'lucide-react';
 
@@ -588,10 +587,11 @@ export default function CategoryTemplate({
         {showBanner && (
           <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white p-8 sm:p-12 shadow-sm">
             <div className="relative z-10 max-w-2xl space-y-3">
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-[#f07167] bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/15">
-                <Sparkles className="w-3 h-3 text-[#f07167]" />
-                {badge}
-              </span>
+              {badge && (
+                <span className="inline-block text-[11px] font-black uppercase tracking-widest text-[#f07167] bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/15">
+                  {badge}
+                </span>
+              )}
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
                 {title}
               </h1>
@@ -1004,7 +1004,7 @@ export default function CategoryTemplate({
             {filteredProducts.length === 0 ? (
               <div className="bg-white rounded-3xl p-16 text-center border border-gray-100 shadow-sm space-y-4 my-4">
                 <div className="w-16 h-16 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto">
-                  <Sparkles className="w-8 h-8" />
+                  <SlidersHorizontal className="w-8 h-8" />
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">No products match your filters</h3>

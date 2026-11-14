@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PRODUCTS, Product } from '@/data/products';
 import ProductCard from '@/components/product/ProductCard';
-import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getPreviewProducts } from '@/services/api';
 
 export default function PopularSchoolPicks() {
@@ -79,10 +79,6 @@ export default function PopularSchoolPicks() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-200">
-              <Sparkles className="w-3.5 h-3.5" />
-              Top Rated by Parents &amp; Schools
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
               Popular School Picks
             </h2>

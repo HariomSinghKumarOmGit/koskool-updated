@@ -89,9 +89,6 @@ export default function TrackOrderPage() {
     <div className="bg-gray-50 min-h-screen py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-center space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-200">
-            Real-Time Tracking
-          </span>
           <h1 className="text-2xl sm:text-4xl font-black text-navy-950">Track Your KOSKOOL Order</h1>
           <p className="text-xs sm:text-sm text-gray-600">
             Enter your order reference ID (e.g. KS-849201) to track dispatch progress from Bawana plant.

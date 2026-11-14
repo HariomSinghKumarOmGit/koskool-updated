@@ -24,6 +24,15 @@ import {
   Save,
   Check,
   AlertTriangle,
+  Star,
+  Palette,
+  FileText,
+  DollarSign,
+  Layers,
+  HelpCircle,
+  Info,
+  Tag,
+  Percent,
 } from 'lucide-react';
 import {
   getProducts,
@@ -34,7 +43,7 @@ import {
   getCategories,
   Category,
 } from '@/services/api';
-import { Product } from '@/data/products';
+import { Product, ColorVariant } from '@/data/products';
 import { uploadToStorage } from '@/lib/supabase';
 
 export default function AdminProductsPage() {
@@ -57,6 +66,10 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Product | null>(null);
 
+  // Modal Tab & Custom Size State
+  const [activeModalTab, setActiveModalTab] = useState<'basic' | 'colors' | 'reviews' | 'content' | 'sizes'>('basic');
+  const [customSizeInput, setCustomSizeInput] = useState('');
+
   // Form State
   const [formData, setFormData] = useState<any>({
     name: '',
@@ -71,11 +84,20 @@ export default function AdminProductsPage() {
     sizes: ['1', '2', '3', '4', '5'],
     colours: ['Black'],
     primaryColour: 'Black',
+    colorVariants: [],
+    categoryOptions: ['BOYS', 'KIDS'],
+    rating: 4.8,
+    reviewCount: 100,
+    additionalInfo: '',
+    shippingInfo: '',
+    features: ['Specially engineered for school uniform daily compliance', 'Anti-slip durable rubber outsole'],
     images: [],
     description: '',
     material: 'High-Density Water-Resistant PU Upper + TPR Anti-Slip Sole',
     closureType: 'Velcro Hook-and-Loop',
     inStock: true,
+    isPopular: false,
+    isNewArrival: false,
   });
 
   // Image Upload State
@@ -130,6 +152,7 @@ export default function AdminProductsPage() {
 
   // Open Add Product Modal
   const handleOpenAdd = () => {
+    setActiveModalTab('basic');
     setFormData({
       name: '',
       slug: '',
@@ -143,11 +166,20 @@ export default function AdminProductsPage() {
       sizes: ['1', '2', '3', '4', '5'],
       colours: ['Black'],
       primaryColour: 'Black',
+      colorVariants: [],
+      categoryOptions: ['BOYS', 'KIDS'],
+      rating: 4.8,
+      reviewCount: 100,
+      additionalInfo: '',
+      shippingInfo: '',
+      features: ['Specially engineered for school uniform daily compliance', 'Anti-slip durable rubber outsole'],
       images: ['/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'],
       description: 'Specially engineered for school uniform daily compliance and playground stamina.',
       material: 'School Grade PU + Durable Non-Marking Rubber Outsole',
       closureType: 'Velcro Hook-and-Loop',
       inStock: true,
+      isPopular: false,
+      isNewArrival: false,
     });
     setEditingProduct(null);
     setIsAddModalOpen(true);
@@ -155,27 +187,134 @@ export default function AdminProductsPage() {
 
   // Open Edit Product Modal
   const handleOpenEdit = (p: Product) => {
+    setActiveModalTab('basic');
     setEditingProduct(p);
+
+    // Initial color variants from product or generated from colors
+    let initialVariants: ColorVariant[] = [];
+    if (p.colorVariants && p.colorVariants.length > 0) {
+      initialVariants = p.colorVariants;
+    } else if (p.colours && p.colours.length > 0) {
+      initialVariants = p.colours.map((col, idx) => ({
+        name: col,
+        image: p.images[idx] || p.images[0] || '',
+      }));
+    } else if (p.primaryColour) {
+      initialVariants = [{
+        name: p.primaryColour,
+        image: p.images[0] || '',
+      }];
+    }
+
+    const calculatedDiscount = p.discountPercent ?? (p.originalPrice && p.originalPrice > p.price
+      ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
+      : 0);
+
     setFormData({
-      name: p.name,
-      slug: p.slug,
+      name: p.name || '',
+      slug: p.slug || '',
       brand: p.brand || 'KOSKOOL',
       price: p.price,
       originalPrice: p.originalPrice || p.price,
-      discountPercent: p.discountPercent || 25,
-      gender: p.gender,
-      schoolLevel: p.schoolLevel,
-      productType: p.productType,
-      sizes: p.sizes,
-      colours: p.colours,
-      primaryColour: p.primaryColour,
+      discountPercent: calculatedDiscount,
+      gender: p.gender || 'boys',
+      schoolLevel: p.schoolLevel || [],
+      productType: p.productType || 'school-shoes',
+      sizes: p.sizes || [],
+      colours: p.colours && p.colours.length > 0 ? p.colours : [p.primaryColour || 'Black'],
+      primaryColour: p.primaryColour || 'Black',
+      colorVariants: initialVariants,
+      categoryOptions: p.categoryOptions || [],
+      rating: p.rating ?? 4.8,
+      reviewCount: p.reviewCount ?? 100,
+      additionalInfo: p.additionalInfo || '',
+      shippingInfo: p.shippingInfo || '',
+      features: p.features || [],
       images: p.images && p.images.length > 0 ? p.images : [],
-      description: p.description,
-      material: p.material,
+      description: p.description || '',
+      material: p.material || '',
       closureType: p.closureType || 'Lace-Up',
-      inStock: p.inStock,
+      inStock: p.inStock !== false,
+      isPopular: p.isPopular ?? false,
+      isNewArrival: p.isNewArrival ?? false,
     });
     setIsAddModalOpen(true);
+  };
+
+  // Color Variants Helpers
+  const handleAddColorVariant = () => {
+    setFormData((prev: any) => ({
+      ...prev,
+      colorVariants: [
+        ...(prev.colorVariants || []),
+        { name: '', image: prev.images?.[0] || '' },
+      ],
+    }));
+  };
+
+  const handleUpdateColorVariant = (index: number, field: 'name' | 'image', value: string) => {
+    setFormData((prev: any) => {
+      const nextVariants = [...(prev.colorVariants || [])];
+      nextVariants[index] = { ...nextVariants[index], [field]: value };
+      
+      // If primaryColour is empty and this is the first variant, set primaryColour
+      let primary = prev.primaryColour;
+      if (field === 'name' && (!primary || primary === 'Black') && index === 0 && value.trim()) {
+        primary = value.trim();
+      }
+
+      return { ...prev, colorVariants: nextVariants, primaryColour: primary };
+    });
+  };
+
+  const handleRemoveColorVariant = (index: number) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      colorVariants: (prev.colorVariants || []).filter((_: any, idx: number) => idx !== index),
+    }));
+  };
+
+  const handleSyncColoursFromVariants = () => {
+    const variantNames = (formData.colorVariants || [])
+      .map((v: ColorVariant) => v.name.trim())
+      .filter(Boolean);
+    if (variantNames.length > 0) {
+      setFormData((prev: any) => ({
+        ...prev,
+        colours: Array.from(new Set(variantNames)),
+        primaryColour: prev.primaryColour || variantNames[0],
+      }));
+    }
+  };
+
+  const handleAddCustomSize = () => {
+    const trimmed = customSizeInput.trim().toUpperCase();
+    if (!trimmed) return;
+    setFormData((prev: any) => {
+      const current = prev.sizes || [];
+      if (!current.includes(trimmed)) {
+        return { ...prev, sizes: [...current, trimmed] };
+      }
+      return prev;
+    });
+    setCustomSizeInput('');
+  };
+
+  const insertFootwearTemplate = () => {
+    const tpl = `Manufactured by: Walkaroo International Pvt Ltd. Plot No 10-12, SIDCO Industrial Estate, Malumichampatti, Coimbatore - 641050 India
+Commodity - Footwear
+Number of Commodity - 2N (1 Pair)
+Country of Origin - India
+Customer Care: 011-6119-7311 customercare@walkaroo.in
+Please Note: The color of the original product may slightly vary due to photography lighting and your screen brightness.`;
+    setFormData((prev: any) => ({ ...prev, additionalInfo: tpl }));
+  };
+
+  const insertShippingTemplate = () => {
+    const tpl = `This item is eligible for our 7 day easy return policy. No questions asked.
+Estimated time of delivery: 2 to 6 working days.
+Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
+    setFormData((prev: any) => ({ ...prev, shippingInfo: tpl }));
   };
 
   // Handle Form Submit
@@ -631,279 +770,834 @@ export default function AdminProductsPage() {
 
       {/* Add / Edit Product Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-gray-200 shadow-2xl space-y-6 my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h2 className="text-lg font-black text-navy-950">
-                {editingProduct ? 'Edit Product' : 'Add New Product to Supabase'}
-              </h2>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-5 sm:p-7 border border-gray-200 shadow-2xl space-y-5 my-6 max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 flex-shrink-0">
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-navy-950">
+                  {editingProduct ? 'Edit Product' : 'Add New Product to Supabase'}
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Configure pricing, crossed-out MRP, colors, reviews & additional information
+                </p>
+              </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Product Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. KOSKOOL Boys Easy-Strap Velcro School Shoes"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Original MRP (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.originalPrice}
-                    onChange={(e) => setFormData({ ...formData, originalPrice: Number(e.target.value) })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
-                  <select
-                    value={formData.productType}
-                    onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 font-bold focus:outline-none"
+            {/* Modal Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-gray-100 flex-shrink-0">
+              {[
+                { id: 'basic', label: 'Pricing & Info', icon: DollarSign },
+                { id: 'colors', label: 'Colors & Swatches', icon: Palette },
+                { id: 'reviews', label: 'Reviews & Rating', icon: Star },
+                { id: 'content', label: 'Additional Info & Content', icon: FileText },
+                { id: 'sizes', label: 'Sizes & Images', icon: Layers },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeModalTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveModalTab(tab.id as any)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                      isActive
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                    }`}
                   >
-                    <option value="school-shoes">School Shoes</option>
-                    <option value="sports-shoes">Sports & PT Shoes</option>
-                    <option value="fabric-shoes">Canvas & Fabric Shoes (Fibre)</option>
-                    <option value="bags">School Bags</option>
-                    <option value="accessories">Accessories</option>
-                    <option value="sandals">Sandals</option>
-                  </select>
-                </div>
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Gender / Dept</label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 font-bold focus:outline-none"
-                  >
-                    <option value="boys">Boys</option>
-                    <option value="girls">Girls</option>
-                    <option value="women">Women</option>
-                    <option value="mens">Mens</option>
-                    <option value="kids">Kids</option>
-                    <option value="unisex">Unisex</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Closure Type</label>
-                  <input
-                    type="text"
-                    value={formData.closureType}
-                    onChange={(e) => setFormData({ ...formData, closureType: e.target.value })}
-                    placeholder="e.g. Velcro Hook-and-Loop"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* School Wing & Sizes */}
-              <div className="space-y-3 pt-2 border-t border-gray-100">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    School Wing / Level
-                  </label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {[
-                      { id: 'kindergarten', label: 'Kindergarten' },
-                      { id: 'middle-wing', label: 'Middle Wing' },
-                      { id: 'senior-wing', label: 'Senior Wing' },
-                    ].map((wing) => {
-                      const isChecked = formData.schoolLevel?.includes(wing.id);
-                      return (
-                        <button
-                          key={wing.id}
-                          type="button"
-                          onClick={() => {
-                            const current = formData.schoolLevel || [];
-                            const updated = current.includes(wing.id)
-                              ? current.filter((w: string) => w !== wing.id)
-                              : [...current, wing.id];
-                            setFormData({ ...formData, schoolLevel: updated });
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
-                            isChecked
-                              ? 'bg-navy-950 text-white shadow-sm'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                          <span>{wing.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    Available Sizes (Click to toggle)
-                  </label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {[
-                      '6', '7', '8', '9', '10', '11', '1', '2', '3', '4', '5',
-                      '9C', '10C', '11C', '12C', '13C'
-                    ].map((sz) => {
-                      const isChecked = formData.sizes?.includes(sz);
-                      return (
-                        <button
-                          key={sz}
-                          type="button"
-                          onClick={() => {
-                            const current = formData.sizes || [];
-                            const updated = current.includes(sz)
-                              ? current.filter((s: string) => s !== sz)
-                              : [...current, sz];
-                            setFormData({ ...formData, sizes: updated });
-                          }}
-                          className={`min-w-8 px-2 py-1 rounded-md text-xs font-bold transition ${
-                            isChecked
-                              ? 'bg-brand-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {sz}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Supabase Storage Image Uploader */}
-              <div className="space-y-2 pt-2 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-gray-700">
-                    Product Images (Supabase Storage: <code>product-images</code> bucket)
-                  </label>
-                  <span className="text-[11px] text-gray-400">First image is primary thumbnail</span>
-                </div>
-
-                {/* Upload Trigger */}
-                <div className="flex items-center gap-3">
-                  <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-navy-950 px-4 py-2 rounded-xl text-xs font-bold transition">
-                    <Upload className="w-4 h-4 text-brand-600" />
-                    <span>Upload Images to Supabase</span>
+            {/* Form Body (Scrollable) */}
+            <form onSubmit={handleFormSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1">
+              
+              {/* ================= TAB 1: PRICING & BASIC INFO ================= */}
+              {activeModalTab === 'basic' && (
+                <div className="space-y-4">
+                  {/* Product Title */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Title *</label>
                     <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageFileChange}
-                      className="hidden"
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. chipit or Walkaroo Urbanoz Sandals"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
                     />
-                  </label>
-                  {uploadingImage && (
-                    <span className="text-xs text-brand-600 font-bold animate-pulse">
-                      Uploading to Supabase Storage ({uploadProgress}%)...
-                    </span>
-                  )}
-                </div>
+                  </div>
 
-                {/* Image Previews & Ordering */}
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-2">
-                  {formData.images.map((imgUrl: string, idx: number) => (
-                    <div
-                      key={idx}
-                      className={`relative group rounded-xl overflow-hidden border-2 bg-gray-50 aspect-square ${
-                        idx === 0 ? 'border-brand-600 ring-2 ring-brand-500/20' : 'border-gray-200'
-                      }`}
-                    >
-                      <Image src={imgUrl} alt="Thumbnail preview" fill className="object-contain p-1" />
-                      {idx === 0 && (
-                        <span className="absolute top-1 left-1 bg-brand-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
-                          Main
+                  {/* Brand & Slug */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Brand Name</label>
+                      <input
+                        type="text"
+                        value={formData.brand}
+                        onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                        placeholder="e.g. KOSKOOL, URBANOZ, BOUNCEEZ"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Product URL Slug</label>
+                      <input
+                        type="text"
+                        value={formData.slug}
+                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                        placeholder="e.g. chipit-kids-sandals"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pricing & Discount */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Selling Price (₹) *</label>
+                      <input
+                        type="number"
+                        required
+                        value={formData.price}
+                        onChange={(e) => {
+                          const p = Number(e.target.value);
+                          const orig = formData.originalPrice || p;
+                          const disc = orig > p ? Math.round(((orig - p) / orig) * 100) : 0;
+                          setFormData({ ...formData, price: p, discountPercent: disc });
+                        }}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <span className="text-[10px] text-gray-400">Actual price customer pays</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Original MRP (₹)</label>
+                      <input
+                        type="number"
+                        value={formData.originalPrice}
+                        onChange={(e) => {
+                          const orig = Number(e.target.value);
+                          const p = formData.price;
+                          const disc = orig > p ? Math.round(((orig - p) / orig) * 100) : 0;
+                          setFormData({ ...formData, originalPrice: orig, discountPercent: disc });
+                        }}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <span className="text-[10px] text-gray-400">Shown crossed-out (strikethrough)</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Discount %</label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          value={formData.discountPercent}
+                          onChange={(e) => setFormData({ ...formData, discountPercent: Number(e.target.value) })}
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none"
+                        />
+                        <span className="text-xs font-bold text-gray-500">%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Price Preview Box matching Image 3 */}
+                  <div className="bg-gradient-to-r from-amber-50/70 to-orange-50/50 border border-amber-200/80 rounded-2xl p-3.5">
+                    <div className="text-[10px] font-black uppercase text-amber-900 tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <Tag className="w-3 h-3 text-brand-600" />
+                      <span>Live Storefront Price Display (Customer View)</span>
+                    </div>
+                    <div className="flex items-baseline gap-3 flex-wrap">
+                      <div className="flex items-baseline font-black text-gray-950">
+                        <span className="text-sm font-bold mr-0.5 leading-none">₹</span>
+                        <span className="text-2xl font-black tracking-tight leading-none">
+                          {Number(formData.price || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+
+                      {formData.originalPrice && formData.originalPrice > formData.price && (
+                        <span className="text-base text-gray-400 line-through font-semibold decoration-gray-500 decoration-[1.5px]">
+                          ₹{Number(formData.originalPrice).toLocaleString('en-IN')}
                         </span>
                       )}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5">
-                        {idx !== 0 && (
+
+                      {formData.originalPrice && formData.originalPrice > formData.price && (
+                        <span className="text-[11px] font-black text-brand-600 bg-white border border-brand-200 px-2 py-0.5 rounded shadow-sm uppercase">
+                          {formData.discountPercent || Math.round(((formData.originalPrice - formData.price) / formData.originalPrice) * 100)}% OFF
+                        </span>
+                      )}
+
+                      <span className="text-[11px] text-gray-500 font-normal">
+                        (Inclusive of all taxes)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Category, Gender, Closure Type */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
+                      <select
+                        value={formData.productType}
+                        onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 font-bold focus:outline-none"
+                      >
+                        <option value="school-shoes">School Shoes</option>
+                        <option value="sports-shoes">Sports & PT Shoes</option>
+                        <option value="fabric-shoes">Canvas & Fabric Shoes</option>
+                        <option value="bags">School Bags</option>
+                        <option value="accessories">Accessories</option>
+                        <option value="sandals">Sandals</option>
+                        <option value="daily-wear">Daily Wear</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Gender / Dept</label>
+                      <select
+                        value={formData.gender}
+                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 font-bold focus:outline-none"
+                      >
+                        <option value="boys">Boys</option>
+                        <option value="girls">Girls</option>
+                        <option value="kids">Kids</option>
+                        <option value="mens">Mens</option>
+                        <option value="women">Women</option>
+                        <option value="unisex">Unisex</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Closure Type</label>
+                      <input
+                        type="text"
+                        value={formData.closureType}
+                        onChange={(e) => setFormData({ ...formData, closureType: e.target.value })}
+                        placeholder="e.g. Velcro Hook-and-Loop"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stock & Badges */}
+                  <div className="flex items-center gap-4 pt-1 flex-wrap">
+                    <label className="inline-flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={formData.inStock !== false}
+                        onChange={(e) => setFormData({ ...formData, inStock: e.target.checked })}
+                        className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
+                      />
+                      <span>In Stock</span>
+                    </label>
+
+                    <label className="inline-flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={!!formData.isPopular}
+                        onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
+                        className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
+                      />
+                      <span>Popular Pick / Bestseller</span>
+                    </label>
+
+                    <label className="inline-flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={!!formData.isNewArrival}
+                        onChange={(e) => setFormData({ ...formData, isNewArrival: e.target.checked })}
+                        className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
+                      />
+                      <span>New Arrival</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB 2: COLORS & SWATCHES ================= */}
+              {activeModalTab === 'colors' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Primary Colour */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Primary Selected Colour *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.primaryColour}
+                        onChange={(e) => setFormData({ ...formData, primaryColour: e.target.value })}
+                        placeholder="e.g. Black, Tan, Olive, Navy"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <span className="text-[10px] text-gray-400">Shown next to "Colour:" label</span>
+                    </div>
+
+                    {/* Available Colours text */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Available Colours (Comma Separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={(formData.colours || []).join(', ')}
+                        onChange={(e) => {
+                          const parsed = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                          setFormData({ ...formData, colours: parsed });
+                        }}
+                        placeholder="e.g. Black, Tan, Olive, Brown"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <span className="text-[10px] text-gray-400">List of all colours for this item</span>
+                    </div>
+                  </div>
+
+                  {/* Color Variants (Swatches on Product Page) */}
+                  <div className="space-y-3 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-800">
+                          Color Swatch Variants (Thumbnails on Product Page)
+                        </label>
+                        <p className="text-[11px] text-gray-400">
+                          Each variant appears as a clickable swatch button with its image
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {formData.colours && formData.colours.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => handleSetPrimaryImage(idx)}
-                            className="p-1 bg-white text-navy-950 rounded text-[10px] font-bold"
-                            title="Set as Main Thumbnail"
+                            onClick={() => {
+                              const created = formData.colours.map((c: string, idx: number) => ({
+                                name: c,
+                                image: formData.images[idx] || formData.images[0] || '',
+                              }));
+                              setFormData({ ...formData, colorVariants: created });
+                            }}
+                            className="text-[10px] font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition"
                           >
-                            Set Main
+                            Populate from Colours
                           </button>
                         )}
                         <button
                           type="button"
-                          onClick={() => handleRemoveImage(idx)}
-                          className="p-1 bg-red-600 text-white rounded"
-                          title="Remove Image"
+                          onClick={handleAddColorVariant}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold bg-navy-950 text-white hover:bg-brand-600 px-3 py-1.5 rounded-xl transition"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Variant</span>
                         </button>
                       </div>
                     </div>
-                  ))}
+
+                    {/* Variant list */}
+                    {(!formData.colorVariants || formData.colorVariants.length === 0) ? (
+                      <div className="border border-dashed border-gray-300 rounded-2xl p-6 text-center text-xs text-gray-500 bg-gray-50">
+                        <Palette className="w-6 h-6 text-gray-400 mx-auto mb-1.5" />
+                        <p className="font-semibold text-gray-700">No color variants created yet</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          Click "Add Variant" or "Populate from Colours" to show color swatches on the product page
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {formData.colorVariants.map((variant: ColorVariant, vIdx: number) => (
+                          <div
+                            key={vIdx}
+                            className="bg-gray-50 border border-gray-200 rounded-2xl p-3 flex items-center gap-3"
+                          >
+                            {/* Thumbnail preview */}
+                            <div className="relative w-12 h-12 rounded-xl bg-white border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {variant.image ? (
+                                <Image src={variant.image} alt={variant.name} fill className="object-contain p-1" />
+                              ) : (
+                                <Palette className="w-5 h-5 text-gray-400" />
+                              )}
+                            </div>
+
+                            {/* Name input */}
+                            <div className="w-32 flex-shrink-0">
+                              <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Colour Name</label>
+                              <input
+                                type="text"
+                                value={variant.name}
+                                onChange={(e) => handleUpdateColorVariant(vIdx, 'name', e.target.value)}
+                                placeholder="e.g. Tan"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-navy-950 font-semibold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                              />
+                            </div>
+
+                            {/* Image URL input */}
+                            <div className="flex-1">
+                              <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Swatch Image URL</label>
+                              <input
+                                type="text"
+                                value={variant.image}
+                                onChange={(e) => handleUpdateColorVariant(vIdx, 'image', e.target.value)}
+                                placeholder="/cdn/shop/files/... or https://..."
+                                className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-navy-950 font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-brand-500"
+                              />
+                            </div>
+
+                            {/* Quick image shortcuts if available */}
+                            {formData.images && formData.images.length > 0 && (
+                              <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+                                <span className="text-[10px] text-gray-400 font-medium">Use img:</span>
+                                {formData.images.slice(0, 3).map((imgUrl: string, imgIdx: number) => (
+                                  <button
+                                    key={imgIdx}
+                                    type="button"
+                                    onClick={() => handleUpdateColorVariant(vIdx, 'image', imgUrl)}
+                                    className="relative w-7 h-7 rounded border border-gray-200 overflow-hidden hover:border-brand-500 bg-white"
+                                    title={`Use image #${imgIdx + 1}`}
+                                  >
+                                    <Image src={imgUrl} alt="pick" fill className="object-contain" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Delete variant */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveColorVariant(vIdx)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition flex-shrink-0"
+                              title="Delete variant"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Description & Material */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Description</label>
-                <textarea
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Engineered for 8 hours school wear, assembly compliance, and active recess drills..."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
-              </div>
+              {/* ================= TAB 3: REVIEWS & RATINGS ================= */}
+              {activeModalTab === 'reviews' && (
+                <div className="space-y-4">
+                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4">
+                    <div className="text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                      <span>Product Reviews & Customer Rating Settings</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800">
+                      These values are shown next to the stars directly under the product title on the product detail page.
+                    </p>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Material Composition</label>
-                <input
-                  type="text"
-                  value={formData.material}
-                  onChange={(e) => setFormData({ ...formData, material: e.target.value })}
-                  placeholder="e.g. Scuff-resistant synthetic leather + high-grip rubber"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-navy-950 focus:outline-none"
-                />
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Star Rating */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Star Rating (Out of 5.0)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="5"
+                        value={formData.rating}
+                        onChange={(e) => setFormData({ ...formData, rating: Number(e.target.value) })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <span className="text-[10px] text-gray-400">e.g. 4.8, 4.9, 5.0</span>
+                    </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg transition"
-                >
-                  {editingProduct ? 'Save Product Changes' : 'Create Product in Supabase'}
-                </button>
+                    {/* Review Count */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Total Reviews Count
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.reviewCount}
+                        onChange={(e) => setFormData({ ...formData, reviewCount: Number(e.target.value) })}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <span className="text-[10px] text-gray-400">e.g. 100, 248, 520 reviews</span>
+                    </div>
+                  </div>
+
+                  {/* Live Star Review Preview */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                    <div className="text-[10px] font-black uppercase text-gray-500 tracking-wider mb-2">
+                      Live Storefront Review Preview
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-5 h-5 ${
+                              i < Math.floor(formData.rating || 5)
+                                ? 'fill-amber-400 text-amber-400'
+                                : i < (formData.rating || 5)
+                                ? 'fill-amber-300 text-amber-300'
+                                : 'fill-gray-200 text-gray-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">
+                        {formData.rating}
+                      </span>
+                      <span className="text-xs text-gray-600 font-medium">
+                        ({formData.reviewCount ?? 100} reviews)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB 4: ADDITIONAL INFO & POLICIES ================= */}
+              {activeModalTab === 'content' && (
+                <div className="space-y-4">
+                  {/* Category Buttons / Options (KIDS, BOYS, GIRLS) */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Category Badges / Filter Buttons (Shown above size picker)
+                    </label>
+                    <input
+                      type="text"
+                      value={(formData.categoryOptions || []).join(', ')}
+                      onChange={(e) => {
+                        const parsed = e.target.value.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+                        setFormData({ ...formData, categoryOptions: parsed });
+                      }}
+                      placeholder="e.g. KIDS, BOYS, GIRLS or MENS, BOYS"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] text-gray-400">Quick presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, categoryOptions: ['KIDS', 'BOYS', 'GIRLS'] })}
+                        className="text-[10px] text-brand-600 hover:underline font-bold"
+                      >
+                        [KIDS, BOYS, GIRLS]
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, categoryOptions: ['MENS', 'BOYS'] })}
+                        className="text-[10px] text-brand-600 hover:underline font-bold"
+                      >
+                        [MENS, BOYS]
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, categoryOptions: ['WOMENS', 'GIRLS'] })}
+                        className="text-[10px] text-brand-600 hover:underline font-bold"
+                      >
+                        [WOMENS, GIRLS]
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Additional Information (Accordion Tab 2) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-gray-700">
+                        Additional Information (Accordion Tab on Product Page)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={insertFootwearTemplate}
+                        className="text-[10px] font-bold text-brand-600 hover:underline"
+                      >
+                        Insert Default Footwear Info
+                      </button>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={formData.additionalInfo || ''}
+                      onChange={(e) => setFormData({ ...formData, additionalInfo: e.target.value })}
+                      placeholder="Manufactured by: Walkaroo International Pvt Ltd...&#10;Commodity: Footwear&#10;Country of Origin: India&#10;Customer Care: 011-6119-7311..."
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 leading-relaxed font-sans"
+                    />
+                    <span className="text-[10px] text-gray-400">
+                      Displayed inside the collapsible "Additional Information" accordion
+                    </span>
+                  </div>
+
+                  {/* Shipping and Returns (Accordion Tab 3) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-gray-700">
+                        Shipping and Returns Policy (Accordion Tab on Product Page)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={insertShippingTemplate}
+                        className="text-[10px] font-bold text-brand-600 hover:underline"
+                      >
+                        Insert Default Shipping Policy
+                      </button>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={formData.shippingInfo || ''}
+                      onChange={(e) => setFormData({ ...formData, shippingInfo: e.target.value })}
+                      placeholder="Eligible for 7 day easy return policy...&#10;Estimated delivery: 2 to 6 working days..."
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 leading-relaxed font-sans"
+                    />
+                  </div>
+
+                  {/* Product Description */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Description</label>
+                    <textarea
+                      rows={3}
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Specially engineered for school uniform daily compliance and playground stamina..."
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                  </div>
+
+                  {/* Key Features */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Key Features (One feature per line)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={(formData.features || []).join('\n')}
+                      onChange={(e) => {
+                        const feats = e.target.value.split('\n').filter((f) => f.trim().length > 0);
+                        setFormData({ ...formData, features: feats });
+                      }}
+                      placeholder="Dual Adjustable Hook-and-Loop Straps&#10;Ergonomic Cushioned Comfort Footbed&#10;Lightweight Flexible PU Sole"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-sans"
+                    />
+                  </div>
+
+                  {/* Material Composition */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Material Composition</label>
+                    <input
+                      type="text"
+                      value={formData.material}
+                      onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                      placeholder="e.g. Scuff-resistant synthetic leather + high-grip rubber"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-navy-950 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB 5: SIZES & IMAGES ================= */}
+              {activeModalTab === 'sizes' && (
+                <div className="space-y-4">
+                  {/* School Wing & Sizes */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                        School Wing / Level
+                      </label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {[
+                          { id: 'kindergarten', label: 'Kindergarten' },
+                          { id: 'middle-wing', label: 'Middle Wing' },
+                          { id: 'senior-wing', label: 'Senior Wing' },
+                        ].map((wing) => {
+                          const isChecked = formData.schoolLevel?.includes(wing.id);
+                          return (
+                            <button
+                              key={wing.id}
+                              type="button"
+                              onClick={() => {
+                                const current = formData.schoolLevel || [];
+                                const updated = current.includes(wing.id)
+                                  ? current.filter((w: string) => w !== wing.id)
+                                  : [...current, wing.id];
+                                setFormData({ ...formData, schoolLevel: updated });
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                isChecked
+                                  ? 'bg-navy-950 text-white shadow-sm'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                              <span>{wing.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold text-gray-700">
+                          Available Sizes (Click to toggle)
+                        </label>
+                        <span className="text-[11px] text-gray-400">
+                          {formData.sizes?.length || 0} selected
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[
+                          '5', '6', '7', '8', '9', '10', '11', '1', '2', '3', '4',
+                          '9C', '10C', '11C', '12C', '13C'
+                        ].map((sz) => {
+                          const isChecked = formData.sizes?.includes(sz);
+                          return (
+                            <button
+                              key={sz}
+                              type="button"
+                              onClick={() => {
+                                const current = formData.sizes || [];
+                                const updated = current.includes(sz)
+                                  ? current.filter((s: string) => s !== sz)
+                                  : [...current, sz];
+                                setFormData({ ...formData, sizes: updated });
+                              }}
+                              className={`min-w-8 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                                isChecked
+                                  ? 'bg-brand-600 text-white shadow-sm'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {sz}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Custom Size Adder */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <input
+                          type="text"
+                          value={customSizeInput}
+                          onChange={(e) => setCustomSizeInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomSize();
+                            }
+                          }}
+                          placeholder="Add custom size (e.g. 12, S, M)"
+                          className="bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-navy-950 focus:outline-none w-48"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddCustomSize}
+                          className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs font-bold text-gray-800 transition"
+                        >
+                          + Add Size
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Supabase Storage Image Uploader */}
+                  <div className="space-y-2 pt-3 border-t border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-gray-700">
+                        Product Images (Supabase Storage: <code>product-images</code> bucket)
+                      </label>
+                      <span className="text-[11px] text-gray-400">First image is primary thumbnail</span>
+                    </div>
+
+                    {/* Upload Trigger */}
+                    <div className="flex items-center gap-3">
+                      <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-navy-950 px-4 py-2 rounded-xl text-xs font-bold transition">
+                        <Upload className="w-4 h-4 text-brand-600" />
+                        <span>Upload Images to Supabase</span>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                      {uploadingImage && (
+                        <span className="text-xs text-brand-600 font-bold animate-pulse">
+                          Uploading to Supabase Storage ({uploadProgress}%)...
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Image Previews & Ordering */}
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-2">
+                      {formData.images.map((imgUrl: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className={`relative group rounded-xl overflow-hidden border-2 bg-gray-50 aspect-square ${
+                            idx === 0 ? 'border-brand-600 ring-2 ring-brand-500/20' : 'border-gray-200'
+                          }`}
+                        >
+                          <Image src={imgUrl} alt="Thumbnail preview" fill className="object-contain p-1" />
+                          {idx === 0 && (
+                            <span className="absolute top-1 left-1 bg-brand-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
+                              Main
+                            </span>
+                          )}
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5">
+                            {idx !== 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetPrimaryImage(idx)}
+                                className="p-1 bg-white text-navy-950 rounded text-[10px] font-bold"
+                                title="Set as Main Thumbnail"
+                              >
+                                Set Main
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(idx)}
+                              className="p-1 bg-red-600 text-white rounded"
+                              title="Remove Image"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Action Buttons */}
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100 flex-shrink-0">
+                <span className="text-[11px] text-gray-400 hidden sm:inline">
+                  All changes sync to Supabase & storefront instantly
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg transition flex items-center gap-1.5"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{editingProduct ? 'Save Product Changes' : 'Create Product in Supabase'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

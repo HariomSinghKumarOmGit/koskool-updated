@@ -1,16 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, ShieldCheck, Award, Heart, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Award, Heart, CheckCircle2 } from 'lucide-react';
 
 export default function MarqueeTicker() {
   const items = [
-    { text: 'AAAO SCHOOL CHALE HUM', icon: Sparkles },
+    { text: 'AAAO SCHOOL CHALE HUM', icon: Heart },
     { text: 'KOSKOOL PREMIUM SCHOOL FOOTWEAR', icon: ShieldCheck },
     { text: 'CBSE & ICSE UNIFORM COMPLIANT', icon: Award },
     { text: 'HEAVY DUTY ANTI-SKID SOLES', icon: CheckCircle2 },
-    { text: 'KINDERGARTEN • MIDDLE WING • SENIOR WING', icon: Heart },
-    { text: 'ALL-INDIA FACTORY DISPATCH FROM DELHI', icon: Sparkles },
+    { text: 'KINDERGARTEN • MIDDLE WING • SENIOR WING', icon: ShieldCheck },
+    { text: 'ALL-INDIA FACTORY DISPATCH FROM DELHI', icon: Award },
   ];
 
   return (

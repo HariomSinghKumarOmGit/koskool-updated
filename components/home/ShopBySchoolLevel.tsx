@@ -74,10 +74,6 @@ export default function ShopBySchoolLevel() {
         {/* Section Header with Left & Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">
           <div className="text-left space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-navy-900 bg-navy-50 px-3 py-1 rounded-full border border-navy-200">
-              <School className="w-3.5 h-3.5" />
-              Every Academic Stage
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
               Shop by School Level
             </h2>
@@ -142,9 +138,6 @@ export default function ShopBySchoolLevel() {
                             From {lvl.startingPrice}
                           </span>
                         )}
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">
-                          {lvl.badge}
-                        </span>
                       </div>
                     </div>
 

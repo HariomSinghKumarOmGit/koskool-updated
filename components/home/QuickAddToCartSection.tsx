@@ -12,10 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Tag,
-  Sparkles,
   ArrowRight,
   ShieldCheck,
-  Zap,
 } from 'lucide-react';
 
 export default function QuickAddToCartSection() {
@@ -97,10 +95,6 @@ export default function QuickAddToCartSection() {
         {/* Header with Title and Left/Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-200">
-              <Zap className="w-3.5 h-3.5" />
-              1-Click Express Cart
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
               Quick Add to Cart &amp; Instant Deals
             </h2>

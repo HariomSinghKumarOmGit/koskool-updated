@@ -16,7 +16,6 @@ import {
   ArrowRight,
   ShieldCheck,
   Truck,
-  Sparkles,
 } from 'lucide-react';
 import { getPromoCodes } from '@/services/api';
 
@@ -104,9 +103,13 @@ export default function CartPage() {
     }, 1500);
   };
 
-  // Recommended products for "You may also like"
-  const cartProductIds = new Set(items.map((i) => i.product.id));
-  const recommendedList = PRODUCTS.filter((p) => !cartProductIds.has(p.id)).slice(0, 4);
+  // Recommended products for "You may also like" - matching screenshot 3 exactly
+  const recommendedList = [
+    PRODUCTS.find((p) => p.id === 'wgp53410-tan'),
+    PRODUCTS.find((p) => p.id === 'wgp53283-black'),
+    PRODUCTS.find((p) => p.id === 'wgr53350-olive'),
+    PRODUCTS.find((p) => p.id === 'wgr53512-olive'),
+  ].filter(Boolean) as Product[];
 
   const activePromos = promoCodes.filter((p) => p.isActive);
 
@@ -177,9 +180,11 @@ export default function CartPage() {
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900 leading-snug">
                     {item.product.name}
                   </h3>
-                  <p className="text-xs text-gray-500 font-medium">
-                    {item.selectedSize}
-                  </p>
+                  {item.selectedSize && item.selectedSize !== 'Free Size' && (
+                    <p className="text-xs text-gray-500 font-medium">
+                      {item.selectedSize}
+                    </p>
+                  )}
                   <p className="text-xs sm:text-sm text-gray-900 font-medium pt-0.5">
                     ₹ {item.product.price.toLocaleString('en-IN')}.00
                   </p>

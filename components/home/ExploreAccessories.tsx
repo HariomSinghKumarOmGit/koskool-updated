@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ExploreAccessories() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -61,10 +61,6 @@ export default function ExploreAccessories() {
         {/* Section Header with Left & Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">
           <div className="text-left space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-200">
-              <Sparkles className="w-3.5 h-3.5" />
-              Everyday School Gear
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
               Explore Accessories
             </h2>
@@ -124,9 +120,6 @@ export default function ExploreAccessories() {
                     sizes="(max-width: 640px) 85vw, 360px"
                     className="object-contain p-3 group-hover:scale-105 transition-transform duration-500"
                   />
-                  <span className="absolute top-4 left-4 bg-brand-600 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow">
-                    {card.badge}
-                  </span>
                 </div>
 
                 <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
@@ -139,16 +132,7 @@ export default function ExploreAccessories() {
                     </p>
                   </div>
 
-                  <div className="space-y-2 pt-2 border-t border-gray-100">
-                    {card.items.map((item, iIdx) => (
-                      <div key={iIdx} className="flex items-center gap-2 text-xs text-gray-700">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                        <span className="truncate">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between">
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
                     <span className="text-xs font-bold text-navy-950 group-hover:text-brand-600 transition">
                       View Accessories
                     </span>

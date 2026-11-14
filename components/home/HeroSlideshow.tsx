@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Pause, Play, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 
 
 import {
@@ -186,8 +186,7 @@ export default function HeroSlideshow() {
             className="flex-1 text-center lg:text-left animate-fadeIn"
           >
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-600 text-white text-[11px] font-black tracking-wider uppercase shadow-sm">
-                <Sparkles className="w-3 h-3" />
+              <span className="inline-block px-2.5 py-0.5 rounded-full bg-brand-600 text-white text-[11px] font-black tracking-wider uppercase shadow-sm">
                 {active.badge}
               </span>
               <h2 className="text-base sm:text-lg font-black text-white tracking-tight">

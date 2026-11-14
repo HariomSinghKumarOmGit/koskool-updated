@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { Product } from '@/data/products';
+import { Product, PRODUCTS } from '@/data/products';
 import { PromoCode, INITIAL_PROMO_CODES } from '@/data/promocodes';
 
 export interface CartItem {
@@ -80,12 +80,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return INITIAL_PROMO_CODES;
   };
 
-  // Load cart and promo codes from localStorage on mount
+  // Load cart and promo codes from localStorage on mount (with default items matching demo if empty)
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('koskool_cart');
       if (savedCart) {
-        setItems(JSON.parse(savedCart));
+        const parsed = JSON.parse(savedCart);
+        setItems(parsed);
+      } else {
+        // Initialize with default demo items matching reference screenshots
+        const p1 = PRODUCTS.find((p) => p.id === 'wgp53358-brown');
+        const p2 = PRODUCTS.find((p) => p.id === 'wgp53283-tan');
+        const p3 = PRODUCTS.find((p) => p.id === 'wgp53283-black');
+        const p4 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-blue');
+        const p5 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-black');
+
+        const initialDemoItems: CartItem[] = [];
+        if (p1) initialDemoItems.push({ product: p1, selectedSize: '7', selectedColour: 'Brown', quantity: 1 });
+        if (p2) initialDemoItems.push({ product: p2, selectedSize: '9', selectedColour: 'Tan', quantity: 1 });
+        if (p3) initialDemoItems.push({ product: p3, selectedSize: '8', selectedColour: 'Black', quantity: 1 });
+        if (p4) initialDemoItems.push({ product: p4, selectedSize: '', selectedColour: 'Blue', quantity: 1 });
+        if (p5) initialDemoItems.push({ product: p5, selectedSize: '', selectedColour: 'Black', quantity: 1 });
+
+        if (initialDemoItems.length > 0) {
+          setItems(initialDemoItems);
+        }
       }
 
       const loadedPromos = loadStoredPromos();

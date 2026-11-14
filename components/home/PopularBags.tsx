@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PRODUCTS, Product } from '@/data/products';
 import ProductCard from '@/components/product/ProductCard';
-import { ArrowRight, Backpack, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getPreviewProducts } from '@/services/api';
 
 export default function PopularBags() {
@@ -61,10 +61,6 @@ export default function PopularBags() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
           <div className="space-y-2 max-w-xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-navy-900 bg-navy-50 px-3 py-1 rounded-full border border-navy-200">
-              <Backpack className="w-3.5 h-3.5 text-brand-600" />
-              Heavy Duty &amp; Ergonomic
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
               Popular School Bags
             </h2>

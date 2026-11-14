@@ -5,11 +5,9 @@ import Image from 'next/image';
 import { PRODUCTS } from '@/data/products';
 import { useCart } from '@/context/CartContext';
 import {
-  PackageCheck,
   Check,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   ShoppingBag,
   ArrowRight,
   ShieldCheck,
@@ -151,10 +149,6 @@ export default function SchoolBundlesSection() {
         {/* Header with Title & Left/Right Arrows */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-brand-400 bg-brand-950/70 px-3 py-1 rounded-full border border-brand-800">
-              <PackageCheck className="w-3.5 h-3.5" />
-              Complete School Kits
-            </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
               School Bundles &amp; Save More
             </h2>
