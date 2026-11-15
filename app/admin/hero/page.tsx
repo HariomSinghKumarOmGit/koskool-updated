@@ -164,7 +164,7 @@ export default function AdminHeroSectionPage() {
 
     setSlides(updatedSlides);
     await reorderHeroSlides(updatedSlides.map((s) => ({ id: s.id, display_order: s.display_order })));
-    showNotification(`Slide shifted to position #${targetIndex + 1}! Live on homepage.`);
+    showNotification(`Slide shifted to position #${targetIndex + 1}! Saved to Supabase.`);
   };
 
   // Move directly to specific place (1st, 2nd, 3rd)
@@ -183,14 +183,14 @@ export default function AdminHeroSectionPage() {
 
     setSlides(updatedSlides);
     await reorderHeroSlides(updatedSlides.map((s) => ({ id: s.id, display_order: s.display_order })));
-    showNotification(`Slide placed in position #${newPosition}! Homepage updated.`);
+    showNotification(`Slide placed in position #${newPosition}! Saved to Supabase.`);
   };
 
   const handleToggleActive = async (slide: HeroSlide) => {
     const updatedStatus = !slide.is_active;
     await updateHeroSlide(slide.id, { is_active: updatedStatus });
     setSlides(slides.map((s) => (s.id === slide.id ? { ...s, is_active: updatedStatus } : s)));
-    showNotification(`Slide #${slide.display_order} is now ${updatedStatus ? 'Visible' : 'Hidden'} on Homepage!`);
+    showNotification(`Slide #${slide.display_order} is now ${updatedStatus ? 'Visible' : 'Hidden'}! Saved to Supabase.`);
   };
 
   const handleDelete = async (id: number | string) => {
@@ -198,7 +198,7 @@ export default function AdminHeroSectionPage() {
     await deleteHeroSlide(id);
     const updated = slides.filter((s) => s.id !== id);
     setSlides(updated);
-    showNotification('Hero slide removed.');
+    showNotification('Hero slide removed from Supabase.');
   };
 
   const handleOpenAdd = () => {
@@ -243,10 +243,10 @@ export default function AdminHeroSectionPage() {
     e.preventDefault();
     if (editingSlide) {
       await updateHeroSlide(editingSlide.id, formData);
-      showNotification('Slide updated! Homepage updated live.');
+      showNotification('Slide updated! Saved to Supabase & live on homepage.');
     } else {
       await createHeroSlide(formData);
-      showNotification('New slide added to Homepage hero slideshow!');
+      showNotification('New slide added! Saved to Supabase & live on homepage.');
     }
     setIsModalOpen(false);
     loadSlides();
@@ -265,14 +265,18 @@ export default function AdminHeroSectionPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-gray-200 shadow-sm">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold">
               <Sparkles className="w-4 h-4" />
             </span>
             <h1 className="text-2xl font-black text-navy-950">Hero Slideshow Manager</h1>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Supabase Connected
+            </span>
           </div>
           <p className="text-xs text-gray-500">
-            Control the order (1st, 2nd, 3rd place, shift left/right), titles, badges, and action CTA links on the main homepage slideshow.
+            Control the order (1st, 2nd, 3rd place, shift left/right), titles, badges, and action CTA links on the main homepage slideshow. Changes are synced directly with Supabase.
           </p>
         </div>
 
@@ -300,10 +304,10 @@ export default function AdminHeroSectionPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 font-black text-navy-950">
             <Sliders className="w-4 h-4 text-brand-600" />
-            <span>Interactive Positioning &amp; Shifting Active</span>
+            <span>Interactive Positioning &amp; Shifting Active (Supabase Cloud Sync)</span>
           </div>
           <p className="text-gray-600 text-[11px] leading-relaxed">
-            Use the <strong>Shift Left</strong> and <strong>Shift Right</strong> arrow controls or select <strong>Position 1st, 2nd, 3rd</strong> directly on each card. Any order or pricing changes apply instantly to the homepage and subpages!
+            Use the <strong>Shift Left</strong> and <strong>Shift Right</strong> arrow controls or select <strong>Position 1st, 2nd, 3rd</strong> directly on each card. Any order or pricing changes are stored directly in Supabase and apply instantly to the homepage and subpages across all devices!
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

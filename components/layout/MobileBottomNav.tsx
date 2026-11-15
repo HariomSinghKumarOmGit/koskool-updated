@@ -37,7 +37,7 @@ export default function MobileBottomNav() {
   return (
     <nav
       aria-label="Mobile Bottom Navigation"
-      className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-lg border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden safe-area-bottom w-full max-w-full overflow-hidden"
+      className="fixed bottom-0 inset-x-0 z-40 bg-white/80 backdrop-blur-xl backdrop-saturate-150 border-t border-white/50 shadow-[0_-4px_25px_rgba(0,0,0,0.06)] md:hidden safe-area-bottom w-full max-w-full overflow-hidden"
     >
       <div className="grid grid-cols-5 h-16 items-center px-1 max-w-lg mx-auto">
         {/* Home */}
@@ -92,7 +92,7 @@ export default function MobileBottomNav() {
           <div className="relative">
             <ShoppingBag className={`w-5 h-5 ${isCart ? 'stroke-[2.5]' : 'stroke-2'}`} />
             {totalItems > 0 && (
-              <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-black flex items-center justify-center shadow-sm">
+              <span className="absolute -top-1 -right-2 min-w-[17px] h-[17px] px-0.5 rounded-full bg-brand-600 text-white text-[9.5px] font-black flex items-center justify-center shadow-xs">
                 {totalItems}
               </span>
             )}

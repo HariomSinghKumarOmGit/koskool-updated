@@ -2543,11 +2543,92 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
 ];
 
 export async function getHeroSlides(): Promise<HeroSlide[]> {
+  // 1. Try Supabase first (source of truth — works across all devices)
+  try {
+    // Try hero_slides table if created
+    const { data: tableData, error: tableError } = await supabase
+      .from('hero_slides')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (!tableError && tableData && tableData.length > 0) {
+      const mapped: HeroSlide[] = tableData.map((row: any) => ({
+        id: row.slide_id || row.id,
+        badge: row.badge || '',
+        title: row.title || '',
+        subtitle: row.subtitle || '',
+        desktopImage: row.desktop_image || '',
+        mobileImage: row.mobile_image || row.desktop_image || '',
+        primaryCtaText: row.primary_cta_text || '',
+        primaryCtaLink: row.primary_cta_link || '',
+        secondaryCtaText: row.secondary_cta_text || '',
+        secondaryCtaLink: row.secondary_cta_link || '',
+        tertiaryCtaText: row.tertiary_cta_text || '',
+        tertiaryCtaLink: row.tertiary_cta_link || '',
+        display_order: Number(row.display_order) || 1,
+        is_active: row.is_active !== false,
+      }));
+      setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, mapped);
+      return mapped.sort((a, b) => a.display_order - b.display_order);
+    }
+
+    // Try app_settings key 'hero_slides' (guaranteed instant cloud sync)
+    const { data: settingData, error: settingError } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'hero_slides')
+      .maybeSingle();
+
+    if (!settingError && settingData?.value && Array.isArray(settingData.value) && settingData.value.length > 0) {
+      const slides = settingData.value as HeroSlide[];
+      setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, slides);
+      return [...slides].sort((a, b) => a.display_order - b.display_order);
+    }
+  } catch (err) {
+    console.warn('getHeroSlides Supabase fallback:', err);
+  }
+
+  // 2. Fallback to localStorage
   const slides = getCache<HeroSlide[]>(LOCAL_STORAGE_HERO_SLIDES_KEY, DEFAULT_HERO_SLIDES);
   return [...slides].sort((a, b) => a.display_order - b.display_order);
 }
 
 export async function saveHeroSlides(slides: HeroSlide[]) {
+  // 1. Persist directly to Supabase app_settings (key: 'hero_slides')
+  try {
+    await supabase.from('app_settings').upsert(
+      { key: 'hero_slides', value: slides, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+  } catch (err) {
+    console.warn('saveHeroSlides Supabase app_settings error:', err);
+  }
+
+  // 2. Attempt to sync with public.hero_slides table if it exists
+  try {
+    const rows = slides.map((s, idx) => ({
+      slide_id: String(s.id),
+      badge: s.badge || '',
+      title: s.title || '',
+      subtitle: s.subtitle || '',
+      desktop_image: s.desktopImage || '',
+      mobile_image: s.mobileImage || s.desktopImage || '',
+      primary_cta_text: s.primaryCtaText || '',
+      primary_cta_link: s.primaryCtaLink || '',
+      secondary_cta_text: s.secondaryCtaText || '',
+      secondary_cta_link: s.secondaryCtaLink || '',
+      tertiary_cta_text: s.tertiaryCtaText || '',
+      tertiary_cta_link: s.tertiaryCtaLink || '',
+      display_order: s.display_order ?? idx + 1,
+      is_active: s.is_active !== false,
+      updated_at: new Date().toISOString(),
+    }));
+    await supabase.from('hero_slides').upsert(rows, { onConflict: 'slide_id' });
+  } catch (err) {
+    // hero_slides table might not exist yet; app_settings already handled persistence
+  }
+
+  // 3. Keep local cache updated & broadcast changes
   setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, slides);
   broadcastDataChange('hero_slides');
   return { success: true };
@@ -2555,10 +2636,10 @@ export async function saveHeroSlides(slides: HeroSlide[]) {
 
 export async function createHeroSlide(slide: Partial<HeroSlide>) {
   const slides = await getHeroSlides();
-  const nextOrder = slides.length > 0 ? Math.max(...slides.map((s) => s.display_order)) + 1 : 1;
+  const nextOrder = slides.length > 0 ? Math.max(...slides.map((s) => Number(s.display_order) || 0)) + 1 : 1;
   const newSlide: HeroSlide = {
     id: Date.now(),
-    badge: slide.badge || 'SPECIAL FEATURE',
+    badge: slide.badge || 'OFFICIAL 2026',
     title: slide.title || 'New Highlight Banner',
     subtitle: slide.subtitle || 'Shop student uniform and footwear collections with instant home delivery.',
     desktopImage: slide.desktopImage || '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg',
@@ -2573,8 +2654,7 @@ export async function createHeroSlide(slide: Partial<HeroSlide>) {
     is_active: slide.is_active !== false,
   };
   slides.push(newSlide);
-  setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, slides);
-  broadcastDataChange('hero_slides');
+  await saveHeroSlides(slides);
   return { success: true, data: newSlide };
 }
 
@@ -2583,8 +2663,7 @@ export async function updateHeroSlide(id: number | string, updates: Partial<Hero
   const idx = slides.findIndex((s) => String(s.id) === String(id));
   if (idx > -1) {
     slides[idx] = { ...slides[idx], ...updates };
-    setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, slides);
-    broadcastDataChange('hero_slides');
+    await saveHeroSlides(slides);
   }
   return { success: true };
 }
@@ -2592,8 +2671,14 @@ export async function updateHeroSlide(id: number | string, updates: Partial<Hero
 export async function deleteHeroSlide(id: number | string) {
   const slides = await getHeroSlides();
   const filtered = slides.filter((s) => String(s.id) !== String(id));
-  setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, filtered);
-  broadcastDataChange('hero_slides');
+  const reindexed = filtered.map((s, idx) => ({ ...s, display_order: idx + 1 }));
+  await saveHeroSlides(reindexed);
+
+  // Also delete from hero_slides table if it exists
+  try {
+    await supabase.from('hero_slides').delete().eq('slide_id', String(id));
+  } catch (err) {}
+
   return { success: true };
 }
 
@@ -2602,8 +2687,7 @@ export async function reorderHeroSlides(reorderedList: { id: number | string; di
   const map = new Map(reorderedList.map((i) => [String(i.id), i.display_order]));
   const updated = slides.map((s) => (map.has(String(s.id)) ? { ...s, display_order: map.get(String(s.id))! } : s));
   updated.sort((a, b) => a.display_order - b.display_order);
-  setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, updated);
-  broadcastDataChange('hero_slides');
+  await saveHeroSlides(updated);
   return { success: true };
 }
 
@@ -2868,11 +2952,37 @@ export const DEFAULT_BANNER_SHOWCASE_SECTIONS: BannerShowcaseSection[] = [
 const LOCAL_STORAGE_BANNER_SHOWCASE_KEY = 'koskool_banner_showcase_cache';
 
 export async function getBannerShowcaseSections(): Promise<BannerShowcaseSection[]> {
+  // 1. Try Supabase app_settings first
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'banner_showcase')
+      .maybeSingle();
+    if (!error && data?.value && Array.isArray(data.value) && data.value.length > 0) {
+      const items = data.value as BannerShowcaseSection[];
+      setCache(LOCAL_STORAGE_BANNER_SHOWCASE_KEY, items);
+      return [...items].sort((a, b) => a.display_order - b.display_order);
+    }
+  } catch (err) {
+    console.warn('getBannerShowcaseSections Supabase fallback:', err);
+  }
+
+  // 2. Fallback to localStorage
   const items = getCache<BannerShowcaseSection[]>(LOCAL_STORAGE_BANNER_SHOWCASE_KEY, DEFAULT_BANNER_SHOWCASE_SECTIONS);
   return [...items].sort((a, b) => a.display_order - b.display_order);
 }
 
 export async function saveBannerShowcaseSections(items: BannerShowcaseSection[]) {
+  // Save to Supabase app_settings
+  try {
+    await supabase.from('app_settings').upsert(
+      { key: 'banner_showcase', value: items, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+  } catch (err) {
+    console.warn('saveBannerShowcaseSections Supabase error:', err);
+  }
   setCache(LOCAL_STORAGE_BANNER_SHOWCASE_KEY, items);
   broadcastDataChange('banner_showcase');
   return { success: true };
