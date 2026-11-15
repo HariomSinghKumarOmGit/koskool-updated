@@ -14,6 +14,8 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const [added, setAdded] = useState(false);
+  const [primaryLoaded, setPrimaryLoaded] = useState(false);
+  const [secondaryLoaded, setSecondaryLoaded] = useState(false);
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,6 +51,13 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
 
+        {/* Loading Skeleton Placeholder */}
+        {!primaryLoaded && (
+          <div className="absolute inset-0 z-0 bg-gradient-to-r from-gray-100 via-gray-200/70 to-gray-100 animate-pulse flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-brand-600/70 animate-spin" />
+          </div>
+        )}
+
         {/* Primary Image */}
         <div className="absolute inset-0 img-primary flex items-center justify-center p-4">
           <Image
@@ -56,18 +65,25 @@ export default function ProductCard({ product }: ProductCardProps) {
             alt={product.name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-contain p-3"
+            className={`object-contain p-3 transition-opacity duration-300 ${primaryLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setPrimaryLoaded(true)}
           />
         </div>
 
-        {/* Secondary Image for Hover Flip */}
+        {/* Secondary Image for Hover Flip with loading fallback */}
         <div className="absolute inset-0 img-hover flex items-center justify-center p-4">
+          {!secondaryLoaded && (
+            <div className="absolute inset-0 bg-gray-100/50 animate-pulse flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full border-2 border-gray-300 border-t-brand-600/60 animate-spin" />
+            </div>
+          )}
           <Image
             src={secondaryImage}
             alt={`${product.name} alternate view`}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-contain p-3"
+            className={`object-contain p-3 transition-opacity duration-300 ${secondaryLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setSecondaryLoaded(true)}
           />
         </div>
 

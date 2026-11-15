@@ -94,6 +94,15 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   const [activeMobileImg, setActiveMobileImg] = useState<number>(0);
   const [currentUrl, setCurrentUrl] = useState<string>('');
 
+  // Image loading skeleton states
+  const [heroImageLoading, setHeroImageLoading] = useState(true);
+  const [loadedDesktopImages, setLoadedDesktopImages] = useState<Record<number, boolean>>({});
+  const [loadedThumbnails, setLoadedThumbnails] = useState<Record<number, boolean>>({});
+
+  React.useEffect(() => {
+    setHeroImageLoading(true);
+  }, [activeMobileImg, product?.id]);
+
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       setCurrentUrl(window.location.href);
@@ -224,21 +233,29 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                 onTouchMove={handleMobileTouchMove}
                 onTouchEnd={() => handleMobileTouchEnd(galleryImages.length)}
               >
+                {/* Mobile Hero Loading Skeleton */}
+                {heroImageLoading && (
+                  <div className="absolute inset-0 z-10 bg-gradient-to-r from-gray-100 via-gray-200/70 to-gray-100 animate-pulse flex flex-col items-center justify-center gap-2">
+                    <div className="w-10 h-10 border-2 border-gray-300 border-t-brand-600 rounded-full animate-spin" />
+                    <span className="text-[10px] font-bold text-gray-400">Loading view...</span>
+                  </div>
+                )}
                 <Image
                   src={galleryImages[activeMobileImg] || galleryImages[0]}
                   alt={`${product.name} view ${activeMobileImg + 1}`}
                   fill
                   priority
                   sizes="(max-width: 640px) 100vw, 500px"
-                  className="object-contain p-3"
+                  className={`object-contain p-3 transition-opacity duration-300 ${heroImageLoading ? 'opacity-0' : 'opacity-100'}`}
+                  onLoad={() => setHeroImageLoading(false)}
                 />
                 {product.discountPercent && (
-                  <span className="absolute top-3 left-3 bg-[#e86b62] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow">
+                  <span className="absolute top-3 left-3 z-20 bg-[#e86b62] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow">
                     {product.discountPercent}% OFF
                   </span>
                 )}
                 {/* Photo counter */}
-                <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                <span className="absolute top-3 right-3 z-20 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
                   {activeMobileImg + 1} / {galleryImages.length}
                 </span>
 
@@ -247,16 +264,22 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                   <>
                     <button
                       type="button"
-                      onClick={() => setActiveMobileImg((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow border border-gray-200 flex items-center justify-center text-gray-800 active:scale-95 transition"
+                      onClick={() => {
+                        setHeroImageLoading(true);
+                        setActiveMobileImg((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 shadow border border-gray-200 flex items-center justify-center text-gray-800 active:scale-95 transition"
                       aria-label="Previous Image"
                     >
                       &lsaquo;
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveMobileImg((prev) => (prev + 1) % galleryImages.length)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow border border-gray-200 flex items-center justify-center text-gray-800 active:scale-95 transition"
+                      onClick={() => {
+                        setHeroImageLoading(true);
+                        setActiveMobileImg((prev) => (prev + 1) % galleryImages.length);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 shadow border border-gray-200 flex items-center justify-center text-gray-800 active:scale-95 transition"
                       aria-label="Next Image"
                     >
                       &rsaquo;
@@ -265,55 +288,79 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                 )}
               </div>
 
-              {/* Thumbnails Row for Mobile - Wrapping cleanly, zero horizontal scroll */}
+              {/* Thumbnails Row for Mobile - Wrapping cleanly with skeletons */}
               {galleryImages.length > 1 && (
                 <div className="flex flex-wrap gap-2 pt-0.5">
-                  {galleryImages.map((imgSrc, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setActiveMobileImg(idx)}
-                      className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 overflow-hidden bg-[#fbfbfb] shrink-0 p-1 transition-all ${
-                        activeMobileImg === idx
-                          ? 'border-gray-950 ring-1 ring-gray-950 scale-105'
-                          : 'border-gray-200 hover:border-gray-400 opacity-70'
-                      }`}
-                    >
-                      <Image
-                        src={imgSrc}
-                        alt={`Thumbnail ${idx + 1}`}
-                        fill
-                        className="object-contain p-0.5"
-                        sizes="56px"
-                      />
-                    </button>
-                  ))}
+                  {galleryImages.map((imgSrc, idx) => {
+                    const isThumbLoaded = loadedThumbnails[idx];
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          if (activeMobileImg !== idx) {
+                            setHeroImageLoading(true);
+                            setActiveMobileImg(idx);
+                          }
+                        }}
+                        className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 overflow-hidden bg-[#fbfbfb] shrink-0 p-1 transition-all ${
+                          activeMobileImg === idx
+                            ? 'border-gray-950 ring-1 ring-gray-950 scale-105'
+                            : 'border-gray-200 hover:border-gray-400 opacity-70'
+                        }`}
+                      >
+                        {!isThumbLoaded && (
+                          <div className="absolute inset-0 bg-gray-200 animate-pulse" />
+                        )}
+                        <Image
+                          src={imgSrc}
+                          alt={`Thumbnail ${idx + 1}`}
+                          fill
+                          className={`object-contain p-0.5 transition-opacity duration-200 ${isThumbLoaded ? 'opacity-100' : 'opacity-0'}`}
+                          sizes="56px"
+                          onLoad={() => setLoadedThumbnails((prev) => ({ ...prev, [idx]: true }))}
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Desktop View: 2-column image grid */}
+            {/* Desktop View: 2-column image grid with loading skeletons */}
             <div className="hidden lg:grid grid-cols-2 gap-3 sm:gap-4">
-              {galleryImages.map((imgSrc, idx) => (
-                <div
-                  key={idx}
-                  className="relative aspect-square bg-[#fbfbfb] rounded-2xl overflow-hidden border border-gray-100 flex items-center justify-center p-3 sm:p-4 group shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <Image
-                    src={imgSrc}
-                    alt={`${product.name} view ${idx + 1}`}
-                    fill
-                    priority={idx < 2}
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 45vw, 35vw"
-                    className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {idx === 0 && product.discountPercent && (
-                    <span className="absolute top-3 left-3 bg-[#e86b62] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow">
-                      {product.discountPercent}% OFF
-                    </span>
-                  )}
-                </div>
-              ))}
+              {galleryImages.map((imgSrc, idx) => {
+                const isLoaded = loadedDesktopImages[idx];
+                return (
+                  <div
+                    key={idx}
+                    className="relative aspect-square bg-[#fbfbfb] rounded-2xl overflow-hidden border border-gray-100 flex items-center justify-center p-3 sm:p-4 group shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    {!isLoaded && (
+                      <div className="absolute inset-0 z-10 bg-gradient-to-r from-gray-100 via-gray-200/70 to-gray-100 animate-pulse flex flex-col items-center justify-center gap-1.5">
+                        <div className="w-8 h-8 border-2 border-gray-300 border-t-brand-600 rounded-full animate-spin" />
+                        <span className="text-[10px] font-bold text-gray-400">Loading view...</span>
+                      </div>
+                    )}
+                    <Image
+                      src={imgSrc}
+                      alt={`${product.name} view ${idx + 1}`}
+                      fill
+                      priority={idx < 2}
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 45vw, 35vw"
+                      className={`object-contain p-2 group-hover:scale-105 transition-all duration-300 ${
+                        isLoaded ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      onLoad={() => setLoadedDesktopImages((prev) => ({ ...prev, [idx]: true }))}
+                    />
+                    {idx === 0 && product.discountPercent && (
+                      <span className="absolute top-3 left-3 z-20 bg-[#e86b62] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow">
+                        {product.discountPercent}% OFF
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
