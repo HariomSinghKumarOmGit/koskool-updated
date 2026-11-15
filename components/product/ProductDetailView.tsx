@@ -93,56 +93,12 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   const [addedToCart, setAddedToCart] = useState<boolean>(false);
   const [activeMobileImg, setActiveMobileImg] = useState<number>(0);
   const [currentUrl, setCurrentUrl] = useState<string>('');
-  const [isFooterVisible, setIsFooterVisible] = useState<boolean>(false);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       setCurrentUrl(window.location.href);
     }
   }, []);
-
-  // Hide sticky mobile buy bar when footer is in view
-  React.useEffect(() => {
-    if (isHomePage) return;
-
-    let isObserverIntersecting = false;
-
-    const handleScroll = () => {
-      const scrollY = window.scrollY || window.pageYOffset;
-      const windowHeight = window.innerHeight;
-      const docHeight = document.documentElement.scrollHeight;
-      if (scrollY + windowHeight >= docHeight - 150) {
-        setIsFooterVisible(true);
-      } else if (!isObserverIntersecting) {
-        setIsFooterVisible(false);
-      }
-    };
-
-    const footer = document.querySelector('footer');
-    let observer: IntersectionObserver | null = null;
-
-    if (footer) {
-      observer = new IntersectionObserver(
-        ([entry]) => {
-          isObserverIntersecting = entry.isIntersecting;
-          setIsFooterVisible(entry.isIntersecting);
-        },
-        {
-          root: null,
-          rootMargin: '20px 0px 0px 0px',
-          threshold: 0,
-        }
-      );
-      observer.observe(footer);
-    }
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      if (observer) observer.disconnect();
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, [isHomePage]);
 
   // Mobile image touch swipe handling
   const touchStartRef = React.useRef<number | null>(null);
@@ -238,7 +194,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   ).slice(0, 4);
 
   return (
-    <div className={`bg-white overflow-x-hidden w-full max-w-full ${isHomePage ? '' : 'min-h-screen pb-16 lg:pb-0'}`}>
+    <div className={`bg-white overflow-x-hidden w-full max-w-full ${isHomePage ? '' : 'min-h-screen'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
         {/* Breadcrumb Navigation */}
         {!isHomePage && (
@@ -783,58 +739,6 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
         </div>
       )}
 
-      {/* ================= STICKY MOBILE ORDER BAR ================= */}
-      {/* Provides 1-tap ordering on phone screens as user scrolls through details; hides automatically when coming to the footer */}
-      {!isHomePage && (
-        <div
-          className={`lg:hidden fixed inset-x-0 z-30 bg-white/85 backdrop-blur-xl backdrop-saturate-150 border-t border-white/60 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] transform transition-all duration-300 ease-in-out ${
-            isFooterVisible
-              ? 'translate-y-28 opacity-0 pointer-events-none'
-              : 'translate-y-0 opacity-100'
-          }`}
-          style={{
-            bottom: 'calc(4rem + max(0.5rem, env(safe-area-inset-bottom, 0px)))',
-          }}
-        >
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-base font-black text-gray-950">
-                ₹{Math.floor(product.price) === product.price
-                  ? product.price.toLocaleString('en-IN')
-                  : product.price.toFixed(2)}
-              </span>
-              {product.originalPrice && product.originalPrice > product.price && (
-                <span className="text-xs text-gray-400 line-through">
-                  ₹{Math.floor(product.originalPrice) === product.originalPrice
-                    ? product.originalPrice.toLocaleString('en-IN')
-                    : product.originalPrice.toFixed(2)}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] text-gray-500 font-medium truncate">
-              Size: <strong className="text-gray-800">{selectedSize}</strong> • {selectedColour}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className="py-2 px-3.5 rounded-full border border-red-600 bg-white/80 hover:bg-red-50 text-red-600 active:scale-95 text-xs font-bold transition flex items-center gap-1 shadow-xs"
-            >
-              {addedToCart ? <Check className="w-3.5 h-3.5" /> : null}
-              <span>{addedToCart ? 'Added' : 'Add to Cart'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleBuyItNow}
-              className="bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold text-xs py-2 px-4 rounded-full shadow-md transition"
-            >
-              Buy Now
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
