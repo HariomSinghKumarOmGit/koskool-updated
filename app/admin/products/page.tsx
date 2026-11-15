@@ -128,17 +128,17 @@ export default function AdminProductsPage() {
   const [deletingProductReviewId, setDeletingProductReviewId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAddModalOpen && activeModalTab === 'reviews' && (editingProduct || formData.id || formData.slug)) {
-      const pId = editingProduct?.id || formData.id || formData.slug;
-      const pSlug = editingProduct?.slug || formData.slug;
-      const pName = editingProduct?.name || formData.name;
+    const currentId = editingProduct?.id || formData?.id || formData?.slug;
+    const currentSlug = editingProduct?.slug || formData?.slug;
+    const currentName = editingProduct?.name || formData?.name;
+    if (isAddModalOpen && activeModalTab === 'reviews' && currentId) {
       setLoadingProductReviews(true);
-      getProductReviews(pId, pSlug, pName)
+      getProductReviews(currentId, currentSlug, currentName)
         .then((list) => setProductReviews(list))
         .catch(() => setProductReviews([]))
         .finally(() => setLoadingProductReviews(false));
     }
-  }, [isAddModalOpen, activeModalTab, editingProduct, formData.id, formData.slug, formData.name]);
+  }, [isAddModalOpen, activeModalTab, editingProduct, formData?.id, formData?.slug, formData?.name]);
 
   const handleDeleteSpecificReview = async (id: string) => {
     if (!confirm('Are you sure you want to permanently delete this comment from this product?')) return;
