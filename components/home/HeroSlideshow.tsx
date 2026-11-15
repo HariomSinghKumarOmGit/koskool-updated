@@ -145,22 +145,22 @@ export default function HeroSlideshow() {
           </div>
         ))}
 
-        {/* Carousel Edge Arrows (visible on mobile, subtle hover on desktop) */}
+        {/* Carousel Edge Arrows (hidden on mobile, subtle hover on desktop) */}
         {slides.length > 1 && (
           <>
             <button
               onClick={prevSlide}
-              className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-3 rounded-full bg-navy-950/60 sm:bg-navy-950/70 hover:bg-navy-900 text-white backdrop-blur-md opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 shadow-xl hover:scale-105 active:scale-95"
+              className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-navy-950/70 hover:bg-navy-900 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-xl hover:scale-105 active:scale-95"
               aria-label="Previous Slide"
             >
-              <ChevronLeft className="w-4 h-4 sm:w-6 sm:h-6" />
+              <ChevronLeft className="w-6 h-6" />
             </button>
             <button
               onClick={nextSlide}
-              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-3 rounded-full bg-navy-950/60 sm:bg-navy-950/70 hover:bg-navy-900 text-white backdrop-blur-md opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 shadow-xl hover:scale-105 active:scale-95"
+              className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-navy-950/70 hover:bg-navy-900 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-xl hover:scale-105 active:scale-95"
               aria-label="Next Slide"
             >
-              <ChevronRight className="w-4 h-4 sm:w-6 sm:h-6" />
+              <ChevronRight className="w-6 h-6" />
             </button>
           </>
         )}
