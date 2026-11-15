@@ -29,6 +29,7 @@ import {
   PromotionalBanner,
 } from '@/services/api';
 import { uploadToStorage } from '@/lib/supabase';
+import BannerShowcaseManager from '@/components/admin/BannerShowcaseManager';
 
 const PRESET_BANNER_IMAGES = [
   { label: 'School Uniform Hero (Boys & Girls)', url: '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg' },
@@ -39,6 +40,7 @@ const PRESET_BANNER_IMAGES = [
 ];
 
 export default function AdminBannersPage() {
+  const [activeTab, setActiveTab] = useState<'bottom_showcase' | 'hero_banners'>('bottom_showcase');
   const [banners, setBanners] = useState<PromotionalBanner[]>([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<string | null>(null);
@@ -226,35 +228,73 @@ export default function AdminBannersPage() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-navy-950">Promotional Board / Banners</h1>
-          <p className="text-xs text-gray-500">
-            Publish seasonal campaign banners. Each banner will be shown on the home page carousel at your chosen position number.
-          </p>
-        </div>
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <button
+          onClick={() => setActiveTab('bottom_showcase')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 ${
+            activeTab === 'bottom_showcase'
+              ? 'bg-navy-950 text-white shadow'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Bottom Showcase Banners &amp; Products</span>
+        </button>
 
         <button
-          onClick={handleOpenAdd}
-          className="inline-flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg transition"
+          onClick={() => setActiveTab('hero_banners')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 ${
+            activeTab === 'hero_banners'
+              ? 'bg-navy-950 text-white shadow'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          <span>Add Promotional Banner</span>
+          <TrendingUp className="w-4 h-4" />
+          <span>Hero Slideshow Banners ({banners.length})</span>
         </button>
       </div>
 
-      {/* Info Card Explaining Position Number */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between text-xs text-blue-900">
-        <div className="flex items-center gap-2.5">
-          <Sparkles className="w-4 h-4 text-brand-600 shrink-0" />
-          <span>
-            <strong>Home Page Ordering:</strong> Set the position number (e.g. 1, 2, 3) to choose where each promotional banner appears in the home page slideshow alongside the static school uniform banners.
-          </span>
-        </div>
-      </div>
+      {activeTab === 'bottom_showcase' && <BannerShowcaseManager />}
 
-      {/* Banners Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {activeTab === 'hero_banners' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-black text-navy-950">Hero Slideshow Promotional Banners</h1>
+              <p className="text-xs text-gray-500">
+                Publish seasonal campaign banners. Each banner will be shown on the home page carousel at your chosen position number.
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenAdd}
+              className="inline-flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Promotional Banner</span>
+            </button>
+          </div>
+
+          {/* Info Card Explaining Position Number and Link to Hero Slides */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>
+                <strong>Dedicated Hero Slideshow Manager:</strong> Full control over homepage hero slides (desktop &amp; mobile banners, custom order, Shift Left/Right, and action buttons) is centralized in <strong>Hero Slides</strong>.
+              </span>
+            </div>
+            <a
+              href="/admin/hero"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-navy-950 text-white font-bold text-xs shrink-0 hover:bg-navy-900 transition"
+            >
+              <span>Open Hero Slides</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+
+          {/* Banners Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {banners.map((b, idx) => (
           <div
             key={b.id}
@@ -385,8 +425,10 @@ export default function AdminBannersPage() {
           </div>
         ))}
       </div>
+    </div>
+  )}
 
-      {/* Add / Edit Banner Modal */}
+  {/* Add / Edit Banner Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 border border-gray-200 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">

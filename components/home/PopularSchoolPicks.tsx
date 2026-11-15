@@ -87,8 +87,8 @@ export default function PopularSchoolPicks() {
             </p>
           </div>
 
-          {/* Left and Right navigation arrows */}
-          <div className="flex items-center gap-2 self-start sm:self-end shrink-0">
+          {/* Left and Right navigation arrows (Desktop only, mobile uses swipe) */}
+          <div className="hidden sm:flex items-center gap-2 self-start sm:self-end shrink-0">
             <button
               onClick={() => scroll('left')}
               disabled={!canScrollLeft}
@@ -117,7 +117,7 @@ export default function PopularSchoolPicks() {
         </div>
 
         {/* Interactive Filtering Tabs */}
-        <div className="flex items-center gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
+        <div className="flex items-center gap-1.5 sm:gap-2 mb-5 sm:mb-6 overflow-x-auto no-scrollbar pb-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -125,7 +125,7 @@ export default function PopularSchoolPicks() {
                 setActiveTab(tab.id as any);
                 if (scrollRef.current) scrollRef.current.scrollLeft = 0;
               }}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-navy-950 text-white shadow-md'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
@@ -140,12 +140,12 @@ export default function PopularSchoolPicks() {
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="flex overflow-x-auto no-scrollbar gap-4 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
+          className="flex overflow-x-auto no-scrollbar gap-3.5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
         >
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="w-[72vw] sm:w-[260px] md:w-[280px] lg:w-[290px] flex-shrink-0 snap-start"
+              className="w-[68vw] sm:w-[260px] md:w-[280px] lg:w-[290px] flex-shrink-0 snap-start"
             >
               <ProductCard product={product} />
             </div>

@@ -4,9 +4,7 @@ import React, { useState, useEffect } from 'react';
 import HeroSlideshow from '@/components/home/HeroSlideshow';
 import MarqueeTicker from '@/components/home/MarqueeTicker';
 import ShopByFootwear from '@/components/home/ShopByFootwear';
-import QuickAddToCartSection from '@/components/home/QuickAddToCartSection';
 import ShopBySchoolLevel from '@/components/home/ShopBySchoolLevel';
-import SchoolBundlesSection from '@/components/home/SchoolBundlesSection';
 import ExploreAccessories from '@/components/home/ExploreAccessories';
 import PopularBags from '@/components/home/PopularBags';
 import PopularSchoolPicks from '@/components/home/PopularSchoolPicks';
@@ -19,9 +17,7 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   hero: HeroSlideshow,
   marquee: MarqueeTicker,
   shop_footwear: ShopByFootwear,
-  quick_cart: QuickAddToCartSection,
   school_level: ShopBySchoolLevel,
-  school_bundles: SchoolBundlesSection,
   explore_accessories: ExploreAccessories,
   popular_bags: PopularBags,
   popular_picks: PopularSchoolPicks,

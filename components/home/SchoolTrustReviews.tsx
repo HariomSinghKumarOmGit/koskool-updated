@@ -99,20 +99,20 @@ export default function SchoolTrustReviews() {
     <section className="py-12 sm:py-16 bg-white border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         {/* 4 Trust Pillars */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
           {pillars.map((pillar, idx) => {
             const Icon = pillar.icon;
             return (
               <div
                 key={idx}
-                className="bg-gray-50 rounded-2xl p-4 sm:p-5 border border-gray-200 flex flex-col justify-between space-y-2 hover:border-brand-300 transition"
+                className="bg-gray-50 rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-gray-200 flex flex-col justify-between space-y-1.5 sm:space-y-2 hover:border-brand-300 transition"
               >
-                <div className="w-10 h-10 rounded-xl bg-white text-brand-600 flex items-center justify-center border border-gray-200 shadow-sm">
-                  <Icon className="w-5 h-5" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white text-brand-600 flex items-center justify-center border border-gray-200 shadow-sm">
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs sm:text-sm font-black text-navy-950">{pillar.title}</h4>
-                  <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">{pillar.desc}</p>
+                  <h4 className="text-[11px] sm:text-sm font-black text-navy-950 leading-tight">{pillar.title}</h4>
+                  <p className="text-[10px] sm:text-[11px] text-gray-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">{pillar.desc}</p>
                 </div>
               </div>
             );
@@ -131,7 +131,7 @@ export default function SchoolTrustReviews() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-end shrink-0">
+            <div className="hidden sm:flex items-center gap-2 self-start sm:self-end shrink-0">
               <button
                 onClick={() => scroll('left')}
                 className="w-10 h-10 rounded-full border border-gray-300 bg-white text-navy-950 hover:bg-navy-950 hover:text-white flex items-center justify-center transition shadow-sm"
@@ -152,14 +152,14 @@ export default function SchoolTrustReviews() {
           {/* Carousel */}
           <div
             ref={scrollRef}
-            className="flex overflow-x-auto no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
+            className="flex overflow-x-auto no-scrollbar gap-4 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
           >
             {reviews.map((rev) => (
               <div
                 key={rev.id}
-                className="w-[84vw] sm:w-[320px] md:w-[360px] flex-shrink-0 snap-start"
+                className="w-[80vw] sm:w-[320px] md:w-[360px] flex-shrink-0 snap-start"
               >
-                <div className="bg-gray-50 rounded-2xl border border-gray-200 p-6 flex flex-col justify-between h-full shadow-sm hover:shadow-md transition space-y-4">
+                <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 sm:p-6 flex flex-col justify-between h-full shadow-sm hover:shadow-md transition space-y-3 sm:space-y-4">
                   <div className="space-y-3">
                     {/* Stars */}
                     <div className="flex items-center justify-between">

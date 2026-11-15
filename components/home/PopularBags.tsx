@@ -78,30 +78,32 @@ export default function PopularBags() {
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </Link>
 
-            <button
-              onClick={() => scroll('left')}
-              disabled={!canScrollLeft}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                canScrollLeft
-                  ? 'bg-white border-gray-300 text-navy-950 hover:bg-navy-950 hover:text-white'
-                  : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
-              aria-label="Previous bags"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => scroll('right')}
-              disabled={!canScrollRight}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                canScrollRight
-                  ? 'bg-navy-950 border-navy-950 text-white hover:bg-brand-600 hover:border-brand-600'
-                  : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
-              aria-label="Next bags"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+            <div className="hidden sm:flex items-center gap-2">
+              <button
+                onClick={() => scroll('left')}
+                disabled={!canScrollLeft}
+                className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
+                  canScrollLeft
+                    ? 'bg-white border-gray-300 text-navy-950 hover:bg-navy-950 hover:text-white'
+                    : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+                }`}
+                aria-label="Previous bags"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => scroll('right')}
+                disabled={!canScrollRight}
+                className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
+                  canScrollRight
+                    ? 'bg-navy-950 border-navy-950 text-white hover:bg-brand-600 hover:border-brand-600'
+                    : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+                }`}
+                aria-label="Next bags"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -109,12 +111,12 @@ export default function PopularBags() {
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="flex overflow-x-auto no-scrollbar gap-4 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
+          className="flex overflow-x-auto no-scrollbar gap-3.5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
         >
           {bagProducts.map((product) => (
             <div
               key={product.id}
-              className="w-[72vw] sm:w-[260px] md:w-[280px] lg:w-[290px] flex-shrink-0 snap-start"
+              className="w-[68vw] sm:w-[260px] md:w-[280px] lg:w-[290px] flex-shrink-0 snap-start"
             >
               <ProductCard product={product} />
             </div>

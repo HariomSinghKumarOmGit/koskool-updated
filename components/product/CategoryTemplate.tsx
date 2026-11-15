@@ -610,14 +610,13 @@ export default function CategoryTemplate({
           </h2>
         </div>
 
-        {/* 3. Filter Action Bar (Matching Image 1) */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-2 border-b border-gray-100">
-          
-          {/* Left: "Show filters" Pill Button */}
-          <div className="flex items-center gap-4">
+        {/* 3. Filter Action Bar (Responsive Mobile & Desktop) */}
+        <div className="space-y-3 py-2 border-b border-gray-100">
+          <div className="flex items-center justify-between gap-3">
+            {/* "Show filters" Pill Button */}
             <button
               onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
-              className={`inline-flex items-center gap-2 rounded-full border px-5 py-2 text-xs font-bold transition shadow-sm ${
+              className={`inline-flex items-center gap-1.5 sm:gap-2 rounded-full border px-4 sm:px-5 py-2 text-xs font-bold transition shadow-sm ${
                 isFilterDrawerOpen
                   ? 'bg-[#f05a50] text-white border-[#f05a50]'
                   : 'border-[#f05a50] text-[#f05a50] hover:bg-[#fff5f5]'
@@ -625,7 +624,7 @@ export default function CategoryTemplate({
               aria-label={isFilterDrawerOpen ? 'Hide Filters' : 'Show Filters'}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>{isFilterDrawerOpen ? 'Hide filters' : 'Show filters'}</span>
+              <span>{isFilterDrawerOpen ? 'Hide filters' : 'Filters'}</span>
               {activeFiltersCount > 0 && (
                 <span
                   className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center ${
@@ -636,10 +635,31 @@ export default function CategoryTemplate({
                 </span>
               )}
             </button>
+
+            {/* Sort by Dropdown Pill */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-500 font-medium hidden sm:inline">Sort by:</span>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-white border border-[#f05a50] text-gray-800 text-xs font-semibold rounded-full pl-3.5 sm:pl-5 pr-7 sm:pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-[#f05a50] cursor-pointer shadow-sm"
+                >
+                  <option value="featured">Featured •</option>
+                  <option value="popular">Best selling</option>
+                  <option value="price-low">Price: Low to high</option>
+                  <option value="price-high">Price: High to low</option>
+                  <option value="rating">Top rated</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 sm:pr-3 text-[#f05a50]">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Middle: Sub-category filter pills / links with item counts in superscript */}
-          <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto no-scrollbar py-1">
+          {/* Sub-category filter pills / links with item counts in superscript */}
+          <div className="flex items-center gap-3 sm:gap-6 overflow-x-auto no-scrollbar py-1">
             {subcategories.map((sub, idx) => {
               const isActive = activeSubcategory === sub.id;
               return (
@@ -664,28 +684,6 @@ export default function CategoryTemplate({
               );
             })}
           </div>
-
-          {/* Right: Sort by Dropdown Pill */}
-          <div className="flex items-center gap-2 self-end md:self-auto">
-            <span className="text-xs text-gray-500 font-medium hidden sm:inline">Sort by:</span>
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-white border border-[#f05a50] text-gray-800 text-xs font-semibold rounded-full pl-5 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-[#f05a50] cursor-pointer shadow-sm"
-              >
-                <option value="featured">Featured •</option>
-                <option value="popular">Best selling</option>
-                <option value="price-low">Price: Low to high</option>
-                <option value="price-high">Price: High to low</option>
-                <option value="rating">Top rated</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[#f05a50]">
-                <ChevronDown className="w-3.5 h-3.5" />
-              </div>
-            </div>
-          </div>
-
         </div>
 
         {/* 4. Filter Sidebar (When Open) & Product Cards Grid */}

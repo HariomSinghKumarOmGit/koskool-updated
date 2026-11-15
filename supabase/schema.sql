@@ -7,10 +7,10 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. USER PROFILES TABLE (Syncs with Supabase Auth or standalone)
+-- 1. USER PROFILES TABLE (Syncs with Supabase auth.users)
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id UUID UNIQUE,
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    auth_user_id UUID,
     email VARCHAR(255) NOT NULL,
     name VARCHAR(255),
     phone VARCHAR(50),
@@ -20,7 +20,40 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. CATEGORIES TABLE
+-- Ensure columns exist if table was previously created
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS addresses JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'customer';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auth_user_id UUID;
+
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
+
+-- 2. CUSTOMER ADDRESSES TABLE (Separate Shipping & Billing Addresses)
+CREATE TABLE IF NOT EXISTS public.customer_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    address_type VARCHAR(20) DEFAULT 'shipping' CHECK (address_type IN ('shipping', 'billing', 'both')),
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    house_flat VARCHAR(255),
+    street_area TEXT NOT NULL,
+    landmark VARCHAR(255),
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    pincode VARCHAR(20) NOT NULL,
+    country VARCHAR(100) DEFAULT 'India',
+    latitude NUMERIC(10, 7),
+    longitude NUMERIC(10, 7),
+    formatted_address TEXT,
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_addresses_user_id ON public.customer_addresses(user_id);
+CREATE INDEX IF NOT EXISTS idx_customer_addresses_default ON public.customer_addresses(user_id, is_default);
+
+-- 3. CATEGORIES TABLE
 CREATE TABLE IF NOT EXISTS public.categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     slug VARCHAR(100) UNIQUE NOT NULL,
@@ -33,7 +66,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. PRODUCTS TABLE
+-- 4. PRODUCTS TABLE
 CREATE TABLE IF NOT EXISTS public.products (
     id VARCHAR(100) PRIMARY KEY,
     slug VARCHAR(255) UNIQUE NOT NULL,
@@ -72,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. PROMOTIONAL BANNERS TABLE
+-- 5. PROMOTIONAL BANNERS TABLE
 CREATE TABLE IF NOT EXISTS public.promotional_banners (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
@@ -89,7 +122,7 @@ CREATE TABLE IF NOT EXISTS public.promotional_banners (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. PROMO CODES / COUPONS TABLE
+-- 6. PROMO CODES / COUPONS TABLE
 CREATE TABLE IF NOT EXISTS public.promo_codes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) UNIQUE NOT NULL,
@@ -106,7 +139,7 @@ CREATE TABLE IF NOT EXISTS public.promo_codes (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. ORDERS / DELIVERIES TABLE
+-- 7. ORDERS TABLE (Immutable Address Snapshots & Geo Coordinates)
 CREATE TABLE IF NOT EXISTS public.orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_number VARCHAR(50) UNIQUE NOT NULL,
@@ -115,9 +148,13 @@ CREATE TABLE IF NOT EXISTS public.orders (
     customer_email VARCHAR(255) NOT NULL,
     customer_phone VARCHAR(50) NOT NULL,
     delivery_address TEXT NOT NULL,
+    shipping_address JSONB,
+    billing_address JSONB,
     city VARCHAR(100) NOT NULL,
     state VARCHAR(100) NOT NULL,
     pincode VARCHAR(20) NOT NULL,
+    latitude NUMERIC(10, 7),
+    longitude NUMERIC(10, 7),
     items JSONB NOT NULL,
     subtotal NUMERIC(10, 2) NOT NULL,
     discount_amount NUMERIC(10, 2) DEFAULT 0,
@@ -125,13 +162,60 @@ CREATE TABLE IF NOT EXISTS public.orders (
     shipping_cost NUMERIC(10, 2) DEFAULT 0,
     total_amount NUMERIC(10, 2) NOT NULL,
     payment_method VARCHAR(50) DEFAULT 'cod',
-    status VARCHAR(50) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled')),
+    payment_status VARCHAR(50) DEFAULT 'Pending',
+    status VARCHAR(50) DEFAULT 'Order Placed',
+    tracking_id VARCHAR(100),
+    courier_name VARCHAR(100),
     tracking_notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. CUSTOMER INQUIRIES & QUOTATIONS TABLE
+-- Upgrade existing orders columns if needed
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_address JSONB;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS billing_address JSONB;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS latitude NUMERIC(10, 7);
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS longitude NUMERIC(10, 7);
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'Pending';
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS tracking_id VARCHAR(100);
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS courier_name VARCHAR(100);
+
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON public.orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
+
+-- 8. ORDER ITEMS TABLE (Relational Product Details)
+CREATE TABLE IF NOT EXISTS public.order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    product_id VARCHAR(100) NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    price NUMERIC(10, 2) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    selected_size VARCHAR(50),
+    selected_colour VARCHAR(50),
+    image_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
+
+-- 9. ORDER TRACKING UPDATES TABLE (Manual Shipment Timeline History)
+CREATE TABLE IF NOT EXISTS public.order_tracking_updates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+    status VARCHAR(50) NOT NULL,
+    courier_name VARCHAR(100),
+    tracking_id VARCHAR(100),
+    notes TEXT,
+    update_time TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_tracking_order_id ON public.order_tracking_updates(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_tracking_created_at ON public.order_tracking_updates(created_at);
+
+-- 10. CUSTOMER INQUIRIES & QUOTATIONS TABLE
 CREATE TABLE IF NOT EXISTS public.inquiries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_name VARCHAR(255) NOT NULL,
@@ -147,7 +231,56 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. STORAGE BUCKETS
+-- 11. PRODUCT REVIEWS TABLE (Customer feedback with star ratings and photos)
+CREATE TABLE IF NOT EXISTS public.reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id VARCHAR(100) NOT NULL,
+    user_name VARCHAR(255) NOT NULL,
+    user_email VARCHAR(255),
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    title VARCHAR(255),
+    comment TEXT NOT NULL,
+    images JSONB DEFAULT '[]'::jsonb,
+    verified_purchase BOOLEAN DEFAULT false,
+    recommend BOOLEAN DEFAULT true,
+    helpful_count INT DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'approved' CHECK (status IN ('approved', 'pending', 'rejected')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON public.reviews(product_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON public.reviews(rating);
+CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON public.reviews(created_at DESC);
+
+-- 12. AUTOMATIC USER PROFILE SYNC TRIGGER (auth.users -> public.profiles)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, auth_user_id, email, name, phone, role)
+  VALUES (
+    new.id,
+    new.id,
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    COALESCE(new.raw_user_meta_data->>'phone', ''),
+    CASE WHEN new.email = 'admin@gmail.com' THEN 'admin' ELSE 'customer' END
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    name = COALESCE(EXCLUDED.name, profiles.name),
+    phone = COALESCE(EXCLUDED.phone, profiles.phone),
+    updated_at = NOW();
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT OR UPDATE ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 12. STORAGE BUCKETS
 INSERT INTO storage.buckets (id, name, public)
 VALUES 
     ('product-images', 'product-images', true),
@@ -171,36 +304,129 @@ DROP POLICY IF EXISTS "Public can upload to promotions" ON storage.objects;
 CREATE POLICY "Public can upload to promotions" ON storage.objects
     FOR INSERT WITH CHECK (bucket_id = 'promotions');
 
--- 9. ROW LEVEL SECURITY (RLS) POLICIES
+-- 13. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_addresses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promotional_banners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promo_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_tracking_updates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
--- Allow public read of active items
-DROP POLICY IF EXISTS "Public read profiles" ON public.profiles;
-CREATE POLICY "Public read profiles" ON public.profiles FOR ALL USING (true);
+-- Profiles Policies
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+CREATE POLICY "Users can view own profile" ON public.profiles
+    FOR SELECT USING (auth.uid() = id OR auth.jwt() ->> 'email' = 'admin@gmail.com');
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile" ON public.profiles
+    FOR INSERT WITH CHECK (auth.uid() = id OR id IS NOT NULL);
+
+DROP POLICY IF EXISTS "Admin can do all on profiles" ON public.profiles;
+CREATE POLICY "Admin can do all on profiles" ON public.profiles
+    FOR ALL USING (auth.jwt() ->> 'email' = 'admin@gmail.com');
+
+-- Customer Addresses Policies
+DROP POLICY IF EXISTS "Users can view own addresses" ON public.customer_addresses;
+CREATE POLICY "Users can view own addresses" ON public.customer_addresses
+    FOR SELECT USING (auth.uid() = user_id OR auth.jwt() ->> 'email' = 'admin@gmail.com');
+
+DROP POLICY IF EXISTS "Users can insert own addresses" ON public.customer_addresses;
+CREATE POLICY "Users can insert own addresses" ON public.customer_addresses
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.customer_addresses;
+CREATE POLICY "Users can update own addresses" ON public.customer_addresses
+    FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own addresses" ON public.customer_addresses;
+CREATE POLICY "Users can delete own addresses" ON public.customer_addresses
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Orders Policies
+DROP POLICY IF EXISTS "Users can view own orders" ON public.orders;
+CREATE POLICY "Users can view own orders" ON public.orders
+    FOR SELECT USING (auth.uid() = user_id OR auth.jwt() ->> 'email' = 'admin@gmail.com');
+
+DROP POLICY IF EXISTS "Users can insert own orders" ON public.orders;
+CREATE POLICY "Users can insert own orders" ON public.orders
+    FOR INSERT WITH CHECK (auth.uid() = user_id OR auth.uid() IS NULL);
+
+DROP POLICY IF EXISTS "Admin can manage all orders" ON public.orders;
+CREATE POLICY "Admin can manage all orders" ON public.orders
+    FOR ALL USING (auth.jwt() ->> 'email' = 'admin@gmail.com');
+
+-- Order Items Policies
+DROP POLICY IF EXISTS "Users can view own order items" ON public.order_items;
+CREATE POLICY "Users can view own order items" ON public.order_items
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.orders 
+            WHERE orders.id = order_items.order_id 
+            AND (orders.user_id = auth.uid() OR auth.jwt() ->> 'email' = 'admin@gmail.com')
+        )
+    );
+
+DROP POLICY IF EXISTS "Users can insert order items" ON public.order_items;
+CREATE POLICY "Users can insert order items" ON public.order_items
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.orders 
+            WHERE orders.id = order_items.order_id
+        )
+    );
+
+-- Order Tracking Updates Policies
+DROP POLICY IF EXISTS "Users can view own order tracking" ON public.order_tracking_updates;
+CREATE POLICY "Users can view own order tracking" ON public.order_tracking_updates
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.orders 
+            WHERE orders.id = order_tracking_updates.order_id 
+            AND (orders.user_id = auth.uid() OR auth.jwt() ->> 'email' = 'admin@gmail.com')
+        )
+    );
+
+DROP POLICY IF EXISTS "Admin can manage tracking updates" ON public.order_tracking_updates;
+CREATE POLICY "Admin can manage tracking updates" ON public.order_tracking_updates
+    FOR ALL USING (auth.jwt() ->> 'email' = 'admin@gmail.com');
+
+-- Public Catalog Policies (Read-Only)
 DROP POLICY IF EXISTS "Public read categories" ON public.categories;
-CREATE POLICY "Public read categories" ON public.categories FOR ALL USING (true);
+CREATE POLICY "Public read categories" ON public.categories FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Public read products" ON public.products;
-CREATE POLICY "Public read products" ON public.products FOR ALL USING (true);
+CREATE POLICY "Public read products" ON public.products FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Public read banners" ON public.promotional_banners;
-CREATE POLICY "Public read banners" ON public.promotional_banners FOR ALL USING (true);
+CREATE POLICY "Public read banners" ON public.promotional_banners FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Public read promo codes" ON public.promo_codes;
-CREATE POLICY "Public read promo codes" ON public.promo_codes FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Public read orders" ON public.orders;
-CREATE POLICY "Public read orders" ON public.orders FOR ALL USING (true);
+CREATE POLICY "Public read promo codes" ON public.promo_codes FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Public read inquiries" ON public.inquiries;
 CREATE POLICY "Public read inquiries" ON public.inquiries FOR ALL USING (true);
+
+-- Product Reviews Policies
+DROP POLICY IF EXISTS "Public can view approved reviews" ON public.reviews;
+CREATE POLICY "Public can view approved reviews" ON public.reviews FOR SELECT USING (status = 'approved');
+
+DROP POLICY IF EXISTS "Public can submit reviews" ON public.reviews;
+CREATE POLICY "Public can submit reviews" ON public.reviews FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public can update reviews" ON public.reviews;
+CREATE POLICY "Public can update reviews" ON public.reviews FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Admin can do all on reviews" ON public.reviews;
+CREATE POLICY "Admin can do all on reviews" ON public.reviews FOR ALL USING (auth.jwt() ->> 'email' = 'admin@gmail.com');
 
 -- 10. INITIAL SEED PROMO CODES
 INSERT INTO public.promo_codes (code, description, discount_type, discount_value, min_order_amount, is_active)

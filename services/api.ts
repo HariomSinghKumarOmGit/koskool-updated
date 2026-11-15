@@ -1,5 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import { PRODUCTS, Product, getProductsByCollection } from '@/data/products';
+import { ProductReview, DEFAULT_PRODUCT_REVIEWS, generateSeedReviewsForProduct } from '@/data/defaultReviews';
+
+export type { ProductReview };
 
 export interface Category {
   id: string;
@@ -9,6 +12,7 @@ export interface Category {
   image_url?: string;
   display_order: number;
   is_active: boolean;
+  show_on_homepage?: boolean;
   product_count?: number;
   starting_price?: string;
   badge?: string;
@@ -43,6 +47,51 @@ export interface PromoCode {
   valid_until?: string;
 }
 
+export interface CustomerAddress {
+  id: string;
+  user_id: string;
+  address_type: 'shipping' | 'billing' | 'both';
+  name: string;
+  phone: string;
+  house_flat?: string;
+  street_area: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  formatted_address?: string;
+  is_default: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type OrderStatus =
+  | 'Order Placed'
+  | 'Order Confirmed'
+  | 'Confirmed'
+  | 'Processing'
+  | 'Packed'
+  | 'Shipped'
+  | 'In Transit'
+  | 'Out for Delivery'
+  | 'Delivered'
+  | 'Cancelled'
+  | 'Pending';
+
+export interface OrderTrackingUpdate {
+  id: string;
+  order_id: string;
+  status: OrderStatus;
+  courier_name?: string;
+  tracking_id?: string;
+  notes?: string;
+  update_time: string;
+  created_at?: string;
+}
+
 export interface OrderItem {
   id: string;
   slug?: string;
@@ -57,13 +106,18 @@ export interface OrderItem {
 export interface Order {
   id: string;
   order_number: string;
+  user_id?: string | null;
   customer_name: string;
   customer_email: string;
   customer_phone: string;
   delivery_address: string;
+  shipping_address?: CustomerAddress | any;
+  billing_address?: CustomerAddress | any;
   city: string;
   state: string;
   pincode: string;
+  latitude?: number | null;
+  longitude?: number | null;
   items: OrderItem[];
   subtotal: number;
   discount_amount: number;
@@ -71,9 +125,14 @@ export interface Order {
   shipping_cost: number;
   total_amount: number;
   payment_method: string;
-  status: 'Pending' | 'Confirmed' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+  payment_status: 'Pending' | 'Paid' | 'Failed';
+  status: OrderStatus;
+  tracking_id?: string;
+  courier_name?: string;
   tracking_notes?: string;
+  tracking_history?: OrderTrackingUpdate[];
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CustomerInquiry {
@@ -97,7 +156,7 @@ const LOCAL_STORAGE_BANNERS_KEY = 'koskool_banners_cache';
 const LOCAL_STORAGE_PROMOS_KEY = 'koskool_promos_cache';
 const LOCAL_STORAGE_ORDERS_KEY = 'koskool_orders_cache';
 const LOCAL_STORAGE_INQUIRIES_KEY = 'koskool_inquiries_cache';
-const LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY = 'koskool_homepage_sections_cache';
+const LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY = 'koskool_homepage_sections_cache_v3';
 const LOCAL_STORAGE_FOOTWEAR_CATEGORIES_KEY = 'koskool_footwear_categories_cache';
 const LOCAL_STORAGE_HERO_SLIDES_KEY = 'koskool_hero_slides_cache';
 const LOCAL_STORAGE_SCHOOL_LEVELS_KEY = 'koskool_school_levels_cache';
@@ -109,6 +168,7 @@ export function broadcastDataChange(topic?: string) {
     window.dispatchEvent(new CustomEvent('koskool_homepage_config_updated'));
     window.dispatchEvent(new CustomEvent('koskool_categories_updated'));
     window.dispatchEvent(new CustomEvent('koskool_products_updated'));
+    window.dispatchEvent(new CustomEvent('koskool_banner_showcase_updated'));
   }
 }
 
@@ -149,94 +209,80 @@ function setCache(key: string, val: any) {
 
 // Default Categories
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-1', slug: 'school-shoes', name: 'School Uniform Shoes', description: 'Mandatory assembly & uniform compliant formal shoes', image_url: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg', display_order: 1, is_active: true, starting_price: '₹499', badge: 'Morning Assembly' },
-  { id: 'cat-2', slug: 'sports-shoes', name: 'PT & Sports Shoes', description: 'Non-marking white sneakers for PT drill & playground', image_url: '/cdn/shop/files/WGE53354-BLACK-GENTS_4d4814a1-64d8-45b9-a7b8-722cf22d3c8e.v_1786511261_width_1600.jpg', display_order: 2, is_active: true, starting_price: '₹549', badge: 'PT & Drill' },
-  { id: 'cat-3', slug: 'fabric-shoes', name: 'Fabric & Canvas Shoes', description: 'Breathable canvas shoes for daily routine', image_url: '/cdn/shop/files/W1030-BLACK-GENTS_37127caa-12a4-4e9c-914b-f06d017577a5.v_1786513424_width_1600.jpg', display_order: 3, is_active: true, starting_price: '₹399', badge: 'Summer Light' },
-  { id: 'cat-4', slug: 'bags', name: 'School Backpacks', description: 'Dual-compartment spine-support student bags', image_url: '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg', display_order: 4, is_active: true, starting_price: '₹649', badge: 'Spine Support' },
-  { id: 'cat-5', slug: 'accessories', name: 'Student Accessories', description: 'Water bottles, geometry boxes, pencil pouches, and socks', image_url: '/cdn/shop/files/Kids-Banner.v_1768369268_width_5760.jpg', display_order: 5, is_active: true, starting_price: '₹99', badge: 'Everyday Kits' },
+  { id: 'cat-1', slug: 'school-shoes', name: 'School Uniform Shoes', description: 'Mandatory assembly & uniform compliant formal shoes', image_url: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg', display_order: 1, is_active: true, show_on_homepage: true, starting_price: '₹499', badge: 'Morning Assembly' },
+  { id: 'cat-2', slug: 'sports-shoes', name: 'PT & Sports Shoes', description: 'Non-marking white sneakers for PT drill & playground', image_url: '/cdn/shop/files/WGE53354-BLACK-GENTS_4d4814a1-64d8-45b9-a7b8-722cf22d3c8e.v_1786511261_width_1600.jpg', display_order: 2, is_active: true, show_on_homepage: true, starting_price: '₹549', badge: 'PT & Drill' },
+  { id: 'cat-3', slug: 'fabric-shoes', name: 'Fabric & Canvas Shoes', description: 'Breathable canvas shoes for daily routine', image_url: '/cdn/shop/files/W1030-BLACK-GENTS_37127caa-12a4-4e9c-914b-f06d017577a5.v_1786513424_width_1600.jpg', display_order: 3, is_active: true, show_on_homepage: false, starting_price: '₹399', badge: 'Summer Light' },
+  { id: 'cat-4', slug: 'bags', name: 'School Backpacks', description: 'Dual-compartment spine-support student bags', image_url: '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg', display_order: 4, is_active: true, show_on_homepage: false, starting_price: '₹649', badge: 'Spine Support' },
+  { id: 'cat-5', slug: 'accessories', name: 'Student Accessories', description: 'Water bottles, geometry boxes, pencil pouches, and socks', image_url: '/cdn/shop/files/Kids-Banner.v_1768369268_width_5760.jpg', display_order: 5, is_active: true, show_on_homepage: false, starting_price: '₹99', badge: 'Everyday Kits' },
 ];
+
+// Helper to test if string is a valid UUID
+function isUUID(str?: string): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
 
 // Default Promo Codes
 const DEFAULT_PROMO_CODES: PromoCode[] = [
-  { id: 'pr-1', code: 'KOSKOOL10', description: '10% School Uniform Discount', discount_type: 'percentage', discount_value: 10, min_order_amount: 499, is_active: true, usage_count: 42 },
-  { id: 'pr-2', code: 'KOSKOOL20', description: '20% Back to School Special', discount_type: 'percentage', discount_value: 20, min_order_amount: 999, is_active: true, usage_count: 18 },
-  { id: 'pr-3', code: 'KOSKOOL50', description: '50% Mega Flash Sale', discount_type: 'percentage', discount_value: 50, min_order_amount: 1999, max_discount_amount: 1500, is_active: true, usage_count: 5 },
-  { id: 'pr-4', code: 'SAVE10', description: '₹10 Instant Flat Savings', discount_type: 'fixed', discount_value: 10, min_order_amount: 199, is_active: true, usage_count: 95 },
-  { id: 'pr-5', code: 'SAVE20', description: '₹20 Flat Savings on Daily Essentials', discount_type: 'fixed', discount_value: 20, min_order_amount: 299, is_active: true, usage_count: 31 },
-  { id: 'pr-6', code: 'FIRSTSTEP', description: '₹100 Flat Off on First School Order', discount_type: 'fixed', discount_value: 100, min_order_amount: 599, is_active: true, usage_count: 73 },
+  {
+    id: 'pr-welcome10',
+    code: 'WELCOME10',
+    description: '10% OFF on all school footwear & accessories (Min. order ₹499)',
+    discount_type: 'percentage',
+    discount_value: 10,
+    min_order_amount: 499,
+    max_discount_amount: 300,
+    usage_count: 142,
+    is_active: true,
+  },
+  {
+    id: 'pr-school150',
+    code: 'BACKTOSCHOOL',
+    description: 'Flat ₹150 OFF on full school essentials (Min. order ₹899)',
+    discount_type: 'fixed',
+    discount_value: 150,
+    min_order_amount: 899,
+    max_discount_amount: undefined,
+    usage_count: 89,
+    is_active: true,
+  },
+  {
+    id: 'pr-season20',
+    code: 'KOSKOOL20',
+    description: '20% Mega Season Discount on complete uniform kits (Min. order ₹1,199)',
+    discount_type: 'percentage',
+    discount_value: 20,
+    min_order_amount: 1199,
+    max_discount_amount: 450,
+    usage_count: 65,
+    is_active: true,
+  },
+  {
+    id: 'pr-firststep',
+    code: 'FIRSTSTEP',
+    description: '₹100 Instant Discount for Kindergarten & Primary parents',
+    discount_type: 'fixed',
+    discount_value: 100,
+    min_order_amount: 599,
+    max_discount_amount: undefined,
+    usage_count: 118,
+    is_active: true,
+  },
+  {
+    id: 'pr-save50',
+    code: 'SCHOOL50',
+    description: 'Flat ₹50 OFF on any stationery or bottle accessory order',
+    discount_type: 'fixed',
+    discount_value: 50,
+    min_order_amount: 399,
+    max_discount_amount: undefined,
+    usage_count: 204,
+    is_active: true,
+  },
 ];
 
-// Default Initial Orders
-const DEFAULT_ORDERS: Order[] = [
-  {
-    id: 'ord-101',
-    order_number: 'KS-849201',
-    customer_name: 'Rajesh Sharma',
-    customer_email: 'rajesh.sharma@gmail.com',
-    customer_phone: '+91 98112 45892',
-    delivery_address: 'House No. 42, Pocket B, Rohini Sector 15',
-    city: 'Delhi',
-    state: 'Delhi',
-    pincode: '110085',
-    items: [
-      { id: 'ks-b-sch-01', name: 'KOSKOOL Boys Easy-Strap Velcro School Shoes - Black', price: 499, selectedSize: '1', quantity: 2, image: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg' },
-    ],
-    subtotal: 998,
-    discount_amount: 100,
-    promo_code: 'FIRSTSTEP',
-    shipping_cost: 0,
-    total_amount: 898,
-    payment_method: 'upi',
-    status: 'Pending',
-    tracking_notes: 'Awaiting packaging at Bawana Industrial Unit',
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-  },
-  {
-    id: 'ord-102',
-    order_number: 'KS-752194',
-    customer_name: 'Sunita Mehra',
-    customer_email: 'sunita.m@yahoo.com',
-    customer_phone: '+91 98711 02341',
-    delivery_address: 'Flat 304, Green View Apartments, Dwarka Sector 9',
-    city: 'New Delhi',
-    state: 'Delhi',
-    pincode: '110077',
-    items: [
-      { id: 'ks-b-sch-02', name: 'KOSKOOL Boys Classic Derby Lace-Up Senior School Shoes - Deep Black', price: 649, selectedSize: '7', quantity: 1, image: '/cdn/shop/files/WGE53354-BLACK-GENTS_4d4814a1-64d8-45b9-a7b8-722cf22d3c8e.v_1786511261_width_1600.jpg' },
-    ],
-    subtotal: 649,
-    discount_amount: 65,
-    promo_code: 'KOSKOOL10',
-    shipping_cost: 0,
-    total_amount: 584,
-    payment_method: 'card',
-    status: 'Confirmed',
-    tracking_notes: 'Quality checked, scheduled for Delhivery courier pickup',
-    created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
-  },
-  {
-    id: 'ord-103',
-    order_number: 'KS-621845',
-    customer_name: 'Amitabh Verma',
-    customer_email: 'amitabh.verma@outlook.com',
-    customer_phone: '+91 99100 87654',
-    delivery_address: 'C-12, Sector 50',
-    city: 'Noida',
-    state: 'Uttar Pradesh',
-    pincode: '201301',
-    items: [
-      { id: 'ks-b-sch-01', name: 'KOSKOOL Boys Easy-Strap Velcro School Shoes - Black', price: 499, selectedSize: '12C', quantity: 1, image: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg' },
-    ],
-    subtotal: 499,
-    discount_amount: 0,
-    shipping_cost: 70,
-    total_amount: 569,
-    payment_method: 'cod',
-    status: 'Shipped',
-    tracking_notes: 'Dispatched via Express Courier from Bawana facility',
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-  },
-];
+// Orders storage initialization - no mock data in production
+const DEFAULT_ORDERS: Order[] = [];
 
 // Default Inquiries
 const DEFAULT_INQUIRIES: CustomerInquiry[] = [
@@ -911,7 +957,8 @@ export async function createCategory(cat: Partial<Category>) {
     description: cat.description || '',
     image_url: cat.image_url || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
     display_order: cat.display_order || 1,
-    is_active: true,
+    is_active: cat.is_active !== undefined ? cat.is_active : true,
+    show_on_homepage: cat.show_on_homepage !== undefined ? cat.show_on_homepage : true,
     starting_price: cat.starting_price || '₹499',
     badge: cat.badge || '',
   };
@@ -928,6 +975,24 @@ export async function createCategory(cat: Partial<Category>) {
   broadcastDataChange('categories');
 
   return { success: true, data: newCat };
+}
+
+export async function toggleCategoryHomepage(id: string) {
+  const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
+  const idx = cached.findIndex((c) => c.id === id);
+  if (idx > -1) {
+    const nextState = !(cached[idx].show_on_homepage !== false && cached[idx].is_active !== false);
+    cached[idx].show_on_homepage = nextState;
+    setCache(LOCAL_STORAGE_CATEGORIES_KEY, cached);
+    try {
+      await supabase.from('categories').update({ show_on_homepage: nextState }).eq('id', id);
+    } catch {
+      // ignore
+    }
+    broadcastDataChange('categories');
+    return { success: true, show_on_homepage: nextState };
+  }
+  return { success: false };
 }
 
 export async function updateCategory(id: string, updates: Partial<Category>) {
@@ -982,6 +1047,32 @@ export async function reorderCategories(reorderedList: { id: string; display_ord
   return { success: true };
 }
 
+// Helper to sync promo codes to both cache keys and broadcast
+function syncPromoCodesAcrossStorage(promos: PromoCode[]) {
+  setCache(LOCAL_STORAGE_PROMOS_KEY, promos);
+  if (typeof window !== 'undefined') {
+    try {
+      const cartPromos = promos.map((p) => ({
+        id: p.id,
+        code: p.code,
+        discountType: p.discount_type,
+        discountValue: p.discount_value,
+        minOrderValue: p.min_order_amount || 0,
+        maxDiscount: p.max_discount_amount && Number(p.max_discount_amount) > 0 ? Number(p.max_discount_amount) : undefined,
+        description: p.description,
+        isActive: p.is_active,
+        usageCount: p.usage_count || 0,
+        createdAt: (p as any).created_at || new Date().toISOString().split('T')[0],
+      }));
+      localStorage.setItem('koskool_promocodes', JSON.stringify(cartPromos));
+      window.dispatchEvent(new CustomEvent('koskool_promos_updated', { detail: promos }));
+    } catch {
+      // ignore
+    }
+  }
+  broadcastDataChange('promos');
+}
+
 // ==========================================
 // 3. PROMO CODES / COUPONS API
 // ==========================================
@@ -993,6 +1084,7 @@ export async function getPromoCodes(): Promise<PromoCode[]> {
       .order('created_at', { ascending: false });
 
     if (!error && data && data.length > 0) {
+      syncPromoCodesAcrossStorage(data);
       return data;
     }
   } catch {
@@ -1003,44 +1095,84 @@ export async function getPromoCodes(): Promise<PromoCode[]> {
 }
 
 export async function createPromoCode(promo: Partial<PromoCode>) {
-  const newPromo: PromoCode = {
-    id: `pr-${Date.now()}`,
-    code: (promo.code || `CODE${Date.now()}`).toUpperCase().trim(),
+  const code = (promo.code || `CODE${Date.now()}`).toUpperCase().trim();
+  const minOrder = promo.min_order_amount !== undefined && promo.min_order_amount !== null ? Number(promo.min_order_amount) : 0;
+  const maxCap = promo.max_discount_amount && Number(promo.max_discount_amount) > 0 ? Number(promo.max_discount_amount) : null;
+
+  const dbPayload: any = {
+    code,
     description: promo.description || 'Promotional Discount',
     discount_type: promo.discount_type || 'percentage',
-    discount_value: Number(promo.discount_value) || 10,
-    min_order_amount: Number(promo.min_order_amount) || 0,
-    max_discount_amount: promo.max_discount_amount ? Number(promo.max_discount_amount) : undefined,
-    usage_limit: promo.usage_limit,
-    usage_count: 0,
+    discount_value: Number(promo.discount_value) || 0,
+    min_order_amount: minOrder,
+    max_discount_amount: maxCap,
+    usage_limit: promo.usage_limit || null,
+    usage_count: promo.usage_count || 0,
     is_active: promo.is_active !== false,
   };
 
+  let assignedId: string | undefined = undefined;
+
   try {
-    await supabase.from('promo_codes').insert([newPromo]);
-  } catch {
-    // ignore
+    // Only pass id if it is a valid UUID, otherwise let Supabase generate UUID
+    const insertData: any = { ...dbPayload };
+    if (promo.id && isUUID(promo.id)) {
+      insertData.id = promo.id;
+    }
+    const { data, error } = await supabase.from('promo_codes').insert([insertData]).select().single();
+    if (!error && data) {
+      assignedId = data.id;
+    }
+  } catch (err) {
+    console.warn('Supabase insert failed, using fallback ID', err);
   }
 
+  const newPromo: PromoCode = {
+    ...dbPayload,
+    id: assignedId || `promo-${Date.now()}`,
+    max_discount_amount: maxCap ?? undefined,
+  };
+
   const cached = getCache<PromoCode[]>(LOCAL_STORAGE_PROMOS_KEY, DEFAULT_PROMO_CODES);
-  cached.unshift(newPromo);
-  setCache(LOCAL_STORAGE_PROMOS_KEY, cached);
+  const filtered = cached.filter((p) => p.code !== newPromo.code && p.id !== newPromo.id);
+  filtered.unshift(newPromo);
+  syncPromoCodesAcrossStorage(filtered);
 
   return { success: true, data: newPromo };
 }
 
 export async function updatePromoCode(id: string, updates: Partial<PromoCode>) {
+  const dbUpdates: any = { ...updates };
+  delete dbUpdates.id;
+  if (dbUpdates.code) {
+    dbUpdates.code = dbUpdates.code.toUpperCase().trim();
+  }
+  if (dbUpdates.min_order_amount !== undefined) {
+    dbUpdates.min_order_amount = Number(dbUpdates.min_order_amount) || 0;
+  }
+  if (dbUpdates.max_discount_amount !== undefined) {
+    dbUpdates.max_discount_amount = dbUpdates.max_discount_amount && Number(dbUpdates.max_discount_amount) > 0 ? Number(dbUpdates.max_discount_amount) : null;
+  }
+
   try {
-    await supabase.from('promo_codes').update(updates).eq('id', id);
-  } catch {
-    // ignore
+    if (isUUID(id)) {
+      await supabase.from('promo_codes').update(dbUpdates).eq('id', id);
+    } else if (updates.code) {
+      await supabase.from('promo_codes').update(dbUpdates).eq('code', updates.code.toUpperCase().trim());
+    }
+  } catch (err) {
+    console.warn('Supabase update failed', err);
   }
 
   const cached = getCache<PromoCode[]>(LOCAL_STORAGE_PROMOS_KEY, DEFAULT_PROMO_CODES);
-  const idx = cached.findIndex((p) => p.id === id);
+  const idx = cached.findIndex((p) => p.id === id || (updates.code && p.code === updates.code.toUpperCase().trim()));
   if (idx > -1) {
-    cached[idx] = { ...cached[idx], ...updates };
-    setCache(LOCAL_STORAGE_PROMOS_KEY, cached);
+    cached[idx] = {
+      ...cached[idx],
+      ...updates,
+      max_discount_amount: dbUpdates.max_discount_amount ?? undefined,
+    };
+    syncPromoCodesAcrossStorage(cached);
   }
 
   return { success: true };
@@ -1048,14 +1180,22 @@ export async function updatePromoCode(id: string, updates: Partial<PromoCode>) {
 
 export async function deletePromoCode(id: string) {
   try {
-    await supabase.from('promo_codes').delete().eq('id', id);
-  } catch {
-    // ignore
+    if (isUUID(id)) {
+      await supabase.from('promo_codes').delete().eq('id', id);
+    } else {
+      const cached = getCache<PromoCode[]>(LOCAL_STORAGE_PROMOS_KEY, DEFAULT_PROMO_CODES);
+      const target = cached.find((p) => p.id === id);
+      if (target?.code) {
+        await supabase.from('promo_codes').delete().eq('code', target.code);
+      }
+    }
+  } catch (err) {
+    console.warn('Supabase delete failed', err);
   }
 
   const cached = getCache<PromoCode[]>(LOCAL_STORAGE_PROMOS_KEY, DEFAULT_PROMO_CODES);
   const filtered = cached.filter((p) => p.id !== id);
-  setCache(LOCAL_STORAGE_PROMOS_KEY, filtered);
+  syncPromoCodesAcrossStorage(filtered);
 
   return { success: true };
 }
@@ -1073,28 +1213,32 @@ export async function validatePromoCode(
     return {
       valid: false,
       discount: 0,
-      message: `Invalid or inactive coupon code "${inputCode}". Try KOSKOOL10, KOSKOOL20 or FIRSTSTEP`,
+      message: `Invalid or inactive coupon code "${inputCode}". Try WELCOME10, BACKTOSCHOOL, or KOSKOOL20`,
     };
   }
 
-  if (found.min_order_amount && subtotal < found.min_order_amount) {
+  const minOrder = Number(found.min_order_amount) || 0;
+  if (minOrder > 0 && subtotal < minOrder) {
     return {
       valid: false,
       discount: 0,
-      message: `Coupon "${found.code}" requires a minimum order of ₹${found.min_order_amount}. (Cart subtotal: ₹${subtotal})`,
+      message: `Coupon "${found.code}" requires a minimum order of ₹${minOrder}. (Cart subtotal: ₹${subtotal})`,
     };
   }
 
   let calculatedDiscount = 0;
   if (found.discount_type === 'percentage') {
-    calculatedDiscount = Math.round((subtotal * found.discount_value) / 100);
-    if (found.max_discount_amount && calculatedDiscount > found.max_discount_amount) {
-      calculatedDiscount = found.max_discount_amount;
-    }
+    calculatedDiscount = Math.round((subtotal * Number(found.discount_value)) / 100);
   } else {
     // Fixed amount (₹10, ₹20, ₹100, etc.)
-    calculatedDiscount = Math.min(found.discount_value, subtotal);
+    calculatedDiscount = Math.min(Number(found.discount_value), subtotal);
   }
+
+  const maxCap = found.max_discount_amount && Number(found.max_discount_amount) > 0 ? Number(found.max_discount_amount) : null;
+  if (maxCap !== null && calculatedDiscount > maxCap) {
+    calculatedDiscount = maxCap;
+  }
+  calculatedDiscount = Math.max(0, Math.min(calculatedDiscount, subtotal));
 
   return {
     valid: true,
@@ -1104,7 +1248,7 @@ export async function validatePromoCode(
       found.discount_type === 'percentage'
         ? `${found.discount_value}% Off`
         : `₹${found.discount_value} Flat Off`
-    }!`,
+    }${maxCap ? ` (Max Cap: ₹${maxCap})` : ''}!`,
   };
 }
 
@@ -1216,21 +1360,241 @@ export async function deletePromotionalBanner(id: string) {
 }
 
 // ==========================================
-// 5. ORDERS & DELIVERIES API
+// 5. CUSTOMER ADDRESSES & PROFILES API
 // ==========================================
-export async function getOrders(params?: { status?: string; search?: string }): Promise<Order[]> {
+export async function getCustomerAddresses(userId: string): Promise<CustomerAddress[]> {
+  if (!userId) return [];
+  const localKey = `koskool_addresses_${userId}`;
+
+  // 1. Try dedicated customer_addresses table
+  try {
+    const { data, error } = await supabase
+      .from('customer_addresses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      setCache(localKey, data);
+      return data;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2. Try profiles.addresses JSONB column
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('addresses')
+      .eq('id', userId)
+      .single();
+
+    if (!error && profile?.addresses && Array.isArray(profile.addresses) && profile.addresses.length > 0) {
+      setCache(localKey, profile.addresses);
+      return profile.addresses;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3. Fallback to localStorage cache
+  return getCache<CustomerAddress[]>(localKey, []);
+}
+
+export async function saveCustomerAddress(
+  userId: string,
+  addressData: Partial<CustomerAddress>
+): Promise<{ success: boolean; address: CustomerAddress }> {
+  const localKey = `koskool_addresses_${userId}`;
+  const now = new Date().toISOString();
+  const addressId = addressData.id || `addr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+  const currentAddresses = await getCustomerAddresses(userId);
+
+  // If new or updated address is set as default, unset other defaults
+  const isDefault = Boolean(addressData.is_default) || currentAddresses.length === 0;
+
+  const fullAddress: CustomerAddress = {
+    id: addressId,
+    user_id: userId,
+    address_type: addressData.address_type || 'shipping',
+    name: addressData.name || 'Student / Parent',
+    phone: addressData.phone || '',
+    house_flat: addressData.house_flat || '',
+    street_area: addressData.street_area || '',
+    landmark: addressData.landmark || '',
+    city: addressData.city || 'Delhi',
+    state: addressData.state || 'Delhi',
+    pincode: addressData.pincode || '',
+    country: addressData.country || 'India',
+    latitude: addressData.latitude !== undefined ? addressData.latitude : null,
+    longitude: addressData.longitude !== undefined ? addressData.longitude : null,
+    formatted_address: addressData.formatted_address || '',
+    is_default: isDefault,
+    created_at: addressData.created_at || now,
+    updated_at: now,
+  };
+
+  let updatedList: CustomerAddress[];
+  const existingIdx = currentAddresses.findIndex((a) => a.id === addressId);
+  if (existingIdx > -1) {
+    updatedList = currentAddresses.map((a, idx) => {
+      if (idx === existingIdx) return fullAddress;
+      if (isDefault) return { ...a, is_default: false };
+      return a;
+    });
+  } else {
+    updatedList = isDefault
+      ? [fullAddress, ...currentAddresses.map((a) => ({ ...a, is_default: false }))]
+      : [fullAddress, ...currentAddresses];
+  }
+
+  // Save to local cache immediately
+  setCache(localKey, updatedList);
+
+  // Attempt sync to Supabase customer_addresses table
+  try {
+    if (isDefault) {
+      await supabase
+        .from('customer_addresses')
+        .update({ is_default: false })
+        .eq('user_id', userId);
+    }
+    await supabase.from('customer_addresses').upsert([fullAddress], { onConflict: 'id' });
+  } catch {
+    // ignore
+  }
+
+  // Attempt sync to Supabase profiles.addresses JSONB column
+  try {
+    await supabase
+      .from('profiles')
+      .update({ addresses: updatedList, updated_at: now })
+      .eq('id', userId);
+  } catch {
+    // ignore
+  }
+
+  broadcastDataChange('addresses');
+  return { success: true, address: fullAddress };
+}
+
+export async function deleteCustomerAddress(
+  userId: string,
+  addressId: string
+): Promise<{ success: boolean }> {
+  const localKey = `koskool_addresses_${userId}`;
+  const currentAddresses = await getCustomerAddresses(userId);
+  const remaining = currentAddresses.filter((a) => a.id !== addressId);
+
+  // If deleted was default and there are remaining addresses, set the first one as default
+  if (currentAddresses.find((a) => a.id === addressId)?.is_default && remaining.length > 0) {
+    remaining[0].is_default = true;
+  }
+
+  setCache(localKey, remaining);
+
+  try {
+    await supabase.from('customer_addresses').delete().eq('id', addressId).eq('user_id', userId);
+  } catch {
+    // ignore
+  }
+
+  try {
+    await supabase
+      .from('profiles')
+      .update({ addresses: remaining, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+  } catch {
+    // ignore
+  }
+
+  broadcastDataChange('addresses');
+  return { success: true };
+}
+
+export async function setDefaultCustomerAddress(
+  userId: string,
+  addressId: string
+): Promise<{ success: boolean }> {
+  const localKey = `koskool_addresses_${userId}`;
+  const currentAddresses = await getCustomerAddresses(userId);
+  const updated = currentAddresses.map((a) => ({
+    ...a,
+    is_default: a.id === addressId,
+  }));
+
+  setCache(localKey, updated);
+
+  try {
+    await supabase.from('customer_addresses').update({ is_default: false }).eq('user_id', userId);
+    await supabase.from('customer_addresses').update({ is_default: true }).eq('id', addressId).eq('user_id', userId);
+  } catch {
+    // ignore
+  }
+
+  try {
+    await supabase
+      .from('profiles')
+      .update({ addresses: updated, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+  } catch {
+    // ignore
+  }
+
+  broadcastDataChange('addresses');
+  return { success: true };
+}
+
+// ==========================================
+// 6. ORDERS & DELIVERIES API
+// ==========================================
+export async function getOrders(params?: {
+  userId?: string;
+  status?: string;
+  search?: string;
+}): Promise<Order[]> {
   try {
     let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
 
+    if (params?.userId) {
+      query = query.eq('user_id', params.userId);
+    }
     if (params?.status && params.status !== 'all') {
       query = query.eq('status', params.status);
     }
     if (params?.search && params.search.trim()) {
-      query = query.or(`order_number.ilike.%${params.search}%,customer_name.ilike.%${params.search}%`);
+      query = query.or(`order_number.ilike.%${params.search}%,customer_name.ilike.%${params.search}%,customer_phone.ilike.%${params.search}%`);
     }
 
     const { data, error } = await query;
     if (!error && data && data.length > 0) {
+      // Enrich with tracking updates if order_tracking_updates exists
+      try {
+        const orderIds = data.map((o: any) => o.id);
+        const { data: trackData } = await supabase
+          .from('order_tracking_updates')
+          .select('*')
+          .in('order_id', orderIds)
+          .order('update_time', { ascending: true });
+
+        if (trackData && trackData.length > 0) {
+          const map = new Map<string, OrderTrackingUpdate[]>();
+          for (const tr of trackData) {
+            if (!map.has(tr.order_id)) map.set(tr.order_id, []);
+            map.get(tr.order_id)!.push(tr);
+          }
+          data.forEach((o: any) => {
+            o.tracking_history = map.get(o.id) || o.tracking_history || [];
+          });
+        }
+      } catch {
+        // ignore
+      }
+
+      setCache(LOCAL_STORAGE_ORDERS_KEY, data);
       return data;
     }
   } catch {
@@ -1238,6 +1602,9 @@ export async function getOrders(params?: { status?: string; search?: string }): 
   }
 
   let cached = getCache<Order[]>(LOCAL_STORAGE_ORDERS_KEY, DEFAULT_ORDERS);
+  if (params?.userId) {
+    cached = cached.filter((o) => o.user_id === params.userId);
+  }
   if (params?.status && params.status !== 'all') {
     cached = cached.filter((o) => o.status === params.status);
   }
@@ -1254,18 +1621,111 @@ export async function getOrders(params?: { status?: string; search?: string }): 
   return cached;
 }
 
-export async function createOrder(orderPayload: Partial<Order>): Promise<{ success: boolean; orderId: string }> {
+export async function getOrderByIdOrNumber(
+  idOrNumber: string,
+  userId?: string
+): Promise<Order | null> {
+  if (!idOrNumber) return null;
+  const clean = idOrNumber.trim();
+
+  // Try fetching from Supabase
+  try {
+    let query = supabase
+      .from('orders')
+      .select('*')
+      .or(`id.eq.${clean},order_number.eq.${clean}`)
+      .single();
+
+    const { data, error } = await query;
+    if (!error && data) {
+      if (userId && data.user_id && data.user_id !== userId) {
+        return null; // unauthorized access attempt
+      }
+
+      // Fetch tracking updates
+      try {
+        const { data: tracking } = await supabase
+          .from('order_tracking_updates')
+          .select('*')
+          .eq('order_id', data.id)
+          .order('update_time', { ascending: true });
+
+        if (tracking && tracking.length > 0) {
+          data.tracking_history = tracking;
+        }
+      } catch {
+        // ignore
+      }
+
+      return data;
+    }
+  } catch {
+    // ignore
+  }
+
+  // Fallback to cached orders
+  const cached = getCache<Order[]>(LOCAL_STORAGE_ORDERS_KEY, DEFAULT_ORDERS);
+  const found = cached.find(
+    (o) => o.id === clean || o.order_number.toUpperCase() === clean.toUpperCase()
+  );
+
+  if (found) {
+    if (userId && found.user_id && found.user_id !== userId) {
+      return null;
+    }
+    return found;
+  }
+
+  return null;
+}
+
+export async function createOrder(
+  orderPayload: Partial<Order>
+): Promise<{ success: boolean; orderId: string; order: Order }> {
   const orderNumber = `KS-${Math.floor(100000 + Math.random() * 900000)}`;
-  const newOrder: Order = {
-    id: `ord-${Date.now()}`,
-    order_number: orderNumber,
-    customer_name: orderPayload.customer_name || 'Valued Parent',
-    customer_email: orderPayload.customer_email || 'parent@example.com',
-    customer_phone: orderPayload.customer_phone || '+91 98000 00000',
-    delivery_address: orderPayload.delivery_address || 'Address',
+  const orderId = `ord-${Date.now()}`;
+  const now = new Date().toISOString();
+
+  // Create initial tracking record
+  const initialTracking: OrderTrackingUpdate = {
+    id: `trk-${Date.now()}`,
+    order_id: orderId,
+    status: 'Order Placed',
+    notes: 'Order received and confirmed. Package queued for uniform quality inspection at Bawana facility.',
+    update_time: now,
+    created_at: now,
+  };
+
+  // Build immutable snapshot of addresses
+  const shippingSnap = orderPayload.shipping_address || {
+    name: orderPayload.customer_name || 'Valued Parent',
+    phone: orderPayload.customer_phone || '',
+    street_area: orderPayload.delivery_address || 'Delivery Address',
     city: orderPayload.city || 'Delhi',
     state: orderPayload.state || 'Delhi',
     pincode: orderPayload.pincode || '110001',
+    country: 'India',
+    latitude: orderPayload.latitude || null,
+    longitude: orderPayload.longitude || null,
+  };
+
+  const billingSnap = orderPayload.billing_address || shippingSnap;
+
+  const newOrder: Order = {
+    id: orderId,
+    order_number: orderNumber,
+    user_id: orderPayload.user_id || null,
+    customer_name: orderPayload.customer_name || 'Valued Parent',
+    customer_email: orderPayload.customer_email || 'parent@example.com',
+    customer_phone: orderPayload.customer_phone || '+91 98000 00000',
+    delivery_address: orderPayload.delivery_address || shippingSnap.street_area || 'Address',
+    shipping_address: shippingSnap,
+    billing_address: billingSnap,
+    city: orderPayload.city || shippingSnap.city || 'Delhi',
+    state: orderPayload.state || shippingSnap.state || 'Delhi',
+    pincode: orderPayload.pincode || shippingSnap.pincode || '110001',
+    latitude: orderPayload.latitude !== undefined ? orderPayload.latitude : (shippingSnap.latitude || null),
+    longitude: orderPayload.longitude !== undefined ? orderPayload.longitude : (shippingSnap.longitude || null),
     items: orderPayload.items || [],
     subtotal: orderPayload.subtotal || 0,
     discount_amount: orderPayload.discount_amount || 0,
@@ -1273,41 +1733,177 @@ export async function createOrder(orderPayload: Partial<Order>): Promise<{ succe
     shipping_cost: orderPayload.shipping_cost || 0,
     total_amount: orderPayload.total_amount || 0,
     payment_method: orderPayload.payment_method || 'cod',
-    status: 'Pending',
-    tracking_notes: 'Order confirmed and sent to Bawana factory dispatch queue',
-    created_at: new Date().toISOString(),
+    payment_status: orderPayload.payment_method === 'cod' ? 'Pending' : 'Paid',
+    status: 'Order Placed',
+    tracking_notes: initialTracking.notes,
+    tracking_history: [initialTracking],
+    created_at: now,
+    updated_at: now,
   };
 
+  // 1. Insert order into Supabase orders table
   try {
-    await supabase.from('orders').insert([newOrder]);
+    // Attempt insert with complete schema fields
+    const { error: fullErr } = await supabase.from('orders').insert([newOrder]);
+
+    if (fullErr) {
+      console.warn('Orders insert full schema notice:', fullErr.message);
+      // Fallback: insert with core fields if extra columns are not in schema cache yet
+      const coreOrderPayload = {
+        order_number: newOrder.order_number,
+        user_id: newOrder.user_id,
+        customer_name: newOrder.customer_name,
+        customer_email: newOrder.customer_email,
+        customer_phone: newOrder.customer_phone,
+        delivery_address: newOrder.delivery_address,
+        city: newOrder.city,
+        state: newOrder.state,
+        pincode: newOrder.pincode,
+        items: newOrder.items,
+        subtotal: newOrder.subtotal,
+        discount_amount: newOrder.discount_amount,
+        promo_code: newOrder.promo_code,
+        shipping_cost: newOrder.shipping_cost,
+        total_amount: newOrder.total_amount,
+        payment_method: newOrder.payment_method,
+        status: newOrder.status,
+        tracking_notes: newOrder.tracking_notes,
+      };
+      await supabase.from('orders').insert([coreOrderPayload]);
+    }
+  } catch (err) {
+    console.warn('Order database insert error:', err);
+  }
+
+  // 2. Insert items into order_items table (if table exists)
+  try {
+    if (newOrder.items && newOrder.items.length > 0) {
+      const orderItemsToInsert = newOrder.items.map((item) => ({
+        order_id: newOrder.id,
+        product_id: item.id,
+        product_name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        selected_size: item.selectedSize || '',
+        selected_colour: item.selectedColour || '',
+        image_url: item.image || '',
+      }));
+      await supabase.from('order_items').insert(orderItemsToInsert);
+    }
   } catch {
     // ignore
   }
 
+  // 3. Insert initial tracking update into order_tracking_updates table
+  try {
+    await supabase.from('order_tracking_updates').insert([
+      {
+        order_id: newOrder.id,
+        status: initialTracking.status,
+        notes: initialTracking.notes,
+        update_time: initialTracking.update_time,
+      },
+    ]);
+  } catch {
+    // ignore
+  }
+
+  // Update local cache
   const cached = getCache<Order[]>(LOCAL_STORAGE_ORDERS_KEY, DEFAULT_ORDERS);
   cached.unshift(newOrder);
   setCache(LOCAL_STORAGE_ORDERS_KEY, cached);
+  broadcastDataChange('orders');
 
-  return { success: true, orderId: orderNumber };
+  return { success: true, orderId: orderNumber, order: newOrder };
 }
 
-export async function updateOrderStatus(orderId: string, status: Order['status'], notes?: string) {
+export async function addOrderTrackingUpdate(
+  orderId: string,
+  updateData: {
+    status: OrderStatus;
+    courier_name?: string;
+    tracking_id?: string;
+    notes?: string;
+    update_time?: string;
+  }
+): Promise<{ success: boolean; trackingRecord?: OrderTrackingUpdate }> {
+  const now = updateData.update_time || new Date().toISOString();
+  const trackingRecord: OrderTrackingUpdate = {
+    id: `trk-${Date.now()}`,
+    order_id: orderId,
+    status: updateData.status,
+    courier_name: updateData.courier_name || '',
+    tracking_id: updateData.tracking_id || '',
+    notes: updateData.notes || `Status updated to ${updateData.status}`,
+    update_time: now,
+    created_at: now,
+  };
+
+  // 1. Update orders table
   try {
-    const updates: any = { status, updated_at: new Date().toISOString() };
-    if (notes) updates.tracking_notes = notes;
-    await supabase.from('orders').update(updates).eq('id', orderId);
+    const orderUpdates: any = {
+      status: updateData.status,
+      updated_at: now,
+    };
+    if (updateData.notes) orderUpdates.tracking_notes = updateData.notes;
+    if (updateData.tracking_id) orderUpdates.tracking_id = updateData.tracking_id;
+    if (updateData.courier_name) orderUpdates.courier_name = updateData.courier_name;
+
+    await supabase.from('orders').update(orderUpdates).eq('id', orderId);
+  } catch (err) {
+    console.warn('Orders update error:', err);
+  }
+
+  // 2. Insert into order_tracking_updates table
+  try {
+    await supabase.from('order_tracking_updates').insert([
+      {
+        order_id: orderId,
+        status: updateData.status,
+        courier_name: updateData.courier_name || null,
+        tracking_id: updateData.tracking_id || null,
+        notes: updateData.notes || null,
+        update_time: now,
+      },
+    ]);
   } catch {
     // ignore
   }
 
+  // 3. Update local cache
   const cached = getCache<Order[]>(LOCAL_STORAGE_ORDERS_KEY, DEFAULT_ORDERS);
   const idx = cached.findIndex((o) => o.id === orderId || o.order_number === orderId);
   if (idx > -1) {
-    cached[idx] = { ...cached[idx], status, tracking_notes: notes || cached[idx].tracking_notes };
+    const existingHistory = cached[idx].tracking_history || [];
+    cached[idx] = {
+      ...cached[idx],
+      status: updateData.status,
+      tracking_id: updateData.tracking_id || cached[idx].tracking_id,
+      courier_name: updateData.courier_name || cached[idx].courier_name,
+      tracking_notes: updateData.notes || cached[idx].tracking_notes,
+      updated_at: now,
+      tracking_history: [...existingHistory, trackingRecord],
+    };
     setCache(LOCAL_STORAGE_ORDERS_KEY, cached);
   }
 
-  return { success: true };
+  broadcastDataChange('orders');
+  return { success: true, trackingRecord };
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  notes?: string,
+  courier_name?: string,
+  tracking_id?: string
+) {
+  return addOrderTrackingUpdate(orderId, {
+    status,
+    notes,
+    courier_name,
+    tracking_id,
+  });
 }
 
 // ==========================================
@@ -1459,22 +2055,22 @@ export interface HomepageSection {
 
 export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
   { id: 'hero', name: 'Hero Banner Slideshow', description: 'Primary carousel with official 2026 uniform slides & action CTA buttons', badge: 'Hero Top', display_order: 1, is_active: true },
-  { id: 'marquee', name: 'Announcement Ticker', description: 'Running school trust ticker & seasonal notices', badge: 'Ticker', display_order: 2, is_active: true },
-  { id: 'shop_footwear', name: 'Shop By Footwear Carousel', description: 'Interactive carousel of footwear categories with starting prices', badge: 'Category Showcase', display_order: 3, is_active: true },
-  { id: 'quick_cart', name: 'Quick Add to Cart & Promo Hub', description: 'Direct add-to-bag with live active coupon discounts', badge: 'Instant Buy', display_order: 4, is_active: true },
-  { id: 'school_level', name: 'Shop By School Level', description: 'Kindergarten, Middle Wing, and Senior Wing segmented cards', badge: 'Grade Levels', display_order: 5, is_active: true },
-  { id: 'school_bundles', name: 'Curated Uniform Bundles', description: '1-Click Complete School Uniform & PT Kits with flat discounts', badge: 'Bundles', display_order: 6, is_active: true },
-  { id: 'explore_accessories', name: 'Student Accessories Showcase', description: 'Boys, Girls, and Kids accessories cards & school essentials', badge: 'Accessories', display_order: 7, is_active: true },
-  { id: 'popular_bags', name: 'Popular School Bags', description: 'Heavy-duty & ergonomic spinal support backpack carousel', badge: 'Backpacks', display_order: 8, is_active: true },
-  { id: 'popular_picks', name: 'Popular School Picks', description: 'Interactive tabs (All, Boys, Girls, Bags) with product cards', badge: 'Trending', display_order: 9, is_active: true },
-  { id: 'featured_spotlight', name: 'Trending Spotlight Product', description: 'Full sticky product detail view with multi-image gallery & sizing', badge: 'Spotlight', display_order: 10, is_active: true },
-  { id: 'banner_showcase', name: 'Collection Banners & Grid', description: 'Walkaroo Bounceez & Bloomsy featured collection cards', badge: 'Banners', display_order: 11, is_active: true },
-  { id: 'trust_reviews', name: 'School Trust & Reviews', description: 'Parent testimonials, verified school partner badges & metrics', badge: 'Social Proof', display_order: 12, is_active: true },
+  { id: 'shop_footwear', name: 'Shop By Footwear Carousel', description: 'Interactive carousel of footwear categories with starting prices', badge: 'Category Showcase', display_order: 2, is_active: true },
+  { id: 'school_level', name: 'Shop By School Level', description: 'Kindergarten, Middle Wing, and Senior Wing segmented cards', badge: 'Grade Levels', display_order: 3, is_active: true },
+  { id: 'explore_accessories', name: 'Student Accessories Showcase', description: 'Boys, Girls, and Kids accessories cards & school essentials', badge: 'Accessories', display_order: 4, is_active: true },
+  { id: 'popular_bags', name: 'Popular School Bags', description: 'Heavy-duty & ergonomic spinal support backpack carousel', badge: 'Backpacks', display_order: 5, is_active: true },
+  { id: 'popular_picks', name: 'Popular School Picks', description: 'Interactive tabs (All, Boys, Girls, Bags) with product cards', badge: 'Trending', display_order: 6, is_active: true },
+  { id: 'featured_spotlight', name: 'Trending Spotlight Product', description: 'Full sticky product detail view with multi-image gallery & sizing', badge: 'Spotlight', display_order: 7, is_active: true },
+  { id: 'banner_showcase', name: 'Collection Banners & Grid', description: 'Walkaroo Bounceez & Bloomsy featured collection cards', badge: 'Banners', display_order: 8, is_active: true },
+  { id: 'trust_reviews', name: 'School Trust & Reviews', description: 'Parent testimonials, verified school partner badges & metrics', badge: 'Social Proof', display_order: 9, is_active: true },
+  { id: 'marquee', name: 'Announcement Ticker', description: 'Running school trust ticker & seasonal notices', badge: 'Ticker', display_order: 10, is_active: true },
 ];
 
 export async function getHomepageSections(): Promise<HomepageSection[]> {
   const sections = getCache<HomepageSection[]>(LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY, DEFAULT_HOMEPAGE_SECTIONS);
-  return [...sections].sort((a, b) => a.display_order - b.display_order);
+  return [...sections]
+    .filter((sec) => sec.id !== 'school_bundles')
+    .sort((a, b) => a.display_order - b.display_order);
 }
 
 export async function saveHomepageSections(sections: HomepageSection[]) {
@@ -1519,6 +2115,7 @@ export interface FootwearCategoryCard {
   startingPrice: string; // e.g. "₹499"
   display_order: number;
   is_active: boolean;
+  show_on_homepage?: boolean;
 }
 
 export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
@@ -1533,6 +2130,7 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
     startingPrice: '₹499',
     display_order: 1,
     is_active: true,
+    show_on_homepage: true,
   },
   {
     id: 'sports-shoes',
@@ -1545,6 +2143,7 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
     startingPrice: '₹549',
     display_order: 2,
     is_active: true,
+    show_on_homepage: true,
   },
   {
     id: 'fabric-shoes',
@@ -1556,7 +2155,8 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
     features: ['Washable Canvas', 'Flexible Gum Sole', 'Cool Airflow'],
     startingPrice: '₹399',
     display_order: 3,
-    is_active: true,
+    is_active: false,
+    show_on_homepage: false,
   },
   {
     id: 'girls-ballerinas',
@@ -1568,7 +2168,8 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
     features: ['Padded Collar', 'Arch Support', 'Non-Slip Sole'],
     startingPrice: '₹449',
     display_order: 4,
-    is_active: true,
+    is_active: false,
+    show_on_homepage: false,
   },
   {
     id: 'kindergarten-velcro',
@@ -1580,7 +2181,8 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
     features: ['Dual Velcro', 'Under 200g Weight', 'Toe Protection'],
     startingPrice: '₹429',
     display_order: 5,
-    is_active: true,
+    is_active: false,
+    show_on_homepage: false,
   },
 ];
 
@@ -1593,6 +2195,46 @@ export async function saveFootwearCategories(items: FootwearCategoryCard[]) {
   setCache(LOCAL_STORAGE_FOOTWEAR_CATEGORIES_KEY, items);
   broadcastDataChange('footwear_categories');
   return { success: true };
+}
+
+export async function createFootwearCategory(card: Partial<FootwearCategoryCard>) {
+  const items = await getFootwearCategories();
+  const newCard: FootwearCategoryCard = {
+    id: card.id || `footwear-cat-${Date.now()}`,
+    title: card.title || 'New Footwear Category',
+    subtitle: card.subtitle || 'Premium footwear engineered for student comfort.',
+    image: card.image || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+    tag: card.tag || 'Popular Choice',
+    href: card.href || '/collections/school-shoes',
+    features: card.features || ['Cushioned Insole', 'Anti-Slip Sole'],
+    startingPrice: card.startingPrice || '₹499',
+    display_order: card.display_order || (items.length + 1),
+    is_active: card.is_active !== undefined ? card.is_active : true,
+    show_on_homepage: card.show_on_homepage !== undefined ? card.show_on_homepage : true,
+  };
+  items.push(newCard);
+  await saveFootwearCategories(items);
+  return { success: true, data: newCard };
+}
+
+export async function deleteFootwearCategory(id: string) {
+  const items = await getFootwearCategories();
+  const filtered = items.filter((c) => c.id !== id);
+  await saveFootwearCategories(filtered);
+  return { success: true };
+}
+
+export async function toggleFootwearCategoryHomepage(id: string) {
+  const items = await getFootwearCategories();
+  const idx = items.findIndex((c) => c.id === id);
+  if (idx > -1) {
+    const current = items[idx].show_on_homepage !== false && items[idx].is_active !== false;
+    items[idx].show_on_homepage = !current;
+    items[idx].is_active = !current;
+    await saveFootwearCategories(items);
+    return { success: true, is_active: !current };
+  }
+  return { success: false };
 }
 
 export async function updateFootwearCategory(id: string, updates: Partial<FootwearCategoryCard>) {
@@ -1656,6 +2298,22 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
   },
   {
     id: 2,
+    desktopImage: '/uploads/hero-slides/1794699795876-benjamin-voros-phIFdC6lA4E-unsplash.jpg',
+    mobileImage: '/uploads/hero-slides/1794699795876-benjamin-voros-phIFdC6lA4E-unsplash.jpg',
+    badge: 'AA OFFICIAL 2026',
+    title: 'BrobbsuNew School Collection',
+    subtitle: 'bro boomDiscover uniform compliant footwear and school essentials.',
+    primaryCtaText: 'Hellp babu',
+    primaryCtaLink: '/collections/boys',
+    secondaryCtaText: 'good luck',
+    secondaryCtaLink: '/collections/girls',
+    tertiaryCtaText: 'Explore Accessories',
+    tertiaryCtaLink: '/collections/accessories',
+    display_order: 2,
+    is_active: true,
+  },
+  {
+    id: 3,
     desktopImage: '/cdn/shop/files/Sports-Shoe-Web-Banner_934e3fd0-00bd-4c35-a071-b8943d6e32a6.v_1778128141_width_5760.jpg',
     mobileImage: '/cdn/shop/files/Sports-Shoe-Mobile-Web-Banner_69c9e92b-1fbd-4f10-b3ec-b73554dfe45c.v_1778128140_width_1000.jpg',
     badge: 'PT & SPORTS UNIFORM',
@@ -1667,11 +2325,11 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
     secondaryCtaLink: '/collections/girls-sports-shoes-middle-wing',
     tertiaryCtaText: 'Explore Bags',
     tertiaryCtaLink: '/collections/bags',
-    display_order: 2,
+    display_order: 3,
     is_active: true,
   },
   {
-    id: 3,
+    id: 4,
     desktopImage: '/cdn/shop/files/Kids-Banner.v_1768369268_width_5760.jpg',
     mobileImage: '/cdn/shop/files/Kids-Mobile-Banner.v_1768369268_width_1000.jpg',
     badge: 'KINDERGARTEN SPECIAL',
@@ -1683,7 +2341,7 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
     secondaryCtaLink: '/collections/kids-accessories',
     tertiaryCtaText: 'Junior Bags',
     tertiaryCtaLink: '/collections/kids-school-bags',
-    display_order: 3,
+    display_order: 4,
     is_active: true,
   },
 ];
@@ -1708,7 +2366,7 @@ export async function createHeroSlide(slide: Partial<HeroSlide>) {
     title: slide.title || 'New Highlight Banner',
     subtitle: slide.subtitle || 'Shop student uniform and footwear collections with instant home delivery.',
     desktopImage: slide.desktopImage || '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg',
-    mobileImage: slide.mobileImage || '/cdn/shop/files/School-Mobile-Banner_fbefffb6-4e80-496e-83b5-bf4a835d0fad.v_1767783342_width_1000.jpg',
+    mobileImage: slide.mobileImage || slide.desktopImage || '/cdn/shop/files/School-Mobile-Banner_fbefffb6-4e80-496e-83b5-bf4a835d0fad.v_1767783342_width_1000.jpg',
     primaryCtaText: slide.primaryCtaText || 'Explore Now',
     primaryCtaLink: slide.primaryCtaLink || '/collections/boys',
     secondaryCtaText: slide.secondaryCtaText || 'Shop Collection',
@@ -1868,6 +2526,608 @@ export async function getFeaturedSpotlightConfig(): Promise<FeaturedSpotlightCon
 export async function saveFeaturedSpotlightConfig(cfg: FeaturedSpotlightConfig) {
   setCache(LOCAL_STORAGE_FEATURED_PRODUCT_KEY, cfg);
   broadcastDataChange('featured_spotlight');
+  return { success: true };
+}
+
+// ------------------------------------------
+// 13. BOTTOM BANNER SHOWCASE SECTIONS & PRODUCTS
+// ------------------------------------------
+
+export interface BannerShowcaseSection {
+  id: string;
+  title: string;
+  bannerDesktop: string;
+  bannerMobile: string;
+  bannerAlt: string;
+  bannerLink: string;
+  productIds: string[];
+  gridRows?: 1 | 2; // 1 row (4 products) or 2 rows (8 products)
+  display_order: number;
+  is_active: boolean;
+}
+
+export const DEFAULT_BANNER_SHOWCASE_SECTIONS: BannerShowcaseSection[] = [
+  {
+    id: 'bounceez',
+    title: 'BOUNCEEZ - A Perfect Cushion For Your Foot',
+    bannerDesktop: '/cdn/shop/files/Bounceez-Web-Banner-4_94081796-b190-48a0-a99c-0b229a04a5c0.v_1772773040_width_5760.jpg',
+    bannerMobile: '/cdn/shop/files/Bounceez-Mobile-Banner-landscape_a1472114-8617-4595-ad17-ba9ae43b7635.v_1772773044_width_1000.jpg',
+    bannerAlt: 'Bounceez - A Perfect Cushion For Your Foot',
+    bannerLink: '/collections/walkaroo-bounceez',
+    productIds: [
+      'wgp53283-tan',
+      'wgr53350-olive',
+      'wgp53283-black',
+      'wgr53512-olive',
+      'wgp53410-tan',
+      'wge53354-black',
+      'w1030-black',
+      'wv502-black',
+    ],
+    gridRows: 2,
+    display_order: 1,
+    is_active: true,
+  },
+  {
+    id: 'bloomsy',
+    title: 'Bloom-Ready Every Day - Walkaroo Bloomsy Collection',
+    bannerDesktop: '/cdn/shop/files/Bloomsy-Web-Banner_47afcd51-e579-4b9f-a174-6a95c1fa1213.v_1781954684_width_5760.jpg',
+    bannerMobile: '/cdn/shop/files/Bloomsy-Mobile-Banner-landscape_75038556-3611-48b3-8b03-a433059825ee.v_1781954947_width_1000.jpg',
+    bannerAlt: 'Bloom-Ready Every Day - Walkaroo Bloomsy Collection',
+    bannerLink: '/collections/bloomsy-collection',
+    productIds: ['wle74035-mauve', 'wlr74019-green', 'wlr74019-plum', 'wle74035-black'],
+    gridRows: 1,
+    display_order: 2,
+    is_active: true,
+  },
+];
+
+const LOCAL_STORAGE_BANNER_SHOWCASE_KEY = 'koskool_banner_showcase_cache';
+
+export async function getBannerShowcaseSections(): Promise<BannerShowcaseSection[]> {
+  const items = getCache<BannerShowcaseSection[]>(LOCAL_STORAGE_BANNER_SHOWCASE_KEY, DEFAULT_BANNER_SHOWCASE_SECTIONS);
+  return [...items].sort((a, b) => a.display_order - b.display_order);
+}
+
+export async function saveBannerShowcaseSections(items: BannerShowcaseSection[]) {
+  setCache(LOCAL_STORAGE_BANNER_SHOWCASE_KEY, items);
+  broadcastDataChange('banner_showcase');
+  return { success: true };
+}
+
+export async function createBannerShowcaseSection(sec: Partial<BannerShowcaseSection>) {
+  const items = await getBannerShowcaseSections();
+  const newSec: BannerShowcaseSection = {
+    id: sec.id || `showcase-${Date.now()}`,
+    title: sec.title || 'Promotional Banner Showcase',
+    bannerDesktop: sec.bannerDesktop || '/cdn/shop/files/Bounceez-Web-Banner-4_94081796-b190-48a0-a99c-0b229a04a5c0.v_1772773040_width_5760.jpg',
+    bannerMobile: sec.bannerMobile || sec.bannerDesktop || '/cdn/shop/files/Bounceez-Mobile-Banner-landscape_a1472114-8617-4595-ad17-ba9ae43b7635.v_1772773044_width_1000.jpg',
+    bannerAlt: sec.bannerAlt || sec.title || 'Walkaroo Collection Banner',
+    bannerLink: sec.bannerLink || '/collections/walkaroo-bounceez',
+    productIds: sec.productIds && sec.productIds.length > 0 ? sec.productIds : ['wgp53283-tan', 'wgr53350-olive', 'wgp53283-black', 'wgr53512-olive'],
+    gridRows: (sec.gridRows === 1 || sec.gridRows === 2) ? sec.gridRows : 2,
+    display_order: sec.display_order || (items.length + 1),
+    is_active: sec.is_active !== undefined ? sec.is_active : true,
+  };
+  items.push(newSec);
+  await saveBannerShowcaseSections(items);
+  return { success: true, data: newSec };
+}
+
+export async function updateBannerShowcaseSection(id: string, updates: Partial<BannerShowcaseSection>) {
+  const items = await getBannerShowcaseSections();
+  const idx = items.findIndex((i) => i.id === id);
+  if (idx > -1) {
+    items[idx] = { ...items[idx], ...updates };
+    await saveBannerShowcaseSections(items);
+  }
+  return { success: true };
+}
+
+export async function deleteBannerShowcaseSection(id: string) {
+  const items = await getBannerShowcaseSections();
+  const filtered = items.filter((i) => i.id !== id);
+  await saveBannerShowcaseSections(filtered);
+  return { success: true };
+}
+
+export async function reorderBannerShowcaseSections(reorderedList: { id: string; display_order: number }[]) {
+  const items = await getBannerShowcaseSections();
+  const map = new Map(reorderedList.map((i) => [i.id, i.display_order]));
+  const updated = items.map((c) => (map.has(c.id) ? { ...c, display_order: map.get(c.id)! } : c));
+  updated.sort((a, b) => a.display_order - b.display_order);
+  await saveBannerShowcaseSections(updated);
+  return { success: true };
+}
+
+export async function toggleProductHomepageShowcase(productId: string, sectionId?: string): Promise<{ success: boolean; isOnHomepage: boolean }> {
+  const items = await getBannerShowcaseSections();
+  if (items.length === 0) return { success: false, isOnHomepage: false };
+
+  const target = sectionId ? items.find((s) => s.id === sectionId) : items[0];
+  if (!target) return { success: false, isOnHomepage: false };
+
+  const exists = target.productIds.includes(productId);
+  if (exists) {
+    target.productIds = target.productIds.filter((id) => id !== productId);
+  } else {
+    target.productIds.push(productId);
+  }
+
+  await saveBannerShowcaseSections(items);
+
+  // Sync product showOnHomepage flag if possible
+  try {
+    await updateProduct(productId, { showOnHomepage: !exists } as any);
+  } catch {
+    // ignore
+  }
+
+  return { success: true, isOnHomepage: !exists };
+}
+
+export async function getHomepageProductIds(): Promise<string[]> {
+  const items = await getBannerShowcaseSections();
+  const set = new Set<string>();
+  items.forEach((s) => {
+    if (s.is_active) {
+      s.productIds.forEach((id) => set.add(id));
+    }
+  });
+  return Array.from(set);
+}
+
+// =========================================================================
+// PRODUCT REVIEWS API & PERSISTENCE
+// =========================================================================
+
+export interface CreateReviewInput {
+  product_id: string;
+  product_slug?: string;
+  product_name?: string;
+  user_name: string;
+  user_email?: string;
+  rating: number;
+  title: string;
+  comment: string;
+  images?: string[];
+  recommend?: boolean;
+  verified_purchase?: boolean;
+}
+
+const LOCAL_STORAGE_REVIEWS_PREFIX = 'koskool_reviews_';
+const LOCAL_STORAGE_ALL_REVIEWS_KEY = 'koskool_reviews_master';
+const LOCAL_STORAGE_DELETED_REVIEWS_KEY = 'koskool_deleted_reviews_list';
+
+function getDeletedReviewIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_DELETED_REVIEWS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function recordDeletedReviewId(reviewId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const ids = getDeletedReviewIds();
+    ids.add(reviewId);
+    localStorage.setItem(LOCAL_STORAGE_DELETED_REVIEWS_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Normalizes an array of review records from DB or localStorage
+ */
+function normalizeReviewRecord(item: any): ProductReview {
+  let images: string[] = [];
+  if (Array.isArray(item.images)) {
+    images = item.images;
+  } else if (typeof item.images === 'string') {
+    try {
+      images = JSON.parse(item.images);
+    } catch {
+      images = item.images ? [item.images] : [];
+    }
+  }
+
+  return {
+    id: item.id || `rev-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    product_id: item.product_id,
+    user_name: item.user_name || 'Customer',
+    user_email: item.user_email || undefined,
+    rating: Number(item.rating) || 5,
+    title: item.title || '',
+    comment: item.comment || '',
+    images,
+    verified_purchase: item.verified_purchase !== false,
+    recommend: item.recommend !== false,
+    helpful_count: Number(item.helpful_count) || 0,
+    created_at: item.created_at || new Date().toISOString(),
+    status: item.status || 'approved',
+  };
+}
+
+/**
+ * Get all reviews for a specific product
+ */
+export async function getProductReviews(
+  productId: string,
+  productSlug?: string,
+  productName?: string
+): Promise<ProductReview[]> {
+  const pId = productId || '';
+  const pSlug = productSlug || '';
+  const deletedIds = getDeletedReviewIds();
+
+  // 1. Try querying Supabase
+  try {
+    const filters: string[] = [];
+    if (pId) filters.push(`product_id.eq.${pId}`);
+    if (pSlug && pSlug !== pId) filters.push(`product_id.eq.${pSlug}`);
+
+    if (filters.length > 0) {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .or(filters.join(','))
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data
+          .map(normalizeReviewRecord)
+          .filter((r) => !deletedIds.has(r.id));
+      }
+    }
+  } catch {
+    // Supabase query error - fallback below
+  }
+
+  // 2. Try localStorage cache for this product
+  if (typeof window !== 'undefined') {
+    try {
+      const storedKey = `${LOCAL_STORAGE_REVIEWS_PREFIX}${pId || pSlug}`;
+      const raw = localStorage.getItem(storedKey);
+      if (raw !== null) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map(normalizeReviewRecord)
+            .filter((r) => !deletedIds.has(r.id));
+        }
+      }
+    } catch {
+      // localStorage error - fallback below
+    }
+  }
+
+  // 3. Fallback to predefined seed reviews or dynamically generated authentic reviews
+  const defaultList =
+    DEFAULT_PRODUCT_REVIEWS[pId] ||
+    (pSlug ? DEFAULT_PRODUCT_REVIEWS[pSlug] : null) ||
+    generateSeedReviewsForProduct(pId || pSlug || 'prod', productName || 'Product');
+
+  const filteredDefaultList = defaultList.filter((r) => !deletedIds.has(r.id));
+
+  // Cache defaults in localStorage so user interactions persist
+  if (typeof window !== 'undefined' && filteredDefaultList && filteredDefaultList.length > 0) {
+    try {
+      const storedKey = `${LOCAL_STORAGE_REVIEWS_PREFIX}${pId || pSlug}`;
+      localStorage.setItem(storedKey, JSON.stringify(filteredDefaultList));
+    } catch {
+      // ignore
+    }
+  }
+
+  return filteredDefaultList;
+}
+
+/**
+ * Submits a new review for a product by any normal customer/visitor
+ */
+export async function createProductReview(
+  input: CreateReviewInput
+): Promise<{ success: boolean; data?: ProductReview; error?: string }> {
+  try {
+    const rating = Math.max(1, Math.min(5, Math.round(Number(input.rating) || 5)));
+    const cleanName = input.user_name?.trim() || 'Verified Customer';
+    const cleanTitle = input.title?.trim() || '';
+    const cleanComment = input.comment?.trim() || '';
+    const cleanImages = (input.images || []).filter((img) => typeof img === 'string' && img.length > 0);
+
+    if (!cleanComment) {
+      return { success: false, error: 'Please write a review comment.' };
+    }
+
+    const reviewId = `rev-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const nowIso = new Date().toISOString();
+
+    const newReview: ProductReview = {
+      id: reviewId,
+      product_id: input.product_id,
+      user_name: cleanName,
+      user_email: input.user_email?.trim() || undefined,
+      rating,
+      title: cleanTitle,
+      comment: cleanComment,
+      images: cleanImages,
+      verified_purchase: input.verified_purchase !== undefined ? input.verified_purchase : true,
+      recommend: input.recommend !== undefined ? input.recommend : true,
+      helpful_count: 0,
+      created_at: nowIso,
+      status: 'approved',
+    };
+
+    // 1. Save to Supabase if available
+    try {
+      const payload: any = {
+        product_id: newReview.product_id,
+        user_name: newReview.user_name,
+        user_email: newReview.user_email || null,
+        rating: newReview.rating,
+        title: newReview.title,
+        comment: newReview.comment,
+        images: newReview.images,
+        verified_purchase: newReview.verified_purchase,
+        recommend: newReview.recommend,
+        helpful_count: 0,
+        status: 'approved',
+      };
+      await supabase.from('reviews').insert([payload]);
+    } catch (dbErr) {
+      console.warn('Supabase review insert warning (local fallback used):', dbErr);
+    }
+
+    // 2. Save to localStorage cache
+    if (typeof window !== 'undefined') {
+      try {
+        // Product specific key
+        const keys = [
+          `${LOCAL_STORAGE_REVIEWS_PREFIX}${input.product_id}`,
+          ...(input.product_slug ? [`${LOCAL_STORAGE_REVIEWS_PREFIX}${input.product_slug}`] : []),
+        ];
+
+        let currentReviews: ProductReview[] = [];
+        const existingRaw = localStorage.getItem(keys[0]);
+        if (existingRaw) {
+          try {
+            currentReviews = JSON.parse(existingRaw);
+          } catch {
+            currentReviews = [];
+          }
+        }
+        if (currentReviews.length === 0) {
+          currentReviews =
+            DEFAULT_PRODUCT_REVIEWS[input.product_id] ||
+            (input.product_slug ? DEFAULT_PRODUCT_REVIEWS[input.product_slug] : null) ||
+            generateSeedReviewsForProduct(input.product_id, input.product_name || 'Product');
+        }
+
+        const updatedReviews = [newReview, ...currentReviews];
+        keys.forEach((k) => localStorage.setItem(k, JSON.stringify(updatedReviews)));
+
+        // Update Master list for Admin view
+        const masterRaw = localStorage.getItem(LOCAL_STORAGE_ALL_REVIEWS_KEY);
+        let masterList: ProductReview[] = [];
+        if (masterRaw) {
+          try {
+            masterList = JSON.parse(masterRaw);
+          } catch {
+            masterList = [];
+          }
+        }
+        masterList.unshift(newReview);
+        localStorage.setItem(LOCAL_STORAGE_ALL_REVIEWS_KEY, JSON.stringify(masterList));
+
+        // 3. Compute new average rating and review count
+        const totalRating = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+        const newAvg = Number((totalRating / updatedReviews.length).toFixed(1));
+        const newCount = updatedReviews.length;
+
+        // Update product metadata in DB / cache
+        try {
+          await updateProduct(input.product_id, {
+            rating: newAvg,
+            reviewCount: newCount,
+          } as any);
+        } catch {
+          // ignore
+        }
+      } catch (storageErr) {
+        console.error('Failed to save review in localStorage:', storageErr);
+      }
+    }
+
+    broadcastDataChange('reviews');
+    broadcastDataChange('products');
+
+    return { success: true, data: newReview };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Failed to submit review' };
+  }
+}
+
+/**
+ * Vote a review as helpful
+ */
+export async function voteReviewHelpful(
+  reviewId: string,
+  productId?: string
+): Promise<{ success: boolean; count: number; error?: string }> {
+  if (typeof window === 'undefined') return { success: false, count: 0 };
+
+  const votedKey = `koskool_voted_rev_${reviewId}`;
+  if (localStorage.getItem(votedKey)) {
+    return { success: false, count: 0, error: 'You have already voted this review as helpful' };
+  }
+
+  let newCount = 1;
+
+  // 1. Try Supabase rpc / update
+  try {
+    const { data } = await supabase
+      .from('reviews')
+      .select('helpful_count')
+      .eq('id', reviewId)
+      .single();
+    if (data) {
+      newCount = (Number(data.helpful_count) || 0) + 1;
+      await supabase
+        .from('reviews')
+        .update({ helpful_count: newCount })
+        .eq('id', reviewId);
+    }
+  } catch {
+    // fallback
+  }
+
+  // 2. Update localStorage
+  if (productId) {
+    const pKey = `${LOCAL_STORAGE_REVIEWS_PREFIX}${productId}`;
+    const raw = localStorage.getItem(pKey);
+    if (raw) {
+      try {
+        const list: ProductReview[] = JSON.parse(raw);
+        const item = list.find((r) => r.id === reviewId);
+        if (item) {
+          item.helpful_count = (item.helpful_count || 0) + 1;
+          newCount = item.helpful_count;
+          localStorage.setItem(pKey, JSON.stringify(list));
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  localStorage.setItem(votedKey, 'true');
+  broadcastDataChange('reviews');
+  return { success: true, count: newCount };
+}
+
+/**
+ * Get all reviews across all products (for Admin)
+ */
+export async function getAllReviews(): Promise<ProductReview[]> {
+  const deletedIds = getDeletedReviewIds();
+
+  // 1. Try Supabase
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data && data.length > 0) {
+      return data
+        .map(normalizeReviewRecord)
+        .filter((r) => !deletedIds.has(r.id));
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2. Gather from master localStorage + default reviews
+  const allMap = new Map<string, ProductReview>();
+
+  // Add default reviews
+  Object.values(DEFAULT_PRODUCT_REVIEWS).forEach((list) => {
+    list.forEach((r) => {
+      if (!deletedIds.has(r.id)) {
+        allMap.set(r.id, r);
+      }
+    });
+  });
+
+  if (typeof window !== 'undefined') {
+    try {
+      const masterRaw = localStorage.getItem(LOCAL_STORAGE_ALL_REVIEWS_KEY);
+      if (masterRaw) {
+        const masterList: ProductReview[] = JSON.parse(masterRaw);
+        masterList.forEach((r) => {
+          if (!deletedIds.has(r.id)) {
+            allMap.set(r.id, r);
+          }
+        });
+      }
+
+      // Check all keys with prefix
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(LOCAL_STORAGE_REVIEWS_PREFIX)) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list: ProductReview[] = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              list.forEach((r) => {
+                if (!deletedIds.has(r.id)) {
+                  allMap.set(r.id, r);
+                }
+              });
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const results = Array.from(allMap.values()).filter((r) => !deletedIds.has(r.id));
+  results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return results;
+}
+
+/**
+ * Delete a review (for Admin)
+ */
+export async function deleteReview(reviewId: string): Promise<{ success: boolean }> {
+  recordDeletedReviewId(reviewId);
+
+  try {
+    await supabase.from('reviews').delete().eq('id', reviewId);
+  } catch {
+    // ignore
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      // Remove from master
+      const masterRaw = localStorage.getItem(LOCAL_STORAGE_ALL_REVIEWS_KEY);
+      if (masterRaw) {
+        const masterList: ProductReview[] = JSON.parse(masterRaw);
+        const filtered = masterList.filter((r) => r.id !== reviewId);
+        localStorage.setItem(LOCAL_STORAGE_ALL_REVIEWS_KEY, JSON.stringify(filtered));
+      }
+
+      // Remove from product keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(LOCAL_STORAGE_REVIEWS_PREFIX)) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const list: ProductReview[] = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const filtered = list.filter((r) => r.id !== reviewId);
+              localStorage.setItem(k, JSON.stringify(filtered));
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  broadcastDataChange('reviews');
   return { success: true };
 }
 

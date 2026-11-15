@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MAIN_NAVIGATION, NavItem } from '@/data/navigation';
@@ -15,85 +15,60 @@ import {
   User,
   Menu,
   ChevronDown,
-  Phone,
-  Award,
 } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { totalItems } = useCart();
+  const { totalItems, openCartDrawer } = useCart();
   const { user, isAdmin, openAuthModal } = useAuth();
 
   const [activeMega, setActiveMega] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  useEffect(() => {
+    const handleOpenMenu = () => setIsMobileMenuOpen(true);
+    const handleOpenSearch = () => setIsSearchOpen(true);
+
+    window.addEventListener('koskool_open_mobile_menu', handleOpenMenu);
+    window.addEventListener('koskool_open_search', handleOpenSearch);
+
+    return () => {
+      window.removeEventListener('koskool_open_mobile_menu', handleOpenMenu);
+      window.removeEventListener('koskool_open_search', handleOpenSearch);
+    };
+  }, []);
+
   return (
     <>
-      {/* Top Announcement Bar */}
-      <div className="bg-navy-950 text-white text-[11px] sm:text-xs py-2 px-4 border-b border-navy-900">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1.5 text-center sm:text-left">
-          <div className="flex items-center gap-2 justify-center">
-            <span className="inline-block bg-brand-600 text-white font-extrabold text-[10px] uppercase px-1.5 py-0.5 rounded tracking-wide">
-              KOSKOOL
-            </span>
-            <span className="font-semibold text-gray-200">
-              Aaao School Chale Hum &nbsp;|&nbsp; Quality School &amp; Daily Footwear
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4 text-gray-300">
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1 text-[11px] bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded text-amber-300 font-bold transition"
-            >
-              <span>Admin Panel</span>
-            </Link>
-            <span className="hidden md:inline-flex items-center gap-1 text-[11px]">
-              <Award className="w-3.5 h-3.5 text-amber-400" />
-              CBSE &amp; ICSE Uniform Approved
-            </span>
-            <a
-              href="https://wa.me/918130458265"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-brand-300 hover:text-white transition font-medium"
-            >
-              <Phone className="w-3 h-3 text-brand-400" />
-              <span>Bulk &amp; Factory: +91 8130458265</span>
-            </a>
-          </div>
-        </div>
-      </div>
-
       {/* Main Sticky Header */}
       <header
         className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm"
         onMouseLeave={() => setActiveMega(null)}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20">
             {/* Mobile Hamburger Button */}
             <div className="flex items-center lg:hidden">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="p-2 -ml-2 rounded-lg text-navy-950 hover:bg-gray-100 transition"
+                className="p-2 -ml-1 rounded-lg text-navy-950 hover:bg-gray-100 active:bg-gray-200 transition"
                 aria-label="Open navigation menu"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             {/* Brand Logo */}
             <div className="flex-shrink-0 flex items-center">
               <Link href="/" className="group flex flex-col items-start select-none">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-black tracking-tight text-navy-950 group-hover:text-brand-600 transition duration-150">
+                <div className="flex items-center gap-1">
+                  <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-navy-950 group-hover:text-brand-600 transition duration-150">
                     KOSKOOL
                   </span>
-                  <span className="w-2 h-2 rounded-full bg-brand-600 inline-block mb-1 group-hover:scale-125 transition"></span>
+                  <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-brand-600 inline-block mb-1 group-hover:scale-125 transition"></span>
                 </div>
-                <span className="text-[10px] tracking-widest font-semibold uppercase text-brand-600 -mt-1 group-hover:text-navy-900 transition">
+                <span className="text-[9px] sm:text-[10px] tracking-widest font-semibold uppercase text-brand-600 -mt-0.5 sm:-mt-1 group-hover:text-navy-900 transition">
                   Aaao School Chale Hum
                 </span>
               </Link>
@@ -195,7 +170,7 @@ export default function Navbar() {
               {/* Login / Profile */}
               {user ? (
                 <Link
-                  href={isAdmin ? '/admin' : '/account/login'}
+                  href={isAdmin ? '/admin' : '/account'}
                   className="flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-gray-100 hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
                   aria-label="Account"
                 >
@@ -215,18 +190,19 @@ export default function Navbar() {
               )}
 
               {/* Shopping Cart Trigger */}
-              <Link
-                href="/cart"
-                className="relative p-2.5 rounded-full text-navy-900 hover:text-brand-600 hover:bg-gray-100 transition"
+              <button
+                type="button"
+                onClick={() => openCartDrawer()}
+                className="relative p-2 sm:p-2.5 rounded-full text-navy-900 hover:text-brand-600 hover:bg-gray-100 transition"
                 aria-label="View Cart"
               >
                 <ShoppingBag className="w-5 h-5" />
                 {totalItems > 0 && (
-                  <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-brand-600 text-white text-[11px] font-black flex items-center justify-center shadow animate-scaleIn">
+                  <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] sm:text-[11px] font-black flex items-center justify-center shadow animate-scaleIn">
                     {totalItems}
                   </span>
                 )}
-              </Link>
+              </button>
             </div>
           </div>
         </div>

@@ -1,15 +1,11 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function ExploreAccessories() {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
   const cards = [
     {
       title: 'Boys Accessories',
@@ -37,28 +33,10 @@ export default function ExploreAccessories() {
     },
   ];
 
-  const checkScroll = () => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-    }
-  };
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const cardWidth = scrollRef.current.clientWidth < 640 ? 300 : 380;
-      scrollRef.current.scrollBy({
-        left: direction === 'left' ? -cardWidth : cardWidth,
-        behavior: 'smooth',
-      });
-    }
-  };
-
   return (
     <section className="scroll-mt-24 py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header with Left & Right Arrows */}
+        {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 sm:mb-12 gap-4">
           <div className="text-left space-y-2 max-w-2xl">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
@@ -68,63 +46,34 @@ export default function ExploreAccessories() {
               Carefully curated, school-appropriate essentials that keep students prepared, organized, and confident.
             </p>
           </div>
-
-          <div className="flex md:hidden items-center gap-2 self-start sm:self-end shrink-0">
-            <button
-              onClick={() => scroll('left')}
-              disabled={!canScrollLeft}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                canScrollLeft
-                  ? 'bg-white border-gray-300 text-navy-950 hover:bg-navy-950 hover:text-white'
-                  : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
-              aria-label="Previous accessories"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => scroll('right')}
-              disabled={!canScrollRight}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                canScrollRight
-                  ? 'bg-navy-950 border-navy-950 text-white hover:bg-brand-600 hover:border-brand-600'
-                  : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
-              aria-label="Next accessories"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
         </div>
 
         {/* Carousel Slider on mobile, 3-column grid on desktop */}
         <div
-          ref={scrollRef}
-          onScroll={checkScroll}
-          className="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
+          className="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible no-scrollbar gap-4 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
         >
           {cards.map((card, idx) => (
             <div
               key={idx}
-              className="w-[84vw] sm:w-[320px] md:w-auto flex-shrink-0 snap-start"
+              className="w-[76vw] sm:w-[320px] md:w-auto flex-shrink-0 snap-start"
             >
               <Link
                 href={card.href}
                 className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-200 transition-all duration-300 flex flex-col h-full transform hover:-translate-y-1"
               >
-                <div className="relative h-56 bg-slate-100 overflow-hidden flex items-center justify-center p-4">
+                <div className="relative h-48 sm:h-56 bg-slate-100 overflow-hidden flex items-center justify-center p-4">
                   <Image
                     src={card.image}
                     alt={card.title}
                     fill
-                    sizes="(max-width: 640px) 85vw, 360px"
+                    sizes="(max-width: 640px) 80vw, 360px"
                     className="object-contain p-3 group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
 
-                <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-black text-navy-950 group-hover:text-brand-600 transition">
+                <div className="p-4 sm:p-6 flex-1 flex flex-col justify-between space-y-3 sm:space-y-4">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <h3 className="text-base sm:text-xl font-black text-navy-950 group-hover:text-brand-600 transition">
                       {card.title}
                     </h3>
                     <p className="text-xs text-gray-500 leading-relaxed">

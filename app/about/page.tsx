@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Heart, Award, Compass, ShieldCheck, MapPin } from 'lucide-react';
+import { Heart, Award, Compass, ShieldCheck, MapPin, ExternalLink, Navigation, Building2 } from 'lucide-react';
 import QuotationInquiryForm from '@/components/home/QuotationInquiryForm';
 
 export const metadata = {
@@ -142,53 +142,121 @@ export default function AboutPage() {
 
       {/* Factory & Manufacturing Heritage */}
       <section id="factory" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-navy-950 text-white rounded-3xl p-8 sm:p-12 overflow-hidden relative shadow-2xl">
-          <div className="relative z-10 max-w-3xl space-y-6">
-            <div className="inline-flex items-center gap-2 bg-brand-600/30 text-brand-300 text-xs font-bold px-3 py-1 rounded-full border border-brand-500/40">
-              <MapPin className="w-3.5 h-3.5" />
-              Direct Manufacturing Unit
-            </div>
-
-            <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight">
-              Crafted with Precision at Our Delhi Manufacturing Facility
-            </h2>
-
-            <p className="text-sm text-gray-300 leading-relaxed">
-              Every pair of KOSKOOL shoes is manufactured under stringent quality controls at our industrial plant located in <strong className="text-white">Sector 2, Bawana Industrial Area, Delhi</strong>. Under the guidance of owner <strong className="text-white">Vipul Singla</strong>, our factory uses modern molding and vulcanization technology to ensure consistent stitching, non-toxic glues, and superior bonding strength.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-xs">
-              <div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <strong className="block text-white font-bold text-sm">Factory Location</strong>
-                <span className="text-gray-300 mt-1 block">Sector 2, Bawana Industrial Area, Delhi</span>
+        <div className="bg-navy-950 text-white rounded-3xl p-6 sm:p-10 lg:p-12 overflow-hidden relative shadow-2xl">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Factory Details */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="inline-flex items-center gap-2 bg-brand-600/30 text-brand-300 text-xs font-bold px-3 py-1 rounded-full border border-brand-500/40">
+                <Building2 className="w-3.5 h-3.5" />
+                Direct Manufacturing Unit &amp; Plant
               </div>
-              <div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <strong className="block text-white font-bold text-sm">Owner &amp; Founder</strong>
-                <span className="text-gray-300 mt-1 block">Vipul Singla</span>
+
+              <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight">
+                Crafted with Precision at Our Delhi Manufacturing Facility
+              </h2>
+
+              <p className="text-sm text-gray-300 leading-relaxed">
+                Every pair of KOSKOOL shoes is manufactured under stringent quality controls at our industrial plant located in <strong className="text-white">Sector 2, Bawana Industrial Area, Delhi</strong>. Under the guidance of owner <strong className="text-white">Vipul Singla</strong>, our factory uses modern molding and vulcanization technology to ensure consistent stitching, non-toxic glues, and superior bonding strength.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 text-xs">
+                <div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+                  <strong className="block text-white font-bold text-sm">Factory Location</strong>
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-300 hover:text-brand-300 mt-1 block underline underline-offset-2 transition"
+                    title="Open in Google Maps"
+                  >
+                    Sector 2, Bawana Industrial Area, Delhi ↗
+                  </a>
+                </div>
+                <div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+                  <strong className="block text-white font-bold text-sm">Owner &amp; Founder</strong>
+                  <span className="text-gray-300 mt-1 block">Vipul Singla</span>
+                </div>
+                <div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
+                  <strong className="block text-white font-bold text-sm">Bulk &amp; Institutional Sales</strong>
+                  <a href="tel:+918130458265" className="text-brand-300 hover:text-white mt-1 block font-bold">
+                    +91 8130458265
+                  </a>
+                </div>
               </div>
-              <div className="p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <strong className="block text-white font-bold text-sm">Bulk &amp; Institutional Sales</strong>
-                <a href="tel:+918130458265" className="text-brand-300 hover:text-white mt-1 block font-bold">
-                  +91 8130458265
+
+              <div className="pt-2 flex flex-wrap gap-3.5">
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold px-5 py-3 rounded-xl shadow-lg transition flex items-center gap-2"
+                >
+                  <Navigation className="w-4 h-4" />
+                  <span>Open Factory in Google Maps</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                </a>
+                <Link
+                  href="/collections/boys"
+                  className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-5 py-3 rounded-xl border border-white/20 transition flex items-center gap-2"
+                >
+                  Shop School Shoes
+                </Link>
+                <a
+                  href="https://wa.me/918130458265?text=Hello%20KOSKOOL%2C%20I%20want%20to%20inquire%20about%20factory%20supply%20and%20location"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-300 text-xs font-bold px-5 py-3 rounded-xl border border-emerald-500/40 transition flex items-center gap-2"
+                >
+                  WhatsApp Direct Support
                 </a>
               </div>
             </div>
 
-            <div className="pt-4 flex flex-wrap gap-4">
-              <Link
-                href="/collections/boys"
-                className="bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg transition"
-              >
-                Shop School Shoes
-              </Link>
-              <a
-                href="https://wa.me/918130458265"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-6 py-3 rounded-xl border border-white/20 transition"
-              >
-                WhatsApp Direct Support
-              </a>
+            {/* Google Map Embedded Iframe Card */}
+            <div className="lg:col-span-5">
+              <div className="rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-navy-900 group">
+                {/* Header */}
+                <div className="bg-navy-950 px-4 py-2.5 border-b border-white/10 flex items-center justify-between text-xs text-gray-300">
+                  <div className="flex items-center gap-2 font-medium truncate">
+                    <MapPin className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                    <span className="truncate">Sector 2, Bawana, Delhi</span>
+                  </div>
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-400 hover:text-brand-300 font-bold inline-flex items-center gap-1 shrink-0 ml-2"
+                  >
+                    <span>View Map</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {/* Map iframe */}
+                <div className="relative w-full h-72 sm:h-80 bg-navy-950">
+                  <iframe
+                    title="KOSKOOL Manufacturing Plant - Bawana Delhi"
+                    src="https://maps.google.com/maps?q=Sector%202%2C%20Bawana%20Industrial%20Area%2C%20Delhi&t=&z=14&ie=UTF8&iwloc=&output=embed"
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                    allowFullScreen
+                  />
+                </div>
+
+                {/* Footer bar */}
+                <div className="bg-navy-950 px-4 py-2 text-[11px] text-gray-400 border-t border-white/10 flex items-center justify-between">
+                  <span>Factory Direct Dispatch Unit</span>
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-400 hover:underline inline-flex items-center gap-1 font-semibold"
+                  >
+                    <span>Open in Google Maps</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
 

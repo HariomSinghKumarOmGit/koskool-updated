@@ -109,8 +109,6 @@ export default function CartPage() {
     PRODUCTS.find((p) => p.id === 'wgr53350-olive'),
   ].filter(Boolean) as Product[];
 
-  const activePromos = promoCodes.filter((p) => p.isActive);
-
   // Free shipping calculation
   const remainingForFree = Math.max(0, freeShippingThreshold - subtotal);
   const isEligibleFreeShipping = subtotal >= freeShippingThreshold;
@@ -160,73 +158,73 @@ export default function CartPage() {
             {items.map((item) => (
               <div
                 key={`${item.product.id}-${item.selectedSize}`}
-                className="py-8 first:pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-6"
+                className="py-4 sm:py-8 first:pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6"
               >
-                {/* Product Image */}
-                <div className="w-24 h-24 sm:w-28 sm:h-28 relative shrink-0 overflow-hidden rounded-xl bg-transparent flex items-center justify-center">
-                  <Image
-                    src={item.product.images[0] || '/cdn/shop/files/WGP53410-TAN-GENTS_7608173e-b30c-4214-ad1d-02182418d1a2.v_1786511338_width_1600.jpg'}
-                    alt={item.product.name}
-                    fill
-                    className="object-contain"
-                    sizes="120px"
-                  />
-                </div>
+                <div className="flex items-center gap-3.5 w-full sm:w-auto">
+                  {/* Product Image */}
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 relative shrink-0 overflow-hidden rounded-xl bg-[#fbfbfb] border border-gray-100 flex items-center justify-center">
+                    <Image
+                      src={item.product.images[0] || '/cdn/shop/files/WGP53410-TAN-GENTS_7608173e-b30c-4214-ad1d-02182418d1a2.v_1786511338_width_1600.jpg'}
+                      alt={item.product.name}
+                      fill
+                      className="object-contain p-1.5"
+                      sizes="120px"
+                    />
+                  </div>
 
-                {/* Product Info: Name, Size, Unit Price */}
-                <div className="flex-1 min-w-0 space-y-1">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 leading-snug">
-                    {item.product.name}
-                  </h3>
-                  {item.selectedSize && item.selectedSize !== 'Free Size' && (
-                    <p className="text-xs text-gray-500 font-medium">
-                      {item.selectedSize}
+                  {/* Product Info: Name, Size, Unit Price */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <h3 className="text-xs sm:text-base font-semibold text-gray-900 leading-snug line-clamp-2">
+                      {item.product.name}
+                    </h3>
+                    {item.selectedSize && item.selectedSize !== 'Free Size' && (
+                      <p className="text-[11px] sm:text-xs text-gray-500 font-medium">
+                        Size: <strong className="text-gray-700">{item.selectedSize}</strong>
+                      </p>
+                    )}
+                    <p className="text-xs sm:text-sm text-gray-900 font-bold pt-0.5">
+                      ₹ {item.product.price.toLocaleString('en-IN')}.00
                     </p>
-                  )}
-                  <p className="text-xs sm:text-sm text-gray-900 font-medium pt-0.5">
-                    ₹ {item.product.price.toLocaleString('en-IN')}.00
-                  </p>
+                  </div>
                 </div>
 
                 {/* Right controls: Stepper, Remove link, Line Total */}
-                <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pt-2 sm:pt-0">
-                  {/* Quantity Stepper */}
-                  <div className="flex items-center bg-[#f3f4f6] rounded-md px-2.5 py-1.5 border border-transparent hover:border-gray-300 transition">
-                    <span className="text-xs font-semibold text-gray-900 mr-2 min-w-[14px] text-center select-none">
+                <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-100 sm:ml-auto">
+                  {/* Touch-friendly Horizontal Stepper */}
+                  <div className="flex items-center bg-[#f3f4f6] rounded-xl overflow-hidden border border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.product.id, item.selectedSize, Math.max(1, item.quantity - 1))}
+                      className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-200 active:scale-95 transition text-sm font-bold"
+                      aria-label="Decrease quantity"
+                    >
+                      −
+                    </button>
+                    <span className="text-xs font-bold text-gray-900 px-2 min-w-[24px] text-center select-none">
                       {item.quantity}
                     </span>
-                    <div className="flex flex-col -space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.product.id, item.selectedSize, item.quantity + 1)}
-                        className="text-gray-500 hover:text-black leading-none p-0.5 focus:outline-none transition"
-                        aria-label="Increase quantity"
-                      >
-                        <ChevronUp className="w-3 h-3 stroke-[2.5]" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.product.id, item.selectedSize, Math.max(1, item.quantity - 1))}
-                        className="text-gray-500 hover:text-black leading-none p-0.5 focus:outline-none transition"
-                        aria-label="Decrease quantity"
-                      >
-                        <ChevronDown className="w-3 h-3 stroke-[2.5]" />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.product.id, item.selectedSize, item.quantity + 1)}
+                      className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-200 active:scale-95 transition text-sm font-bold"
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
                   </div>
 
                   {/* Remove text link */}
                   <button
                     type="button"
                     onClick={() => removeFromCart(item.product.id, item.selectedSize)}
-                    className="text-xs text-gray-600 hover:text-black underline underline-offset-2 transition"
+                    className="text-xs text-gray-500 hover:text-red-600 underline underline-offset-2 transition"
                   >
                     Remove
                   </button>
 
                   {/* Line Item Total */}
-                  <div className="text-right min-w-[80px]">
-                    <span className="text-sm sm:text-base font-medium text-gray-950">
+                  <div className="text-right min-w-[70px] sm:min-w-[80px]">
+                    <span className="text-sm sm:text-base font-bold text-gray-950">
                       ₹ {(item.product.price * item.quantity).toLocaleString('en-IN')}.00
                     </span>
                   </div>
@@ -242,15 +240,19 @@ export default function CartPage() {
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                 <p className="text-xs text-gray-700 font-medium mb-2.5">
                   {isEligibleFreeShipping ? (
-                    <span className="text-gray-900 font-medium">You are eligible for free shipping.</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1.5">
+                      <span>✓ You are eligible for free shipping!</span>
+                    </span>
                   ) : (
-                    <span>Add ₹ {remainingForFree.toLocaleString('en-IN')} more for free shipping.</span>
+                    <span>Add ₹ {remainingForFree.toLocaleString('en-IN')} more for free shipping (₹100 flat shipping below ₹500).</span>
                   )}
                 </p>
                 {/* Horizontal progress bar */}
                 <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
                   <div
-                    className="bg-black h-full rounded-full transition-all duration-300"
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      isEligibleFreeShipping ? 'bg-emerald-600' : 'bg-black'
+                    }`}
                     style={{
                       width: isEligibleFreeShipping
                         ? '100%'
@@ -263,23 +265,10 @@ export default function CartPage() {
               {/* Subtotal & Price Breakdown */}
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
-                  <span className="text-base sm:text-lg font-normal text-gray-800">Subtotal</span>
-                  <div className="text-right">
-                    {discountAmount > 0 ? (
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs text-gray-400 line-through">
-                          ₹ {subtotal.toLocaleString('en-IN')}.00
-                        </span>
-                        <span className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
-                          ₹ {finalTotal.toLocaleString('en-IN')}.00
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
-                        ₹ {subtotal.toLocaleString('en-IN')}.00
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-sm sm:text-base font-normal text-gray-800">Subtotal</span>
+                  <span className="text-base sm:text-lg font-semibold text-gray-900">
+                    ₹ {subtotal.toLocaleString('en-IN')}.00
+                  </span>
                 </div>
 
                 {discountAmount > 0 && (
@@ -289,8 +278,26 @@ export default function CartPage() {
                   </div>
                 )}
 
+                <div className="flex items-center justify-between text-xs text-gray-700">
+                  <span>Shipping</span>
+                  <span>
+                    {shippingCost === 0 ? (
+                      <strong className="text-emerald-600 font-bold uppercase tracking-wide">FREE</strong>
+                    ) : (
+                      <span className="font-bold text-gray-900">₹ {shippingCost}.00</span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-baseline justify-between pt-2 border-t border-gray-200/80">
+                  <span className="text-base sm:text-lg font-bold text-gray-950">Total</span>
+                  <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
+                    ₹ {finalTotal.toLocaleString('en-IN')}.00
+                  </span>
+                </div>
+
                 <p className="text-[11px] text-gray-500 font-normal">
-                  Tax included and shipping calculated at checkout
+                  {shippingCost === 0 ? 'Free standard delivery applied.' : '₹100 shipping fee applied on orders under ₹500.'}
                 </p>
               </div>
 
@@ -307,21 +314,55 @@ export default function CartPage() {
                 </div>
 
                 {appliedPromo ? (
-                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-3.5 py-2.5 rounded-xl text-xs font-medium">
-                    <div className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>
-                        <strong className="font-bold">{appliedPromo.code}</strong> applied (-₹{discountAmount})
-                      </span>
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-xl text-xs font-medium space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>
+                          <strong className="font-bold">{appliedPromo.code}</strong> applied{' '}
+                          {discountAmount > 0 ? (
+                            <span className="font-bold text-emerald-700">(-₹{discountAmount})</span>
+                          ) : (
+                            <span className="text-amber-700 font-bold">(₹0 discount)</span>
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removePromoCode}
+                        className="text-gray-400 hover:text-red-600 font-bold text-base px-1"
+                        title="Remove promo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={removePromoCode}
-                      className="text-gray-400 hover:text-red-600 font-bold text-base px-1"
-                      title="Remove promo"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+
+                    {/* Min Spend Notice */}
+                    {appliedPromo.minOrderValue > 0 && subtotal < appliedPromo.minOrderValue ? (
+                      <p className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">
+                        ⚠️ Min. spend of ₹{appliedPromo.minOrderValue} required for {appliedPromo.code}. Add ₹{appliedPromo.minOrderValue - subtotal} more to receive discount!
+                      </p>
+                    ) : appliedPromo.minOrderValue > 0 ? (
+                      <p className="text-[10px] text-emerald-700">
+                        Min. order of ₹{appliedPromo.minOrderValue} qualified.
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-emerald-700">
+                        No minimum order cap (applied on any cart total).
+                      </p>
+                    )}
+
+                    {/* Max Discount Notice */}
+                    {appliedPromo.maxDiscount && appliedPromo.maxDiscount > 0 ? (
+                      <p className="text-[10px] text-gray-600">
+                        Max discount cap: ₹{appliedPromo.maxDiscount}
+                        {discountAmount === appliedPromo.maxDiscount ? ' (Capped)' : ''}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-gray-600">
+                        Max discount cap: No Cap (Unlimited)
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="flex gap-2">
@@ -350,29 +391,6 @@ export default function CartPage() {
                   >
                     {couponStatus.text}
                   </p>
-                )}
-
-                {/* Available Promo Chips */}
-                {!appliedPromo && activePromos.length > 0 && (
-                  <div className="space-y-1 pt-1">
-                    <p className="text-[10px] text-gray-500 font-medium">Available Offers:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {activePromos.slice(0, 3).map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => handleApply(p.code)}
-                          className="text-[10px] font-bold bg-white hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 text-gray-800 px-2.5 py-1 rounded-lg border border-gray-200 shadow-2xs transition flex items-center gap-1"
-                        >
-                          <Tag className="w-2.5 h-2.5 text-brand-600" />
-                          <span>{p.code}</span>
-                          <span className="text-gray-500 font-normal">
-                            ({p.discountType === 'percentage' ? `${p.discountValue}%` : `₹${p.discountValue}`} OFF)
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
 

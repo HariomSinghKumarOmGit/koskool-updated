@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { Product, PRODUCTS } from '@/data/products';
 import { PromoCode, INITIAL_PROMO_CODES } from '@/data/promocodes';
+import { getPromoCodes } from '@/services/api';
 
 export interface CartItem {
   product: Product;
@@ -62,6 +63,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>(INITIAL_PROMO_CODES);
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
 
+  const isInitializedRef = useRef(false);
+
   // Helper to load promo codes from localStorage syncing with koskool_promos_cache
   const loadStoredPromos = (): PromoCode[] => {
     try {
@@ -72,23 +75,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (apiCache) {
         const parsed = JSON.parse(apiCache);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((p: any) => ({
-            id: p.id || `pr-${Math.random()}`,
-            code: (p.code || '').toUpperCase(),
-            discountType: p.discount_type || p.discountType || 'percentage',
-            discountValue: Number(p.discount_value || p.discountValue || 10),
-            minOrderValue: Number(p.min_order_amount || p.minOrderValue || 0),
-            maxDiscount: p.max_discount_amount || p.maxDiscount,
-            description: p.description || '',
-            isActive: p.is_active !== undefined ? p.is_active : p.isActive !== undefined ? p.isActive : true,
-            usageCount: p.usage_count || p.usageCount || 0,
-            createdAt: p.created_at || '2026-01-01',
-          }));
+          return parsed.map((p: any) => {
+            const maxCap = p.max_discount_amount !== undefined && p.max_discount_amount !== null
+              ? (Number(p.max_discount_amount) > 0 ? Number(p.max_discount_amount) : undefined)
+              : (p.maxDiscount !== undefined && p.maxDiscount !== null && Number(p.maxDiscount) > 0 ? Number(p.maxDiscount) : undefined);
+
+            const minVal = p.min_order_amount !== undefined && p.min_order_amount !== null
+              ? Number(p.min_order_amount)
+              : Number(p.minOrderValue || 0);
+
+            return {
+              id: p.id || `pr-${Math.random()}`,
+              code: (p.code || '').toUpperCase().trim(),
+              discountType: (p.discount_type || p.discountType || 'percentage') as 'percentage' | 'fixed',
+              discountValue: Number(p.discount_value !== undefined ? p.discount_value : p.discountValue || 10),
+              minOrderValue: minVal,
+              maxDiscount: maxCap,
+              description: p.description || '',
+              isActive: p.is_active !== undefined ? Boolean(p.is_active) : (p.isActive !== undefined ? Boolean(p.isActive) : true),
+              usageCount: Number(p.usage_count || p.usageCount || 0),
+              createdAt: p.created_at || '2026-01-01',
+            };
+          });
         }
       }
 
       if (standardCache) {
-        return JSON.parse(standardCache);
+        const parsed = JSON.parse(standardCache);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((p: any) => ({
+            ...p,
+            code: (p.code || '').toUpperCase().trim(),
+            minOrderValue: Number(p.minOrderValue || p.min_order_amount || 0),
+            maxDiscount: p.maxDiscount && Number(p.maxDiscount) > 0 ? Number(p.maxDiscount) : undefined,
+          }));
+        }
       }
     } catch {
       // ignore
@@ -144,6 +165,43 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
+
+    // Also fetch latest promo codes directly from API / Supabase
+    getPromoCodes().then((dbPromos) => {
+      if (dbPromos && dbPromos.length > 0) {
+        const mapped: PromoCode[] = dbPromos.map((p) => ({
+          id: p.id,
+          code: p.code.toUpperCase().trim(),
+          discountType: p.discount_type,
+          discountValue: Number(p.discount_value),
+          minOrderValue: Number(p.min_order_amount || 0),
+          maxDiscount: p.max_discount_amount && Number(p.max_discount_amount) > 0 ? Number(p.max_discount_amount) : undefined,
+          description: p.description || '',
+          isActive: Boolean(p.is_active),
+          usageCount: Number(p.usage_count || 0),
+          createdAt: (p as any).created_at || '2026-01-01',
+        }));
+        setPromoCodes(mapped);
+      }
+      isInitializedRef.current = true;
+    }).catch(() => {
+      isInitializedRef.current = true;
+    });
+
+    const handlePromosSync = () => {
+      const fresh = loadStoredPromos();
+      setPromoCodes(fresh);
+    };
+
+    window.addEventListener('koskool_promos_updated', handlePromosSync);
+    window.addEventListener('koskool_data_updated', handlePromosSync);
+    window.addEventListener('storage', handlePromosSync);
+
+    return () => {
+      window.removeEventListener('koskool_promos_updated', handlePromosSync);
+      window.removeEventListener('koskool_data_updated', handlePromosSync);
+      window.removeEventListener('storage', handlePromosSync);
+    };
   }, []);
 
   // Save cart to localStorage on changes
@@ -155,12 +213,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [items]);
 
-  // Save promo codes to localStorage in both formats on changes
+  // Save promo codes to localStorage on changes once initialized
   useEffect(() => {
+    if (!isInitializedRef.current) return;
     try {
       localStorage.setItem('koskool_promocodes', JSON.stringify(promoCodes));
 
-      // Also sync to koskool_promos_cache
       const forApi = promoCodes.map((p) => ({
         id: p.id,
         code: p.code,
@@ -266,24 +324,35 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     () => items.reduce((acc, item) => acc + item.product.price * item.quantity, 0),
     [items]
   );
-  const freeShippingThreshold = 999;
+  const freeShippingThreshold = 500;
 
   // Calculate discount dynamically based on applied promo code and subtotal
   const discountAmount = useMemo(() => {
     if (!appliedPromo) return 0;
-    if (subtotal < appliedPromo.minOrderValue) return 0;
+    const minVal = appliedPromo.minOrderValue ?? (appliedPromo as any).min_order_amount ?? 0;
+    if (minVal > 0 && subtotal < minVal) return 0;
 
-    if (appliedPromo.discountType === 'percentage') {
-      const calculated = Math.round((subtotal * appliedPromo.discountValue) / 100);
-      return appliedPromo.maxDiscount ? Math.min(calculated, appliedPromo.maxDiscount) : calculated;
+    const discType = appliedPromo.discountType || (appliedPromo as any).discount_type;
+    const discVal = Number(appliedPromo.discountValue ?? (appliedPromo as any).discount_value ?? 0);
+    const maxCap = appliedPromo.maxDiscount ?? (appliedPromo as any).max_discount_amount;
+
+    let discount = 0;
+    if (discType === 'percentage') {
+      discount = Math.round((subtotal * discVal) / 100);
     } else {
-      return Math.min(appliedPromo.discountValue, subtotal);
+      discount = Math.min(discVal, subtotal);
     }
+
+    if (maxCap !== undefined && maxCap !== null && Number(maxCap) > 0) {
+      discount = Math.min(discount, Number(maxCap));
+    }
+
+    return Math.max(0, Math.min(discount, subtotal));
   }, [appliedPromo, subtotal]);
 
   const shippingCost = useMemo(() => {
     if (subtotal === 0) return 0;
-    return subtotal >= freeShippingThreshold ? 0 : 70;
+    return subtotal >= freeShippingThreshold ? 0 : 100;
   }, [subtotal, freeShippingThreshold]);
 
   const finalTotal = useMemo(() => {
@@ -292,7 +361,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Apply promo code action
   const applyPromoCode = (codeStr: string) => {
-    // Refresh promo codes from storage in case newly added in another tab
+    // Refresh promo codes from storage in case newly added in admin or another tab
     const freshPromos = loadStoredPromos();
     setPromoCodes(freshPromos);
 
@@ -310,21 +379,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: `Promo code "${cleanCode}" has expired or is inactive.` };
     }
 
-    if (subtotal < found.minOrderValue) {
+    const minVal = found.minOrderValue ?? (found as any).min_order_amount ?? 0;
+    if (minVal > 0 && subtotal < minVal) {
       return {
         success: false,
-        message: `Min. order of ₹${found.minOrderValue} required for ${found.code}. Add ₹${
-          found.minOrderValue - subtotal
-        } more!`,
+        message: `Min. order of ₹${minVal} required for ${found.code}. Add ₹${minVal - subtotal} more!`,
       };
     }
 
     setAppliedPromo(found);
+
+    const discType = found.discountType || (found as any).discount_type;
+    const discVal = Number(found.discountValue ?? (found as any).discount_value ?? 0);
+    const maxCap = found.maxDiscount ?? (found as any).max_discount_amount;
+
+    let sampleDiscount = 0;
+    if (discType === 'percentage') {
+      sampleDiscount = Math.round((subtotal * discVal) / 100);
+    } else {
+      sampleDiscount = Math.min(discVal, subtotal);
+    }
+    if (maxCap !== undefined && maxCap !== null && Number(maxCap) > 0) {
+      sampleDiscount = Math.min(sampleDiscount, Number(maxCap));
+    }
+
+    const maxCapInfo = maxCap && Number(maxCap) > 0 ? ` (Max Cap: ₹${maxCap})` : '';
+
     return {
       success: true,
-      message: `Promo code "${found.code}" applied! You saved ${
-        found.discountType === 'percentage' ? `${found.discountValue}% OFF` : `₹${found.discountValue} Flat OFF`
-      }.`,
+      message: `Promo code "${found.code}" applied! You saved ₹${sampleDiscount} (${
+        discType === 'percentage' ? `${discVal}% OFF` : `₹${discVal} Flat OFF`
+      }${maxCapInfo}).`,
     };
   };
 

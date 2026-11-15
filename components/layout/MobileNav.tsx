@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { MAIN_NAVIGATION } from '@/data/navigation';
-import { X, ChevronDown, ChevronRight, Phone, Mail, MapPin } from 'lucide-react';
+import { X, ChevronDown, ChevronRight, Phone, Mail, MapPin, ExternalLink, User, Truck } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface MobileNavProps {
 }
 
 export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
+  const { user, isAdmin, openAuthModal } = useAuth();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [nestedExpanded, setNestedExpanded] = useState<string | null>(null);
 
@@ -136,11 +138,54 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
           })}
         </div>
 
+        {/* User Account & Quick Actions */}
+        <div className="p-4 bg-gray-50 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
+          {user ? (
+            <Link
+              href={isAdmin ? '/admin' : '/account'}
+              onClick={onClose}
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-navy-950 text-white font-bold transition"
+            >
+              <User className="w-3.5 h-3.5 text-brand-500" />
+              <span className="truncate">{isAdmin ? 'Admin Portal' : 'My Account'}</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                openAuthModal();
+              }}
+              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-navy-950 text-white font-bold transition"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
+
+          <Link
+            href="/track-order"
+            onClick={onClose}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-navy-950 font-bold transition"
+          >
+            <Truck className="w-3.5 h-3.5 text-brand-600" />
+            <span>Track Order</span>
+          </Link>
+        </div>
+
         {/* Footer info in drawer */}
         <div className="p-4 bg-gray-50 border-t border-gray-200 space-y-2 text-xs text-gray-600">
-          <div className="flex items-center gap-2 text-navy-900 font-semibold">
-            <MapPin className="w-4 h-4 text-brand-600 shrink-0" />
-            <span>Factory: Sector 2, Bawana Ind. Area, Delhi</span>
+          <div className="flex items-start gap-2 text-navy-900 font-semibold">
+            <MapPin className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
+            <a
+              href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-brand-600 transition inline-flex items-center gap-1"
+            >
+              <span>Factory: Sector 2, Bawana Ind. Area, Delhi</span>
+              <ExternalLink className="w-3 h-3 text-brand-600" />
+            </a>
           </div>
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4 text-brand-600 shrink-0" />

@@ -24,7 +24,7 @@ function fileToBase64(file: File): Promise<string> {
       };
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const maxDim = 900;
+        const maxDim = 1920;
         let width = img.width;
         let height = img.height;
         if (width > maxDim || height > maxDim) {
@@ -41,7 +41,8 @@ function fileToBase64(file: File): Promise<string> {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
+          const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+          resolve(canvas.toDataURL(mimeType, 0.82));
           return;
         }
         resolve(img.src);
@@ -69,6 +70,30 @@ export async function uploadToStorage(
   bucket: 'product-images' | 'promotions' = 'product-images',
   folder: string = 'uploads'
 ): Promise<{ url: string | null; error: string | null }> {
+  // 1. Try server-side upload endpoint (/api/upload)
+  if (typeof window !== 'undefined') {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', folder);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.url) {
+          return { url: json.url, error: null };
+        }
+      }
+    } catch {
+      // Proceed to Supabase fallback
+    }
+  }
+
+  // 2. Try Supabase Storage
   try {
     const timestamp = Date.now();
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');

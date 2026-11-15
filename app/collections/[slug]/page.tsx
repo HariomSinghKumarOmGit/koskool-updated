@@ -12,18 +12,7 @@ export default function CollectionPage() {
 
   const collectionInfo = getCollectionTitle(slug);
   const [dynamicCategory, setDynamicCategory] = useState<{ title: string; subtitle: string; badge?: string } | null>(null);
-  const [allProducts, setAllProducts] = useState<Product[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('koskool_products_cache');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return PRODUCTS;
-  });
+  const [allProducts, setAllProducts] = useState<Product[]>(PRODUCTS);
 
   const loadCategoryMeta = useCallback(async () => {
     try {

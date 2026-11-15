@@ -74,22 +74,22 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-3 sm:pt-20 px-3 sm:px-4">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-navy-950/70 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
       {/* Modal Dialog */}
       <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden z-10 border border-gray-100 animate-slideUp">
         {/* Search Bar Input */}
-        <div className="flex items-center px-4 py-3.5 border-b border-gray-200 gap-3 bg-gray-50/50">
+        <div className="flex items-center px-3.5 sm:px-4 py-3 sm:py-3.5 border-b border-gray-200 gap-2.5 sm:gap-3 bg-gray-50/50">
           <Search className="w-5 h-5 text-gray-400 shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search school shoes, sports shoes, bags, water bottles..."
-            className="flex-1 bg-transparent text-base text-gray-900 placeholder-gray-400 focus:outline-none"
+            placeholder="Search school shoes, PT shoes, bags..."
+            className="flex-1 bg-transparent text-sm sm:text-base text-gray-900 placeholder-gray-400 focus:outline-none"
           />
           {query && (
             <button onClick={() => setQuery('')} className="p-1 text-gray-400 hover:text-gray-600 rounded">
@@ -98,9 +98,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           )}
           <button
             onClick={onClose}
-            className="text-xs font-semibold text-gray-600 hover:text-brand-600 px-2 py-1 rounded-md bg-gray-200/60 transition"
+            className="text-xs font-semibold text-gray-600 hover:text-brand-600 px-2.5 py-1 rounded-md bg-gray-200/60 transition flex items-center gap-1"
           >
-            ESC
+            <X className="w-3.5 h-3.5 sm:hidden" />
+            <span className="hidden sm:inline">ESC</span>
+            <span className="sm:hidden">Close</span>
           </button>
         </div>
 

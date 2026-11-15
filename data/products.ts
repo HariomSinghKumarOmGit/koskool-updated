@@ -14,7 +14,7 @@ export interface Product {
   discountPercent?: number;
   gender: 'boys' | 'girls' | 'kids' | 'unisex' | 'mens' | 'women';
   schoolLevel: ('kindergarten' | 'middle-wing' | 'senior-wing')[];
-  productType: 'school-shoes' | 'sports-shoes' | 'fabric-shoes' | 'bags' | 'accessories' | 'sandals' | 'daily-wear';
+  productType: 'school-shoes' | 'sports-shoes' | 'fabric-shoes' | 'bags' | 'accessories' | 'sandals' | 'daily-wear' | (string & {});
   accessoryCategory?:
     | 'bag-accessories'
     | 'geometry-accessories'
@@ -51,6 +51,7 @@ export interface Product {
   material: string;
   closureType?: string;
   inStock: boolean;
+  showOnHomepage?: boolean;
 }
 
 export const PRODUCTS: Product[] = [

@@ -67,3 +67,15 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* iOS Safe Area & Mobile Viewport Support */
+.safe-area-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Prevent accidental horizontal bounce on mobile */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}

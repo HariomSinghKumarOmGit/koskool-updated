@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Product, PRODUCTS } from '@/data/products';
 import { useCart } from '@/context/CartContext';
 import ProductCard from '@/components/product/ProductCard';
+import ProductReviewsSection from '@/components/product/ProductReviewsSection';
 import {
   Star,
   Ruler,
@@ -33,6 +34,10 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   // Find featured or requested product
   const defaultProduct = PRODUCTS.find((p) => p.slug === 'mens-daily-wear-sandals-wgp53410-tan') || PRODUCTS[0];
   const product = initialProduct || defaultProduct;
+
+  const [liveStats, setLiveStats] = useState<{ rating: number; reviewCount: number } | null>(null);
+  const displayRating = liveStats?.rating ?? product.rating ?? 4.8;
+  const displayReviewCount = liveStats?.reviewCount ?? product.reviewCount ?? 100;
 
   const categoryOptions = React.useMemo(() => {
     if (product.categoryOptions && product.categoryOptions.length > 0) {
@@ -85,19 +90,39 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   const [quantity, setQuantity] = useState<number>(1);
   const [showSizeModal, setShowSizeModal] = useState<boolean>(false);
   const [addedToCart, setAddedToCart] = useState<boolean>(false);
+  const [activeMobileImg, setActiveMobileImg] = useState<number>(0);
+  const [currentUrl, setCurrentUrl] = useState<string>('');
 
-  // Accordion state: by default closed as in screenshot 3 (+ icons)
-  const [openAccordions, setOpenAccordions] = useState<{ [key: string]: boolean }>({
-    description: false,
-    additional: false,
-    shipping: false,
-  });
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentUrl(window.location.href);
+    }
+  }, []);
 
-  const toggleAccordion = (key: string) => {
-    setOpenAccordions((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+  // Mobile image touch swipe handling
+  const touchStartRef = React.useRef<number | null>(null);
+  const touchEndRef = React.useRef<number | null>(null);
+
+  const handleMobileTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.targetTouches[0].clientX;
+    touchEndRef.current = null;
+  };
+
+  const handleMobileTouchMove = (e: React.TouchEvent) => {
+    touchEndRef.current = e.targetTouches[0].clientX;
+  };
+
+  const handleMobileTouchEnd = (totalImgs: number) => {
+    if (touchStartRef.current !== null && touchEndRef.current !== null) {
+      const diff = touchStartRef.current - touchEndRef.current;
+      if (diff > 40) {
+        setActiveMobileImg((prev) => (prev + 1) % totalImgs);
+      } else if (diff < -40) {
+        setActiveMobileImg((prev) => (prev - 1 + totalImgs) % totalImgs);
+      }
+    }
+    touchStartRef.current = null;
+    touchEndRef.current = null;
   };
 
   const handleAddToCart = () => {
@@ -165,9 +190,86 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
             Right: Sticky Product Information (pinned until last image is scrolled) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start relative">
           
-          {/* ================= LEFT GALLERY: SCROLLABLE IMAGE LIST ================= */}
+          {/* ================= LEFT GALLERY: MOBILE CAROUSEL & DESKTOP GRID ================= */}
           <div className="lg:col-span-7">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* Mobile View: Single hero image with touch swipe & thumbnail row */}
+            <div className="lg:hidden space-y-3">
+              <div
+                className="relative aspect-square bg-[#fbfbfb] rounded-2xl overflow-hidden border border-gray-100 flex items-center justify-center p-4 shadow-sm touch-pan-y"
+                onTouchStart={handleMobileTouchStart}
+                onTouchMove={handleMobileTouchMove}
+                onTouchEnd={() => handleMobileTouchEnd(galleryImages.length)}
+              >
+                <Image
+                  src={galleryImages[activeMobileImg] || galleryImages[0]}
+                  alt={`${product.name} view ${activeMobileImg + 1}`}
+                  fill
+                  priority
+                  sizes="(max-width: 640px) 100vw, 500px"
+                  className="object-contain p-3"
+                />
+                {product.discountPercent && (
+                  <span className="absolute top-3 left-3 bg-[#e86b62] text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-md shadow">
+                    {product.discountPercent}% OFF
+                  </span>
+                )}
+                {/* Photo counter */}
+                <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  {activeMobileImg + 1} / {galleryImages.length}
+                </span>
+
+                {/* Mobile Prev / Next Buttons */}
+                {galleryImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setActiveMobileImg((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow border border-gray-200 flex items-center justify-center text-gray-800 active:scale-95 transition"
+                      aria-label="Previous Image"
+                    >
+                      &lsaquo;
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveMobileImg((prev) => (prev + 1) % galleryImages.length)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 shadow border border-gray-200 flex items-center justify-center text-gray-800 active:scale-95 transition"
+                      aria-label="Next Image"
+                    >
+                      &rsaquo;
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Horizontal Thumbnails Row for Mobile */}
+              {galleryImages.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 pt-0.5">
+                  {galleryImages.map((imgSrc, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveMobileImg(idx)}
+                      className={`relative w-14 h-14 rounded-xl border-2 overflow-hidden bg-[#fbfbfb] shrink-0 p-1 transition-all ${
+                        activeMobileImg === idx
+                          ? 'border-gray-950 ring-1 ring-gray-950 scale-105'
+                          : 'border-gray-200 hover:border-gray-400 opacity-70'
+                      }`}
+                    >
+                      <Image
+                        src={imgSrc}
+                        alt={`Thumbnail ${idx + 1}`}
+                        fill
+                        className="object-contain p-0.5"
+                        sizes="56px"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Desktop View: 2-column image grid */}
+            <div className="hidden lg:grid grid-cols-2 gap-3 sm:gap-4">
               {galleryImages.map((imgSrc, idx) => (
                 <div
                   key={idx}
@@ -238,25 +340,41 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
               </div>
 
               {/* 3. Star Reviews */}
-              <div className="flex items-center gap-1.5 pt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('product-reviews');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('koskool_expand_reviews'));
+                  }
+                }}
+                className="flex items-center gap-1.5 pt-0.5 group cursor-pointer text-left focus:outline-none"
+                title="Click to view all ratings & customer reviews"
+              >
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-4 h-4 ${
-                        i < Math.floor(product.rating || 5)
+                      className={`w-4 h-4 transition ${
+                        i < Math.floor(displayRating)
                           ? 'fill-amber-400 text-amber-400'
-                          : i < (product.rating || 5)
+                          : i < displayRating
                           ? 'fill-amber-300 text-amber-300'
                           : 'fill-gray-200 text-gray-200'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-xs text-gray-700 font-semibold ml-1">
-                  {product.reviewCount ?? 100} reviews
+                <span className="text-xs text-gray-700 font-semibold ml-1 group-hover:text-brand-600 transition">
+                  {displayRating} ({displayReviewCount} reviews)
                 </span>
-              </div>
+                <span className="text-[11px] text-brand-600 font-bold underline ml-1 hidden sm:inline">
+                  Customer Reviews &rarr;
+                </span>
+              </button>
             </div>
 
             {/* 4. Colour Swatches */}
@@ -394,7 +512,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className="flex-1 py-2.5 px-6 rounded-full border border-[#f05a50] text-[#f05a50] hover:bg-[#fff5f5] text-xs font-bold tracking-wide transition text-center flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 px-6 rounded-full border border-red-600 text-red-600 hover:bg-red-50 text-xs font-bold tracking-wide transition text-center flex items-center justify-center gap-1.5"
               >
                 {addedToCart ? (
                   <>
@@ -412,7 +530,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
               <button
                 type="button"
                 onClick={handleBuyItNow}
-                className="w-full bg-[#f07167] hover:bg-[#e75a50] active:scale-[0.99] text-white font-bold text-sm py-3.5 px-6 rounded-full shadow-md hover:shadow-lg transition text-center tracking-wide"
+                className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-bold text-sm py-3.5 px-6 rounded-full shadow-md hover:shadow-lg transition text-center tracking-wide"
               >
                 Buy It Now
               </button>
@@ -425,7 +543,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                 
                 {/* Facebook */}
                 <a
-                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-600 hover:text-blue-600 transition font-bold"
@@ -459,11 +577,12 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
 
                 {/* WhatsApp */}
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Check out ${product.name} on Walkaroo: ` + (typeof window !== 'undefined' ? window.location.href : ''))}`}
+                  href={`https://wa.me/?text=${encodeURIComponent(`Check out ${product.name} on Walkaroo: ` + currentUrl)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-600 hover:text-emerald-600 transition"
                   aria-label="Share on WhatsApp"
+                  suppressHydrationWarning
                 >
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                     <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.697.073-2.127-.518-1.74-.72-2.883-2.482-2.97-2.597-.087-.116-.708-.941-.708-1.792s.448-1.27.607-1.444c.159-.175.348-.217.464-.217.116 0 .232.001.333.006.106.005.249-.04.39.299.144.348.492 1.2.535 1.287.043.087.072.189.014.305-.058.116-.087.189-.174.29-.087.102-.182.227-.26.305-.089.088-.182.184-.078.363.104.179.462.763.992 1.235.683.608 1.26.797 1.439.885.179.088.283.073.388-.047.106-.119.454-.529.576-.711.12-.181.242-.152.406-.091.164.061 1.04.49 1.218.578.179.089.298.132.342.207.044.075.044.436-.1.841z"/>
@@ -492,87 +611,15 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
               </a>
             </div>
 
-            {/* 10. Opening Tabs (Accordions): Description, Additional Information, Shipping & Returns */}
-            <div className="divide-y divide-gray-200 border-t border-gray-200 pt-1">
-              
-              {/* Tab 1: Description */}
-              <div className="py-3">
-                <button
-                  type="button"
-                  onClick={() => toggleAccordion('description')}
-                  className="w-full flex items-center justify-between text-left text-xs font-bold text-gray-900 hover:text-[#f05a50] transition py-1"
-                >
-                  <span>Description</span>
-                  <span className="text-gray-500 font-bold text-base">
-                    {openAccordions.description ? '−' : '+'}
-                  </span>
-                </button>
-                {openAccordions.description && (
-                  <div className="pt-3 pb-2 text-xs text-gray-600 leading-relaxed space-y-3">
-                    <p className="whitespace-pre-line">{product.description}</p>
-                    {product.features && product.features.length > 0 && (
-                      <div className="pt-2">
-                        <strong className="text-gray-900 block pb-1">Key Features:</strong>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {product.features.map((feat, i) => (
-                            <li key={i}>{feat}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Tab 2: Additional Information */}
-              <div className="py-3">
-                <button
-                  type="button"
-                  onClick={() => toggleAccordion('additional')}
-                  className="w-full flex items-center justify-between text-left text-xs font-bold text-gray-900 hover:text-[#f05a50] transition py-1"
-                >
-                  <span>Additional Information</span>
-                  <span className="text-gray-500 font-bold text-base">
-                    {openAccordions.additional ? '−' : '+'}
-                  </span>
-                </button>
-                {openAccordions.additional && (
-                  <div className="pt-3 pb-2 text-xs text-gray-600 leading-relaxed space-y-2">
-                    <p className="whitespace-pre-line">
-                      {product.additionalInfo ||
-                        'Manufactured by: Walkaroo International Pvt Ltd. Plot No 10-12, SIDCO Industrial Estate, Malumichampatti, Coimbatore - 641050 India\nCommodity - Footwear\nNumber of Commodity - 2N (1 Pair)\nCountry of Origin - India\nCustomer Care: 011-6119-7311 customercare@walkaroo.in'}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Tab 3: Shipping and Returns */}
-              <div className="py-3 border-b border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => toggleAccordion('shipping')}
-                  className="w-full flex items-center justify-between text-left text-xs font-bold text-gray-900 hover:text-[#f05a50] transition py-1"
-                >
-                  <span>Shipping and Returns</span>
-                  <span className="text-gray-500 font-bold text-base">
-                    {openAccordions.shipping ? '−' : '+'}
-                  </span>
-                </button>
-                {openAccordions.shipping && (
-                  <div className="pt-3 pb-2 text-xs text-gray-600 leading-relaxed space-y-2">
-                    <p className="whitespace-pre-line">
-                      {product.shippingInfo ||
-                        'This item is eligible for our 7 day easy return policy. No questions asked.\nEstimated time of delivery: 2 to 6 working days.\nFree shipping on prepaid orders over ₹499.'}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-            </div>
-
           </div>
 
         </div>
+
+        {/* ================= PRODUCT REVIEWS & COMMENTS SECTION ================= */}
+        <ProductReviewsSection
+          product={product}
+          onReviewStatsChange={(stats) => setLiveStats(stats)}
+        />
 
         {/* ================= RECOMMENDED PRODUCTS SECTION ================= */}
         {/* Appears after the last image when scrolling down as requested */}
@@ -675,6 +722,40 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
           </div>
         </div>
       )}
+
+      {/* ================= STICKY MOBILE ORDER BAR ================= */}
+      {/* Provides 1-tap ordering on phone screens as user scrolls through details */}
+      <div className="lg:hidden fixed bottom-16 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200/90 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-base font-black text-gray-950">₹{product.price}</span>
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span className="text-xs text-gray-400 line-through">₹{product.originalPrice}</span>
+            )}
+          </div>
+          <span className="text-[10px] text-gray-500 font-medium truncate">
+            Size: <strong className="text-gray-800">{selectedSize}</strong> • {selectedColour}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            className="py-2 px-3 rounded-full border border-red-600 text-red-600 active:bg-red-50 text-xs font-bold transition flex items-center gap-1"
+          >
+            {addedToCart ? <Check className="w-3.5 h-3.5" /> : null}
+            <span>{addedToCart ? 'Added' : 'Add to Cart'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleBuyItNow}
+            className="bg-red-600 active:bg-red-700 text-white font-bold text-xs py-2 px-4 rounded-full shadow transition"
+          >
+            Buy Now
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

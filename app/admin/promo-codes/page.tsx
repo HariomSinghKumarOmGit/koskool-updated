@@ -32,6 +32,10 @@ export default function AdminPromoCodesPage() {
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<PromoCode | null>(null);
 
+  // No Cap state toggles
+  const [isMinNoCap, setIsMinNoCap] = useState(false);
+  const [isMaxNoCap, setIsMaxNoCap] = useState(false);
+
   const [formData, setFormData] = useState({
     code: '',
     description: '',
@@ -68,19 +72,26 @@ export default function AdminPromoCodesPage() {
       max_discount_amount: 500,
       is_active: true,
     });
+    setIsMinNoCap(false);
+    setIsMaxNoCap(false);
     setEditingPromo(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (promo: PromoCode) => {
     setEditingPromo(promo);
+    const minNoCap = !promo.min_order_amount || promo.min_order_amount === 0;
+    const maxNoCap = !promo.max_discount_amount || promo.max_discount_amount === 0;
+    setIsMinNoCap(minNoCap);
+    setIsMaxNoCap(maxNoCap);
+
     setFormData({
       code: promo.code,
-      description: promo.description,
+      description: promo.description || '',
       discount_type: promo.discount_type,
       discount_value: promo.discount_value,
-      min_order_amount: promo.min_order_amount,
-      max_discount_amount: promo.max_discount_amount || 0,
+      min_order_amount: minNoCap ? 0 : promo.min_order_amount,
+      max_discount_amount: maxNoCap ? 0 : (promo.max_discount_amount || 0),
       is_active: promo.is_active,
     });
     setIsModalOpen(true);
@@ -88,10 +99,17 @@ export default function AdminPromoCodesPage() {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      code: formData.code.toUpperCase().trim(),
+      min_order_amount: isMinNoCap ? 0 : Number(formData.min_order_amount) || 0,
+      max_discount_amount: isMaxNoCap ? 0 : (Number(formData.max_discount_amount) > 0 ? Number(formData.max_discount_amount) : 0),
+    };
+
     if (editingPromo) {
-      await updatePromoCode(editingPromo.id, formData);
+      await updatePromoCode(editingPromo.id, payload);
     } else {
-      await createPromoCode(formData);
+      await createPromoCode(payload);
     }
     setIsModalOpen(false);
     fetchPromosList();
@@ -168,6 +186,7 @@ export default function AdminPromoCodesPage() {
                 <th className="py-3.5 px-4">Discount Type &amp; Value</th>
                 <th className="py-3.5 px-4">Description</th>
                 <th className="py-3.5 px-4">Min Spend</th>
+                <th className="py-3.5 px-4">Max Cap</th>
                 <th className="py-3.5 px-4">Usage Count</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
@@ -177,14 +196,14 @@ export default function AdminPromoCodesPage() {
             <tbody className="divide-y divide-gray-100 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                  <td colSpan={8} className="py-12 text-center text-gray-400">
                     <div className="w-8 h-8 border-3 border-navy-950 border-t-brand-600 rounded-full animate-spin mx-auto mb-2" />
                     <span>Loading coupon rules from Supabase...</span>
                   </td>
                 </tr>
               ) : promos.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                  <td colSpan={8} className="py-12 text-center text-gray-400">
                     No promo codes created yet.
                   </td>
                 </tr>
@@ -216,7 +235,23 @@ export default function AdminPromoCodesPage() {
                     </td>
 
                     <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className="font-bold text-navy-950">₹{p.min_order_amount}</span>
+                      {p.min_order_amount && Number(p.min_order_amount) > 0 ? (
+                        <span className="font-bold text-navy-950">₹{p.min_order_amount}</span>
+                      ) : (
+                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                          No Cap
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {p.max_discount_amount && Number(p.max_discount_amount) > 0 ? (
+                        <span className="font-bold text-navy-950">₹{p.max_discount_amount}</span>
+                      ) : (
+                        <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          No Cap
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -336,30 +371,92 @@ export default function AdminPromoCodesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                {/* Min Order Spend Cap */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Min Order (₹)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-gray-700">Min Order / Cap (₹)</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isMinNoCap) {
+                          setIsMinNoCap(true);
+                          setFormData((prev) => ({ ...prev, min_order_amount: 0 }));
+                        } else {
+                          setIsMinNoCap(false);
+                          setFormData((prev) => ({ ...prev, min_order_amount: prev.min_order_amount || 499 }));
+                        }
+                      }}
+                      className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold transition border cursor-pointer ${
+                        isMinNoCap
+                          ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
+                          : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
+                      }`}
+                    >
+                      {isMinNoCap ? '✓ No Cap' : 'No Cap'}
+                    </button>
+                  </div>
                   <input
-                    type="number"
-                    value={formData.min_order_amount}
+                    type={isMinNoCap ? 'text' : 'number'}
+                    disabled={isMinNoCap}
+                    min={0}
+                    value={isMinNoCap ? 'No Cap (₹0 min)' : (formData.min_order_amount ?? '')}
                     onChange={(e) =>
                       setFormData({ ...formData, min_order_amount: Number(e.target.value) })
                     }
-                    placeholder="499"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-navy-950 focus:outline-none"
+                    placeholder="e.g. 499"
+                    className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none ${
+                      isMinNoCap
+                        ? 'bg-gray-100 border-gray-200 text-gray-400 italic cursor-not-allowed'
+                        : 'bg-gray-50 border-gray-200 text-navy-950 focus:ring-1 focus:ring-brand-500'
+                    }`}
                   />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {isMinNoCap ? 'Applies to any cart order total' : `Order total must reach ₹${formData.min_order_amount || 0}`}
+                  </p>
                 </div>
 
+                {/* Max Discount Cap */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Max Cap (₹)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-gray-700">Max Discount Cap (₹)</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isMaxNoCap) {
+                          setIsMaxNoCap(true);
+                          setFormData((prev) => ({ ...prev, max_discount_amount: 0 }));
+                        } else {
+                          setIsMaxNoCap(false);
+                          setFormData((prev) => ({ ...prev, max_discount_amount: prev.max_discount_amount || 500 }));
+                        }
+                      }}
+                      className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold transition border cursor-pointer ${
+                        isMaxNoCap
+                          ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
+                          : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
+                      }`}
+                    >
+                      {isMaxNoCap ? '✓ No Cap' : 'No Cap'}
+                    </button>
+                  </div>
                   <input
-                    type="number"
-                    value={formData.max_discount_amount}
+                    type={isMaxNoCap ? 'text' : 'number'}
+                    disabled={isMaxNoCap}
+                    min={1}
+                    value={isMaxNoCap ? 'No Cap (Unlimited)' : (formData.max_discount_amount || '')}
                     onChange={(e) =>
                       setFormData({ ...formData, max_discount_amount: Number(e.target.value) })
                     }
-                    placeholder="1000"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs text-navy-950 focus:outline-none"
+                    placeholder="e.g. 1000"
+                    className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none ${
+                      isMaxNoCap
+                        ? 'bg-gray-100 border-gray-200 text-gray-400 italic cursor-not-allowed'
+                        : 'bg-gray-50 border-gray-200 text-navy-950 focus:ring-1 focus:ring-brand-500'
+                    }`}
                   />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {isMaxNoCap ? 'No limit on max discount' : `Discount capped at ₹${formData.max_discount_amount || 0}`}
+                  </p>
                 </div>
               </div>
 

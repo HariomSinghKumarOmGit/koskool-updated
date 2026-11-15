@@ -8,10 +8,9 @@ import {
   MapPin,
   CheckCircle2,
   ArrowRight,
-  ShieldCheck,
-  Award,
-  Truck,
-  RotateCcw,
+  ExternalLink,
+  Building2,
+  Navigation,
 } from 'lucide-react';
 
 export default function Footer() {
@@ -28,51 +27,6 @@ export default function Footer() {
 
   return (
     <footer className="bg-navy-950 text-gray-300 pt-16 pb-12 border-t border-navy-900">
-      {/* Trust Highlights Row */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 border-b border-navy-900">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-3">
-            <div className="w-11 h-11 rounded-xl bg-brand-600/20 text-brand-400 flex items-center justify-center shrink-0 border border-brand-500/30">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white">Uniform Compliant</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Meets CBSE, ICSE &amp; State school regulations.</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-3">
-            <div className="w-11 h-11 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/30">
-              <Award className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white">Heavy-Duty Tested</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Scuff-resistant soles made for playground stamina.</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-3">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
-              <Truck className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white">Fast All-India Shipping</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Direct dispatch from Bawana Industrial Area, Delhi.</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
-              <RotateCcw className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-white">Easy Size Exchanges</h4>
-              <p className="text-xs text-gray-400 mt-0.5">Hassle-free 7-day size replacement for growing feet.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Footer Links */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
@@ -91,9 +45,18 @@ export default function Footer() {
             <div className="space-y-2 pt-2 text-xs">
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
-                <span>
-                  <strong className="text-white">Factory:</strong> Sector 2, Bawana Industrial Area, Delhi
-                </span>
+                <div>
+                  <span className="text-white font-semibold">Factory Address:</span>
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-gray-300 hover:text-brand-400 transition underline underline-offset-2 mt-0.5"
+                    title="Open Factory in Google Maps"
+                  >
+                    Sector 2, Bawana Industrial Area, Delhi - 110039 ↗
+                  </a>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-white font-medium pl-6">Owner:</span>
@@ -218,6 +181,11 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
+                <Link href="/account" className="hover:text-white transition">
+                  My Account
+                </Link>
+              </li>
+              <li>
                 <Link href="/track-order" className="hover:text-white transition">
                   Track Order
                 </Link>
@@ -251,6 +219,135 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Factory Location & Interactive Google Map Showcase */}
+        <div className="mt-12 pt-8 border-t border-navy-900">
+          <div className="bg-navy-900/60 border border-navy-800/80 rounded-2xl p-5 sm:p-7 backdrop-blur-sm shadow-xl">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              {/* Factory Address and Info */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 bg-brand-500/10 text-brand-400 text-xs font-bold px-3 py-1 rounded-full border border-brand-500/20">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Factory &amp; Manufacturing Unit
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    Direct Dispatch
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                    Visit or Locate Our Factory
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                    All KOSKOOL school shoes, sports footwear, and student backpacks are manufactured and dispatched directly from our Bawana Industrial Unit in Delhi.
+                  </p>
+                </div>
+
+                <div className="space-y-2.5 text-xs bg-navy-950/60 border border-navy-800/60 rounded-xl p-3.5">
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 text-brand-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-white font-bold block">Factory Address:</span>
+                      <a
+                        href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-300 hover:text-brand-400 transition font-medium inline-flex items-center gap-1 mt-0.5 group"
+                      >
+                        <span>Sector 2, Bawana Industrial Area, Delhi - 110039, India</span>
+                        <ExternalLink className="w-3 h-3 text-brand-400 opacity-80 group-hover:opacity-100 shrink-0" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 pt-1 border-t border-navy-800/60">
+                    <span className="text-white font-semibold">Owner &amp; Operations:</span>
+                    <span className="text-gray-300">Vipul Singla</span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                    <span className="text-white font-semibold">Inquiries / Dispatch:</span>
+                    <a href="tel:+918130458265" className="text-gray-300 hover:text-white transition font-medium">
+                      +91 8130458265
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition"
+                  >
+                    <Navigation className="w-3.5 h-3.5" />
+                    <span>Open in Google Maps</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </a>
+                  <a
+                    href="https://wa.me/918130458265?text=Hello%20KOSKOOL%2C%20I%20am%20inquiring%20about%20the%20factory%20location%20and%20orders."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-xs font-semibold px-4 py-2.5 rounded-xl transition"
+                  >
+                    <span>WhatsApp Factory</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Google Maps Embed with Click-to-Open Overlay */}
+              <div className="lg:col-span-7">
+                <div className="relative rounded-xl overflow-hidden border border-navy-700/80 shadow-2xl bg-navy-950 group">
+                  {/* Top Bar on Map */}
+                  <div className="bg-navy-950 px-4 py-2.5 border-b border-navy-800 flex items-center justify-between text-xs text-gray-300">
+                    <div className="flex items-center gap-2 font-medium truncate">
+                      <MapPin className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                      <span className="truncate">Sector 2, Bawana Industrial Area, Delhi</span>
+                    </div>
+                    <a
+                      href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-400 hover:text-brand-300 font-bold inline-flex items-center gap-1 shrink-0 ml-2"
+                    >
+                      <span>Open Map</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  {/* Responsive Iframe */}
+                  <div className="relative w-full h-64 sm:h-72 bg-navy-950">
+                    <iframe
+                      title="KOSKOOL Factory Location Map - Bawana Industrial Area"
+                      src="https://maps.google.com/maps?q=Sector%202%2C%20Bawana%20Industrial%20Area%2C%20Delhi&t=&z=14&ie=UTF8&iwloc=&output=embed"
+                      className="w-full h-full border-0"
+                      loading="lazy"
+                      allowFullScreen
+                    />
+                  </div>
+
+                  {/* Map Footer Bar with Direct Link */}
+                  <div className="bg-navy-950/90 px-4 py-2 border-t border-navy-800/80 flex items-center justify-between text-[11px] text-gray-400">
+                    <span>Click map or button to get live directions</span>
+                    <a
+                      href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-400 hover:underline font-semibold inline-flex items-center gap-1"
+                    >
+                      <span>View in Google Maps</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Newsletter Section */}
         <div className="mt-12 pt-8 border-t border-navy-900 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1 text-center md:text-left">
@@ -281,7 +378,19 @@ export default function Footer() {
 
         {/* Bottom copyright & Socials */}
         <div className="mt-10 pt-6 border-t border-navy-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400">
-          <p>© 2026 KOSKOOL. Owner: Vipul Singla. Factory: Sector 2, Bawana Industrial Area, Delhi. All rights reserved.</p>
+          <p>
+            © 2026 KOSKOOL. Owner: Vipul Singla. Factory:{' '}
+            <a
+              href="https://www.google.com/maps/search/?api=1&query=Sector+2,+Bawana+Industrial+Area,+Delhi+110039"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-300 hover:text-brand-400 underline underline-offset-2 transition"
+              title="Open factory in Google Maps"
+            >
+              Sector 2, Bawana Industrial Area, Delhi
+            </a>
+            . All rights reserved.
+          </p>
 
           <div className="flex items-center gap-4">
             <Link

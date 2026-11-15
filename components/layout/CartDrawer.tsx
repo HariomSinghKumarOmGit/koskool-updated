@@ -231,20 +231,27 @@ export default function CartDrawer() {
               </div>
 
               {appliedPromo ? (
-                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-xl text-xs font-bold">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-600" />
-                    <span>
-                      {appliedPromo.code}: -₹{discountAmount}
-                    </span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-xl text-xs font-bold">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>
+                        {appliedPromo.code}: {discountAmount > 0 ? `-₹${discountAmount}` : '₹0'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={removePromoCode}
+                      className="text-gray-400 hover:text-red-500 font-black text-sm px-1"
+                      title="Remove coupon"
+                    >
+                      ×
+                    </button>
                   </div>
-                  <button
-                    onClick={removePromoCode}
-                    className="text-gray-400 hover:text-red-500 font-black text-sm px-1"
-                    title="Remove coupon"
-                  >
-                    ×
-                  </button>
+                  {appliedPromo.minOrderValue > 0 && subtotal < appliedPromo.minOrderValue && (
+                    <p className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                      ⚠️ Min. order of ₹{appliedPromo.minOrderValue} required. Add ₹{appliedPromo.minOrderValue - subtotal} more!
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex gap-2">

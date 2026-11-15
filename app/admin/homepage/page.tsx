@@ -24,6 +24,8 @@ import {
   Plus,
   Compass,
   ShoppingBag,
+  Trash2,
+  LayoutGrid,
 } from 'lucide-react';
 import {
   getHomepageSections,
@@ -36,6 +38,8 @@ import {
   saveFootwearCategories,
   reorderFootwearCategories,
   updateFootwearCategory,
+  createFootwearCategory,
+  deleteFootwearCategory,
   FootwearCategoryCard,
   DEFAULT_FOOTWEAR_CATEGORIES,
   getSchoolLevels,
@@ -47,10 +51,11 @@ import {
   FeaturedSpotlightConfig,
   getAllCatalogProducts,
 } from '@/services/api';
+import BannerShowcaseManager from '@/components/admin/BannerShowcaseManager';
 import { Product } from '@/data/products';
 
 export default function AdminHomepageLayoutPage() {
-  const [activeTab, setActiveTab] = useState<'sections' | 'footwear' | 'levels' | 'spotlight'>('sections');
+  const [activeTab, setActiveTab] = useState<'sections' | 'footwear' | 'bottom_banners' | 'levels' | 'spotlight'>('sections');
   const [sections, setSections] = useState<HomepageSection[]>([]);
   const [footwearCats, setFootwearCats] = useState<FootwearCategoryCard[]>([]);
   const [schoolLevels, setSchoolLevels] = useState<SchoolLevelItem[]>([]);
@@ -66,6 +71,17 @@ export default function AdminHomepageLayoutPage() {
   // Edit Footwear Modal
   const [editingCat, setEditingCat] = useState<FootwearCategoryCard | null>(null);
   const [catFormData, setCatFormData] = useState<Partial<FootwearCategoryCard>>({});
+  const [isAddingFootwear, setIsAddingFootwear] = useState(false);
+  const [newFootwearData, setNewFootwearData] = useState({
+    title: '',
+    subtitle: '',
+    startingPrice: '₹499',
+    tag: 'Uniform Approved',
+    href: '/collections/school-shoes',
+    image: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+    features: ['Cushioned Insole', 'Anti-Slip Sole'],
+    is_active: true,
+  });
 
   const showToast = (msg: string) => {
     setNotification(msg);
@@ -193,6 +209,46 @@ export default function AdminHomepageLayoutPage() {
     setFootwearCats(updated);
   };
 
+  const handleDeleteFootwear = async (cat: FootwearCategoryCard) => {
+    if (!confirm(`Are you sure you want to delete "${cat.title}" from categories?`)) return;
+    await deleteFootwearCategory(cat.id);
+    const updated = await getFootwearCategories();
+    setFootwearCats(updated);
+    showToast(`Category "${cat.title}" deleted.`);
+  };
+
+  const handleCreateFootwearModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFootwearData.title?.trim()) return;
+
+    await createFootwearCategory({
+      title: newFootwearData.title.trim(),
+      subtitle: newFootwearData.subtitle?.trim() || 'Premium footwear engineered for student comfort.',
+      startingPrice: newFootwearData.startingPrice?.trim() || '₹499',
+      tag: newFootwearData.tag?.trim() || 'Popular',
+      href: newFootwearData.href?.trim() || '/collections/school-shoes',
+      image: newFootwearData.image?.trim() || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      features: newFootwearData.features || ['Cushioned Insole', 'Anti-Slip Sole'],
+      is_active: newFootwearData.is_active,
+      show_on_homepage: newFootwearData.is_active,
+    });
+
+    setIsAddingFootwear(false);
+    setNewFootwearData({
+      title: '',
+      subtitle: '',
+      startingPrice: '₹499',
+      tag: 'Uniform Approved',
+      href: '/collections/school-shoes',
+      image: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+      features: ['Cushioned Insole', 'Anti-Slip Sole'],
+      is_active: true,
+    });
+    const updated = await getFootwearCategories();
+    setFootwearCats(updated);
+    showToast(`Created new category "${newFootwearData.title}"!`);
+  };
+
   // School Level Handlers
   const handleShiftSchoolLevel = async (index: number, direction: 'left' | 'right') => {
     const targetIndex = direction === 'left' ? index - 1 : index + 1;
@@ -288,7 +344,19 @@ export default function AdminHomepageLayoutPage() {
           }`}
         >
           <ShoppingBag className="w-4 h-4" />
-          <span>2. Shop by Footwear Carousel ({footwearCats.length})</span>
+          <span>2. Footwear Categories ({footwearCats.filter((c) => c.is_active && c.show_on_homepage !== false).length} on Home)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('bottom_banners')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 ${
+            activeTab === 'bottom_banners'
+              ? 'bg-navy-950 text-white shadow'
+              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <LayoutGrid className="w-4 h-4" />
+          <span>3. Bottom Banner Showcases &amp; Products</span>
         </button>
 
         <button
@@ -300,7 +368,7 @@ export default function AdminHomepageLayoutPage() {
           }`}
         >
           <Compass className="w-4 h-4" />
-          <span>3. School Levels &amp; Pricing</span>
+          <span>4. School Levels &amp; Pricing</span>
         </button>
 
         <button
@@ -312,7 +380,7 @@ export default function AdminHomepageLayoutPage() {
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>4. Spotlight Featured Product</span>
+          <span>5. Spotlight Featured Product</span>
         </button>
       </div>
 
@@ -418,128 +486,174 @@ export default function AdminHomepageLayoutPage() {
       {/* TAB 2: SHOP BY FOOTWEAR CAROUSEL ORDER & PRICING */}
       {activeTab === 'footwear' && (
         <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <strong>Shop by Footwear Carousel Customizer:</strong> Reorder the carousel categories (shift left/right, pick 1st, 2nd, 3rd place), customize the starting prices (e.g. ₹499, ₹549), tags, and subtitles!
+              <strong>Homepage Categories Customizer:</strong> Reorder categories, edit pricing, or toggle visibility. Want to show only 2 categories on the homepage? Click &quot;Hide from Home&quot; on the other 3! If 2 categories are active, the homepage displays them in an elegant 2-column grid.
             </div>
-            <span className="font-bold text-[11px] bg-white px-2.5 py-1 rounded-lg border border-amber-200 shrink-0">
-              Instant Carousel Sync
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="font-bold text-[11px] bg-white px-3 py-1.5 rounded-xl border border-amber-200 shrink-0">
+                {footwearCats.filter((c) => c.is_active && c.show_on_homepage !== false).length} of {footwearCats.length} on Home
+              </span>
+              <button
+                onClick={() => setIsAddingFootwear(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow-xs transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Category</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {footwearCats.map((cat, index) => (
-              <div
-                key={cat.id}
-                className={`bg-white rounded-3xl border overflow-hidden shadow-sm hover:shadow transition flex flex-col justify-between ${
-                  cat.is_active ? 'border-gray-200' : 'border-gray-200 opacity-60 bg-gray-50'
-                }`}
-              >
-                <div>
-                  {/* Image & Badges */}
-                  <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
-                    <Image
-                      src={cat.image}
-                      alt={cat.title}
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+            {footwearCats.map((cat, index) => {
+              const isOnHome = cat.is_active && cat.show_on_homepage !== false;
+              return (
+                <div
+                  key={cat.id}
+                  className={`bg-white rounded-3xl border overflow-hidden shadow-sm hover:shadow transition flex flex-col justify-between ${
+                    isOnHome ? 'border-gray-200' : 'border-gray-200 opacity-60 bg-gray-50'
+                  }`}
+                >
+                  <div>
+                    {/* Image & Badges */}
+                    <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+                      <Image
+                        src={cat.image}
+                        alt={cat.title}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
 
-                    {/* Position Tag & Starting Price Tag */}
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                      <span className="bg-brand-600 text-white font-black text-xs px-2.5 py-1 rounded-full shadow">
-                        #{index + 1} {index === 0 ? '(1st)' : index === 1 ? '(2nd)' : index === 2 ? '(3rd)' : ''}
-                      </span>
-                      <span className="bg-amber-400 text-navy-950 font-black text-xs px-2.5 py-1 rounded-full shadow">
-                        From {cat.startingPrice}
-                      </span>
-                    </div>
-
-                    <div className="absolute top-3 right-3">
-                      <span className="text-[10px] font-black uppercase tracking-wider bg-black/60 text-white px-2 py-0.5 rounded backdrop-blur">
-                        {cat.tag}
-                      </span>
-                    </div>
-
-                    {/* Left/Right Shift Buttons */}
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                      <button
-                        disabled={index === 0}
-                        onClick={() => handleShiftFootwear(index, 'left')}
-                        className="px-2.5 py-1 bg-black/70 hover:bg-black text-white text-xs font-bold rounded-lg disabled:opacity-20 flex items-center gap-1 backdrop-blur"
-                        title="Shift Left in Carousel"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                        <span>Left</span>
-                      </button>
-
-                      {/* Direct Place Selector */}
-                      <select
-                        value={index + 1}
-                        onChange={(e) => handleSetFootwearPosition(index, Number(e.target.value))}
-                        className="bg-black/80 text-white font-bold text-xs py-1 px-2 rounded-lg border border-white/20 focus:outline-none cursor-pointer"
-                      >
-                        {footwearCats.map((_, i) => (
-                          <option key={i} value={i + 1}>
-                            Place #{i + 1} {i === 0 ? '(1st)' : i === 1 ? '(2nd)' : i === 2 ? '(3rd)' : ''}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button
-                        disabled={index === footwearCats.length - 1}
-                        onClick={() => handleShiftFootwear(index, 'right')}
-                        className="px-2.5 py-1 bg-black/70 hover:bg-black text-white text-xs font-bold rounded-lg disabled:opacity-20 flex items-center gap-1 backdrop-blur"
-                        title="Shift Right in Carousel"
-                      >
-                        <span>Right</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Body Content */}
-                  <div className="p-5 space-y-3">
-                    <div>
-                      <h4 className="text-base font-black text-navy-950">{cat.title}</h4>
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{cat.subtitle}</p>
-                    </div>
-
-                    {/* Features list */}
-                    <div className="flex flex-wrap gap-1.5">
-                      {cat.features.map((feat, fi) => (
-                        <span key={fi} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-medium">
-                          {feat}
+                      {/* Position Tag & Starting Price Tag */}
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <span className="bg-brand-600 text-white font-black text-xs px-2.5 py-1 rounded-full shadow">
+                          #{index + 1} {index === 0 ? '(1st)' : index === 1 ? '(2nd)' : index === 2 ? '(3rd)' : ''}
                         </span>
-                      ))}
+                        <span className="bg-amber-400 text-navy-950 font-black text-xs px-2.5 py-1 rounded-full shadow">
+                          From {cat.startingPrice}
+                        </span>
+                      </div>
+
+                      <div className="absolute top-3 right-3 flex items-center gap-1">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur ${
+                            isOnHome ? 'bg-emerald-600/90 text-white' : 'bg-gray-800/80 text-gray-300'
+                          }`}
+                        >
+                          {isOnHome ? 'On Home' : 'Hidden'}
+                        </span>
+                        {cat.tag && (
+                          <span className="text-[10px] font-black uppercase tracking-wider bg-black/60 text-white px-2 py-0.5 rounded backdrop-blur">
+                            {cat.tag}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Left/Right Shift Buttons */}
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                        <button
+                          disabled={index === 0}
+                          onClick={() => handleShiftFootwear(index, 'left')}
+                          className="px-2.5 py-1 bg-black/70 hover:bg-black text-white text-xs font-bold rounded-lg disabled:opacity-20 flex items-center gap-1 backdrop-blur"
+                          title="Shift Left in Carousel"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                          <span>Left</span>
+                        </button>
+
+                        {/* Direct Place Selector */}
+                        <select
+                          value={index + 1}
+                          onChange={(e) => handleSetFootwearPosition(index, Number(e.target.value))}
+                          className="bg-black/80 text-white font-bold text-xs py-1 px-2 rounded-lg border border-white/20 focus:outline-none cursor-pointer"
+                        >
+                          {footwearCats.map((_, i) => (
+                            <option key={i} value={i + 1}>
+                              Place #{i + 1} {i === 0 ? '(1st)' : i === 1 ? '(2nd)' : i === 2 ? '(3rd)' : ''}
+                            </option>
+                          ))}
+                        </select>
+
+                        <button
+                          disabled={index === footwearCats.length - 1}
+                          onClick={() => handleShiftFootwear(index, 'right')}
+                          className="px-2.5 py-1 bg-black/70 hover:bg-black text-white text-xs font-bold rounded-lg disabled:opacity-20 flex items-center gap-1 backdrop-blur"
+                          title="Shift Right in Carousel"
+                        >
+                          <span>Right</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Body Content */}
+                    <div className="p-5 space-y-3">
+                      <div>
+                        <h4 className="text-base font-black text-navy-950">{cat.title}</h4>
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{cat.subtitle}</p>
+                      </div>
+
+                      {/* Features list */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {cat.features.map((feat, fi) => (
+                          <span key={fi} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-medium">
+                            {feat}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="p-5 pt-0 border-t border-gray-100 mt-3 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => handleToggleFootwearActive(cat)}
+                      className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl transition ${
+                        isOnHome ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {isOnHome ? (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5" />
+                          <span>Hide from Home</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Show on Home</span>
+                        </>
+                      )}
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditFootwear(cat)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs rounded-xl transition"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteFootwear(cat)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition"
+                        title="Delete category"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                {/* Footer Actions */}
-                <div className="p-5 pt-0 border-t border-gray-100 mt-3 flex items-center justify-between">
-                  <button
-                    onClick={() => handleToggleFootwearActive(cat)}
-                    className={`text-xs font-bold px-3 py-1.5 rounded-xl transition ${
-                      cat.is_active ? 'bg-gray-100 text-gray-700' : 'bg-emerald-50 text-emerald-700'
-                    }`}
-                  >
-                    {cat.is_active ? 'Hide Card' : 'Show Card'}
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenEditFootwear(cat)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold text-xs rounded-xl transition"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                    <span>Edit Price &amp; Info</span>
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+      )}
+
+      {/* TAB 3: BOTTOM BANNER SHOWCASES & PRODUCTS */}
+      {activeTab === 'bottom_banners' && (
+        <BannerShowcaseManager />
       )}
 
       {/* TAB 3: SCHOOL LEVELS & ACCESSORIES PRICING */}
@@ -767,6 +881,126 @@ export default function AdminHomepageLayoutPage() {
                   className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold shadow"
                 >
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Category Modal */}
+      {isAddingFootwear && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-lg font-black text-navy-950">
+                Add New Category to Homepage
+              </h3>
+              <button
+                onClick={() => setIsAddingFootwear(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateFootwearModal} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-navy-950">Category Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Daily Wear Slippers"
+                  value={newFootwearData.title}
+                  onChange={(e) => setNewFootwearData({ ...newFootwearData, title: e.target.value })}
+                  className="w-full text-xs font-medium border border-gray-300 rounded-xl px-3 py-2 focus:border-brand-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-navy-950">Starting Price</label>
+                  <input
+                    type="text"
+                    required
+                    value={newFootwearData.startingPrice}
+                    onChange={(e) => setNewFootwearData({ ...newFootwearData, startingPrice: e.target.value })}
+                    className="w-full text-xs font-bold text-emerald-700 border border-gray-300 rounded-xl px-3 py-2 focus:border-brand-600 focus:outline-none"
+                    placeholder="e.g. ₹399"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-navy-950">Badge Tag</label>
+                  <input
+                    type="text"
+                    value={newFootwearData.tag}
+                    onChange={(e) => setNewFootwearData({ ...newFootwearData, tag: e.target.value })}
+                    className="w-full text-xs font-medium border border-gray-300 rounded-xl px-3 py-2 focus:border-brand-600 focus:outline-none"
+                    placeholder="e.g. New Launch"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-navy-950">Subtitle / Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="Brief description for category card..."
+                  value={newFootwearData.subtitle}
+                  onChange={(e) => setNewFootwearData({ ...newFootwearData, subtitle: e.target.value })}
+                  className="w-full text-xs font-medium border border-gray-300 rounded-xl px-3 py-2 focus:border-brand-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-navy-950">Target Collection Link</label>
+                <input
+                  type="text"
+                  placeholder="/collections/school-shoes"
+                  value={newFootwearData.href}
+                  onChange={(e) => setNewFootwearData({ ...newFootwearData, href: e.target.value })}
+                  className="w-full text-xs font-mono border border-gray-300 rounded-xl px-3 py-2 focus:border-brand-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-navy-950">Image URL</label>
+                <input
+                  type="text"
+                  placeholder="https://... or /cdn/shop/..."
+                  value={newFootwearData.image}
+                  onChange={(e) => setNewFootwearData({ ...newFootwearData, image: e.target.value })}
+                  className="w-full text-xs font-mono border border-gray-300 rounded-xl px-3 py-2 focus:border-brand-600 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="new_cat_active"
+                  checked={newFootwearData.is_active}
+                  onChange={(e) => setNewFootwearData({ ...newFootwearData, is_active: e.target.checked })}
+                  className="w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500 cursor-pointer"
+                />
+                <label htmlFor="new_cat_active" className="text-xs font-bold text-navy-950 cursor-pointer">
+                  Show on Homepage immediately
+                </label>
+              </div>
+
+              <div className="pt-3 border-t flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingFootwear(false)}
+                  className="px-4 py-2 border text-gray-600 rounded-xl text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold shadow"
+                >
+                  Add Category
                 </button>
               </div>
             </form>

@@ -22,6 +22,9 @@ import {
   X,
   Layers,
   Sliders,
+  Upload,
+  Image as ImageIcon,
+  Loader2,
 } from 'lucide-react';
 import {
   getHeroSlides,
@@ -31,6 +34,7 @@ import {
   reorderHeroSlides,
   HeroSlide,
 } from '@/services/api';
+import { uploadToStorage } from '@/lib/supabase';
 
 const PRESET_BANNER_IMAGES = [
   { label: 'School Uniform Hero (Boys & Girls)', url: '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg' },
@@ -48,12 +52,16 @@ export default function AdminHeroSectionPage() {
   // Edit / Create Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlide, setEditingSlide] = useState<HeroSlide | null>(null);
+  const [uploadingDesktop, setUploadingDesktop] = useState(false);
+  const [uploadingMobile, setUploadingMobile] = useState(false);
+  const [dragOverDesktop, setDragOverDesktop] = useState(false);
+  const [dragOverMobile, setDragOverMobile] = useState(false);
   const [formData, setFormData] = useState<Partial<HeroSlide>>({
     badge: 'KOSKOOL 2026',
     title: '',
     subtitle: '',
     desktopImage: PRESET_BANNER_IMAGES[0].url,
-    mobileImage: '/cdn/shop/files/School-Mobile-Banner_fbefffb6-4e80-496e-83b5-bf4a835d0fad.v_1767783342_width_1000.jpg',
+    mobileImage: PRESET_BANNER_IMAGES[0].url,
     primaryCtaText: 'Shop Boys',
     primaryCtaLink: '/collections/boys',
     secondaryCtaText: 'Shop Girls',
@@ -66,6 +74,62 @@ export default function AdminHeroSectionPage() {
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleDesktopUpload = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please select a valid image file (PNG, JPG, WEBP, SVG, etc.).');
+      return;
+    }
+    setUploadingDesktop(true);
+    try {
+      const res = await uploadToStorage(file, 'promotions', 'hero-slides');
+      if (res.url) {
+        setFormData((prev) => ({
+          ...prev,
+          desktopImage: res.url!,
+          mobileImage:
+            !prev.mobileImage || prev.mobileImage.includes('School-Mobile-Banner')
+              ? res.url!
+              : prev.mobileImage,
+        }));
+        showNotification('Desktop banner uploaded successfully! Live preview updated.');
+      } else {
+        showNotification('Image upload failed. Please try a different file.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showNotification('Upload error. Please try again.');
+    } finally {
+      setUploadingDesktop(false);
+    }
+  };
+
+  const handleMobileUpload = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please select a valid image file (PNG, JPG, WEBP, SVG, etc.).');
+      return;
+    }
+    setUploadingMobile(true);
+    try {
+      const res = await uploadToStorage(file, 'promotions', 'hero-slides');
+      if (res.url) {
+        setFormData((prev) => ({
+          ...prev,
+          mobileImage: res.url!,
+        }));
+        showNotification('Mobile banner uploaded successfully!');
+      } else {
+        showNotification('Image upload failed. Please try a different file.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showNotification('Upload error. Please try again.');
+    } finally {
+      setUploadingMobile(false);
+    }
   };
 
   const loadSlides = async () => {
@@ -93,13 +157,13 @@ export default function AdminHeroSectionPage() {
     const [moved] = newSlides.splice(index, 1);
     newSlides.splice(targetIndex, 0, moved);
 
-    const reorderedPayload = newSlides.map((slide, idx) => ({
-      id: slide.id,
+    const updatedSlides = newSlides.map((slide, idx) => ({
+      ...slide,
       display_order: idx + 1,
     }));
 
-    setSlides(newSlides);
-    await reorderHeroSlides(reorderedPayload);
+    setSlides(updatedSlides);
+    await reorderHeroSlides(updatedSlides.map((s) => ({ id: s.id, display_order: s.display_order })));
     showNotification(`Slide shifted to position #${targetIndex + 1}! Live on homepage.`);
   };
 
@@ -112,13 +176,13 @@ export default function AdminHeroSectionPage() {
     const [moved] = newSlides.splice(index, 1);
     newSlides.splice(targetIdx, 0, moved);
 
-    const reorderedPayload = newSlides.map((slide, idx) => ({
-      id: slide.id,
+    const updatedSlides = newSlides.map((slide, idx) => ({
+      ...slide,
       display_order: idx + 1,
     }));
 
-    setSlides(newSlides);
-    await reorderHeroSlides(reorderedPayload);
+    setSlides(updatedSlides);
+    await reorderHeroSlides(updatedSlides.map((s) => ({ id: s.id, display_order: s.display_order })));
     showNotification(`Slide placed in position #${newPosition}! Homepage updated.`);
   };
 
@@ -144,7 +208,7 @@ export default function AdminHeroSectionPage() {
       title: 'New School Collection',
       subtitle: 'Discover uniform compliant footwear and school essentials.',
       desktopImage: PRESET_BANNER_IMAGES[0].url,
-      mobileImage: '/cdn/shop/files/School-Mobile-Banner_fbefffb6-4e80-496e-83b5-bf4a835d0fad.v_1767783342_width_1000.jpg',
+      mobileImage: PRESET_BANNER_IMAGES[0].url,
       primaryCtaText: 'Shop Boys',
       primaryCtaLink: '/collections/boys',
       secondaryCtaText: 'Shop Girls',
@@ -405,8 +469,8 @@ export default function AdminHeroSectionPage() {
       {/* Edit / Add Slide Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8">
-            <div className="flex items-center justify-between border-b pb-4">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-black text-navy-950">
                 {editingSlide ? `Edit Slide #${editingSlide.display_order}` : 'Add New Hero Slide'}
               </h2>
@@ -443,7 +507,7 @@ export default function AdminHeroSectionPage() {
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 sm:col-span-2">
                   <label className="text-xs font-bold text-navy-950">Top Badge Tag</label>
                   <input
                     type="text"
@@ -454,30 +518,241 @@ export default function AdminHeroSectionPage() {
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-navy-950">Quick Preset Banner Image</label>
-                  <select
-                    onChange={(e) => setFormData({ ...formData, desktopImage: e.target.value })}
-                    className="w-full text-xs font-medium border border-gray-300 rounded-xl px-3.5 py-2.5 focus:border-brand-600 focus:outline-none"
-                  >
-                    <option value="">Select preset or type URL below...</option>
-                    {PRESET_BANNER_IMAGES.map((img, i) => (
-                      <option key={i} value={img.url}>
-                        {img.label}
-                      </option>
-                    ))}
-                  </select>
+                {/* Desktop Banner Image Section */}
+                <div className="sm:col-span-2 space-y-3 p-4 bg-gray-50/90 rounded-2xl border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-black text-navy-950 uppercase tracking-wide flex items-center gap-1.5">
+                        <Upload className="w-4 h-4 text-brand-600" />
+                        <span>Desktop Hero Banner (Primary)</span>
+                      </h4>
+                      <p className="text-[11px] text-gray-500">
+                        Main high-resolution banner for desktops and laptops. Recommended: 1920x800 or 16:9 ratio.
+                      </p>
+                    </div>
+                    {uploadingDesktop && (
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-brand-600 animate-pulse">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Uploading Image...
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch">
+                    {/* Live Preview */}
+                    <div className="relative aspect-[16/8] md:col-span-1 rounded-xl overflow-hidden bg-navy-950 border border-gray-300 flex items-center justify-center">
+                      {formData.desktopImage ? (
+                        <>
+                          <img
+                            src={formData.desktopImage}
+                            alt="Desktop Banner Preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-1.5 left-1.5 px-2 py-0.5 bg-black/70 backdrop-blur-sm rounded text-[9px] text-white font-bold">
+                            Desktop Preview
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center p-3 text-gray-400">
+                          <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
+                          <span className="text-[10px] font-bold">No Image Selected</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Drag & Drop / Upload Picker */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOverDesktop(true);
+                      }}
+                      onDragLeave={() => setDragOverDesktop(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverDesktop(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleDesktopUpload(file);
+                      }}
+                      className={`md:col-span-2 border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer ${
+                        dragOverDesktop
+                          ? 'border-brand-500 bg-brand-50/70'
+                          : 'border-gray-300 hover:border-brand-500 bg-white'
+                      }`}
+                    >
+                      <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer py-2">
+                        <Upload className="w-6 h-6 text-brand-600 mb-1" />
+                        <span className="text-xs font-bold text-navy-950">
+                          Click to Upload Desktop Banner or Drag Image Here
+                        </span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">
+                          PNG, JPG, WEBP, SVG • Saved automatically
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleDesktopUpload(file);
+                          }}
+                          className="hidden"
+                          disabled={uploadingDesktop}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Preset Dropdown & URL Input */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                        Or Pick from Preset Banners
+                      </label>
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              desktopImage: e.target.value,
+                              mobileImage:
+                                !prev.mobileImage || prev.mobileImage.includes('School-Mobile-Banner')
+                                  ? e.target.value
+                                  : prev.mobileImage,
+                            }));
+                          }
+                        }}
+                        className="w-full text-xs font-medium border border-gray-300 rounded-xl px-3 py-2 bg-white focus:border-brand-600 focus:outline-none"
+                      >
+                        <option value="">Select preset or type URL below...</option>
+                        {PRESET_BANNER_IMAGES.map((img, i) => (
+                          <option key={i} value={img.url}>
+                            {img.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                        Desktop Image URL
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.desktopImage || ''}
+                        onChange={(e) => setFormData({ ...formData, desktopImage: e.target.value })}
+                        className="w-full text-xs font-mono border border-gray-300 rounded-xl px-3 py-2 bg-white focus:border-brand-600 focus:outline-none"
+                        placeholder="Image URL or uploaded path"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-xs font-bold text-navy-950">Desktop Image URL</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.desktopImage}
-                    onChange={(e) => setFormData({ ...formData, desktopImage: e.target.value })}
-                    className="w-full text-xs font-medium border border-gray-300 rounded-xl px-3.5 py-2.5 focus:border-brand-600 focus:outline-none font-mono"
-                  />
+                {/* Mobile Banner Image Section */}
+                <div className="sm:col-span-2 space-y-3 p-4 bg-gray-50/90 rounded-2xl border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-black text-navy-950 uppercase tracking-wide flex items-center gap-1.5">
+                        <Upload className="w-4 h-4 text-brand-600" />
+                        <span>Mobile Hero Banner (Optional)</span>
+                      </h4>
+                      <p className="text-[11px] text-gray-500">
+                        Shown on smartphone portrait screens (under 768px). Defaults to Desktop banner if left empty.
+                      </p>
+                    </div>
+                    {uploadingMobile && (
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-brand-600 animate-pulse">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Uploading Mobile Image...
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-stretch">
+                    {/* Live Preview */}
+                    <div className="relative aspect-[4/3] md:col-span-1 rounded-xl overflow-hidden bg-navy-950 border border-gray-300 flex items-center justify-center">
+                      {formData.mobileImage || formData.desktopImage ? (
+                        <>
+                          <img
+                            src={formData.mobileImage || formData.desktopImage}
+                            alt="Mobile Banner Preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-1.5 left-1.5 px-2 py-0.5 bg-black/70 backdrop-blur-sm rounded text-[9px] text-white font-bold">
+                            {formData.mobileImage ? 'Custom Mobile Banner' : 'Mirrors Desktop'}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center p-3 text-gray-400">
+                          <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
+                          <span className="text-[10px] font-bold">No Image</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Drag & Drop / Upload Picker */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOverMobile(true);
+                      }}
+                      onDragLeave={() => setDragOverMobile(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverMobile(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleMobileUpload(file);
+                      }}
+                      className={`md:col-span-2 border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center transition cursor-pointer ${
+                        dragOverMobile
+                          ? 'border-brand-500 bg-brand-50/70'
+                          : 'border-gray-300 hover:border-brand-500 bg-white'
+                      }`}
+                    >
+                      <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer py-2">
+                        <Upload className="w-6 h-6 text-brand-600 mb-1" />
+                        <span className="text-xs font-bold text-navy-950">
+                          Upload Mobile-Optimized Banner (Portrait)
+                        </span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">
+                          Recommended 1000x1250 portrait • Or drag file here
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleMobileUpload(file);
+                          }}
+                          className="hidden"
+                          disabled={uploadingMobile}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                      Mobile Image URL (Optional)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={formData.mobileImage || ''}
+                        onChange={(e) => setFormData({ ...formData, mobileImage: e.target.value })}
+                        className="flex-1 text-xs font-mono border border-gray-300 rounded-xl px-3 py-2 bg-white focus:border-brand-600 focus:outline-none"
+                        placeholder="Leave blank to use desktop image"
+                      />
+                      {formData.mobileImage && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, mobileImage: '' }))}
+                          className="px-3 py-2 text-xs font-bold text-gray-600 hover:text-red-600 border border-gray-300 rounded-xl hover:bg-gray-100 transition shrink-0"
+                        >
+                          Use Desktop
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Primary Button */}

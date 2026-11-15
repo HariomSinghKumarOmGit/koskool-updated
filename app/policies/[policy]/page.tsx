@@ -27,7 +27,7 @@ export default function PolicyPage() {
           </ul>
           <h4 className="font-bold text-sm text-navy-950 pt-2">Shipping Charges</h4>
           <p>
-            Orders valued at <strong>₹999 and above</strong> qualify for <strong>FREE Delivery</strong> anywhere in India. For orders below ₹999, a nominal flat delivery charge of ₹70 applies.
+            Orders valued at <strong>₹500 and above</strong> qualify for <strong>FREE Delivery</strong> anywhere in India. For orders below ₹500, a flat delivery charge of ₹100 applies.
           </p>
         </div>
       ),

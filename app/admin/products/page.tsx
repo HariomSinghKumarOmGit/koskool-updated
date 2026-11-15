@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useMemo } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Package,
   Search,
@@ -10,6 +11,7 @@ import {
   Trash2,
   Edit,
   Eye,
+  EyeOff,
   ArrowUpDown,
   MoveUp,
   MoveDown,
@@ -33,6 +35,8 @@ import {
   Info,
   Tag,
   Percent,
+  MessageSquare,
+  ExternalLink,
 } from 'lucide-react';
 import {
   getProducts,
@@ -42,9 +46,24 @@ import {
   reorderProducts,
   getCategories,
   Category,
+  toggleProductHomepageShowcase,
+  getHomepageProductIds,
+  getProductReviews,
+  deleteReview,
+  ProductReview,
 } from '@/services/api';
 import { Product, ColorVariant } from '@/data/products';
 import { uploadToStorage } from '@/lib/supabase';
+
+const FALLBACK_CATEGORIES = [
+  { slug: 'school-shoes', name: 'School Shoes' },
+  { slug: 'sports-shoes', name: 'Sports & PT Shoes' },
+  { slug: 'fabric-shoes', name: 'Canvas & Fabric Shoes' },
+  { slug: 'bags', name: 'School Bags' },
+  { slug: 'accessories', name: 'Accessories' },
+  { slug: 'sandals', name: 'Sandals' },
+  { slug: 'daily-wear', name: 'Daily Wear' },
+];
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -65,6 +84,8 @@ export default function AdminProductsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<Product | null>(null);
+  const [homeProductIds, setHomeProductIds] = useState<Set<string>>(new Set());
+  const [toastNotification, setToastNotification] = useState<string | null>(null);
 
   // Modal Tab & Custom Size State
   const [activeModalTab, setActiveModalTab] = useState<'basic' | 'colors' | 'reviews' | 'content' | 'sizes'>('basic');
@@ -98,7 +119,45 @@ export default function AdminProductsPage() {
     inStock: true,
     isPopular: false,
     isNewArrival: false,
+    showOnHomepage: false,
   });
+
+  // Product Reviews Management in Modal
+  const [productReviews, setProductReviews] = useState<ProductReview[]>([]);
+  const [loadingProductReviews, setLoadingProductReviews] = useState(false);
+  const [deletingProductReviewId, setDeletingProductReviewId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAddModalOpen && activeModalTab === 'reviews' && (editingProduct || formData.id || formData.slug)) {
+      const pId = editingProduct?.id || formData.id || formData.slug;
+      const pSlug = editingProduct?.slug || formData.slug;
+      const pName = editingProduct?.name || formData.name;
+      setLoadingProductReviews(true);
+      getProductReviews(pId, pSlug, pName)
+        .then((list) => setProductReviews(list))
+        .catch(() => setProductReviews([]))
+        .finally(() => setLoadingProductReviews(false));
+    }
+  }, [isAddModalOpen, activeModalTab, editingProduct, formData.id, formData.slug, formData.name]);
+
+  const handleDeleteSpecificReview = async (id: string) => {
+    if (!confirm('Are you sure you want to permanently delete this comment from this product?')) return;
+    try {
+      setDeletingProductReviewId(id);
+      await deleteReview(id);
+      setProductReviews((prev) => prev.filter((r) => r.id !== id));
+      setFormData((prev: any) => ({
+        ...prev,
+        reviewCount: Math.max(0, (prev.reviewCount || 1) - 1),
+      }));
+      setToastNotification('Comment deleted successfully');
+      setTimeout(() => setToastNotification(null), 3000);
+    } catch (err) {
+      alert('Failed to delete review');
+    } finally {
+      setDeletingProductReviewId(null);
+    }
+  };
 
   // Image Upload State
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -147,8 +206,104 @@ export default function AdminProductsPage() {
   }, [search]);
 
   useEffect(() => {
-    getCategories().then(setCategories);
+    const loadCategories = () => {
+      getCategories().then((cats) => {
+        if (cats && cats.length > 0) setCategories(cats);
+      });
+    };
+    loadCategories();
+
+    window.addEventListener('koskool_categories_updated', loadCategories);
+    return () => {
+      window.removeEventListener('koskool_categories_updated', loadCategories);
+    };
   }, []);
+
+  // Load and listen for Homepage Showcase Product IDs
+  useEffect(() => {
+    const loadHomeIds = async () => {
+      try {
+        const ids = await getHomepageProductIds();
+        setHomeProductIds(new Set(ids));
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadHomeIds();
+
+    window.addEventListener('koskool_banner_showcase_updated', loadHomeIds);
+    window.addEventListener('koskool_data_updated', loadHomeIds);
+    window.addEventListener('storage', loadHomeIds);
+
+    return () => {
+      window.removeEventListener('koskool_banner_showcase_updated', loadHomeIds);
+      window.removeEventListener('koskool_data_updated', loadHomeIds);
+      window.removeEventListener('storage', loadHomeIds);
+    };
+  }, []);
+
+  const handleToggleHomeShowcase = async (p: Product) => {
+    const isCurrentlyOnHome = homeProductIds.has(p.id);
+    const nextSet = new Set(homeProductIds);
+    if (isCurrentlyOnHome) {
+      nextSet.delete(p.id);
+    } else {
+      nextSet.add(p.id);
+    }
+    setHomeProductIds(nextSet);
+
+    const res = await toggleProductHomepageShowcase(p.id);
+    setToastNotification(
+      res.isOnHomepage
+        ? `"${p.name}" is now showing on Homepage Bottom Banner Showcase!`
+        : `"${p.name}" removed from Homepage Bottom Banner Showcase.`
+    );
+    setTimeout(() => setToastNotification(null), 3500);
+  };
+
+  // Compute all available categories by combining Category Management data and fallbacks
+  const availableCategories = useMemo(() => {
+    const list: { slug: string; name: string }[] = [];
+    const seen = new Set<string>();
+
+    // 1. Dynamic categories from Category Management section
+    categories.forEach((c) => {
+      if (c.slug && !seen.has(c.slug)) {
+        seen.add(c.slug);
+        list.push({ slug: c.slug, name: c.name });
+      }
+    });
+
+    // 2. Standard fallbacks if not already present
+    FALLBACK_CATEGORIES.forEach((f) => {
+      if (!seen.has(f.slug)) {
+        seen.add(f.slug);
+        list.push(f);
+      }
+    });
+
+    // 3. If formData has a productType not in the list, keep it visible
+    if (formData.productType && !seen.has(formData.productType)) {
+      list.push({
+        slug: formData.productType,
+        name: formData.productType.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+      });
+    }
+
+    return list;
+  }, [categories, formData.productType]);
+
+  // Lookup map for category names
+  const categoryNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    FALLBACK_CATEGORIES.forEach((f) => {
+      map[f.slug] = f.name;
+    });
+    categories.forEach((c) => {
+      if (c.slug) map[c.slug] = c.name;
+    });
+    return map;
+  }, [categories]);
 
   // Open Add Product Modal
   const handleOpenAdd = () => {
@@ -237,6 +392,7 @@ export default function AdminProductsPage() {
       inStock: p.inStock !== false,
       isPopular: p.isPopular ?? false,
       isNewArrival: p.isNewArrival ?? false,
+      showOnHomepage: homeProductIds.has(p.id) || !!p.showOnHomepage,
     });
     setIsAddModalOpen(true);
   };
@@ -313,7 +469,7 @@ Please Note: The color of the original product may slightly vary due to photogra
   const insertShippingTemplate = () => {
     const tpl = `This item is eligible for our 7 day easy return policy. No questions asked.
 Estimated time of delivery: 2 to 6 working days.
-Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
+Free shipping on orders ₹500 and above. Flat ₹100 delivery fee on orders below ₹500. Cash on delivery available.`;
     setFormData((prev: any) => ({ ...prev, shippingInfo: tpl }));
   };
 
@@ -322,8 +478,14 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
     e.preventDefault();
     if (editingProduct) {
       await updateProduct(editingProduct.id, formData);
+      if (formData.showOnHomepage !== homeProductIds.has(editingProduct.id)) {
+        await toggleProductHomepageShowcase(editingProduct.id);
+      }
     } else {
-      await createProduct(formData);
+      const res = await createProduct(formData);
+      if (formData.showOnHomepage && res.data?.id) {
+        await toggleProductHomepageShowcase(res.data.id);
+      }
     }
     setIsAddModalOpen(false);
     fetchProductsList();
@@ -432,6 +594,14 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-navy-950 text-white px-5 py-3 rounded-2xl shadow-2xl border border-brand-500 flex items-center gap-2.5 animate-fadeIn">
+          <Check className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span className="text-xs font-bold">{toastNotification}</span>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -525,11 +695,16 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
             className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none"
           >
             <option value="all">All Categories</option>
-            <option value="school-shoes">School Shoes</option>
-            <option value="sports-shoes">Sports Shoes</option>
-            <option value="fabric-shoes">Fabric Shoes</option>
-            <option value="bags">School Bags</option>
-            <option value="accessories">Accessories</option>
+            {categories.map((c) => (
+              <option key={c.id || c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+            {FALLBACK_CATEGORIES.filter((f) => !categories.some((c) => c.slug === f.slug)).map((f) => (
+              <option key={f.slug} value={f.slug}>
+                {f.name}
+              </option>
+            ))}
           </select>
 
           {/* Status */}
@@ -542,9 +717,26 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
             className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-700 focus:outline-none"
           >
             <option value="all">All Status</option>
+            <option value="home_bottom">On Home Bottom Showcase ({homeProductIds.size})</option>
             <option value="active">In Stock / Active</option>
             <option value="inactive">Out of Stock</option>
           </select>
+
+          {/* Home Bottom Showcase Quick Filter */}
+          <button
+            onClick={() => {
+              setStatusFilter(statusFilter === 'home_bottom' ? 'all' : 'home_bottom');
+              setPage(1);
+            }}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 ${
+              statusFilter === 'home_bottom'
+                ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Home Bottom ({homeProductIds.size})</span>
+          </button>
 
           {/* Sort */}
           <select
@@ -576,6 +768,7 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
                 <th className="py-3.5 px-4">Category</th>
                 <th className="py-3.5 px-4">Price</th>
                 <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4 text-center">Home Bottom</th>
                 {isReorderingMode && <th className="py-3.5 px-4 text-center">Reorder Position</th>}
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
@@ -584,7 +777,7 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
             <tbody className="divide-y divide-gray-100 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400">
+                  <td colSpan={9} className="py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-8 h-8 border-3 border-navy-950 border-t-brand-600 rounded-full animate-spin" />
                       <span>Loading products from Supabase...</span>
@@ -593,12 +786,14 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
                 </tr>
               ) : (isReorderingMode ? reorderedItems : products).length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400">
+                  <td colSpan={9} className="py-12 text-center text-gray-400">
                     No products found matching the criteria.
                   </td>
                 </tr>
               ) : (
-                (isReorderingMode ? reorderedItems : products).map((p, idx) => (
+                (isReorderingMode ? reorderedItems : products)
+                  .filter((p) => (statusFilter === 'home_bottom' ? homeProductIds.has(p.id) : true))
+                  .map((p, idx) => (
                   <tr key={p.id} className="hover:bg-gray-50/70 transition">
                     {/* Index */}
                     <td className="py-3 px-4 text-center font-mono text-[11px] text-gray-400">
@@ -631,9 +826,9 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
                     </td>
 
                     {/* Category */}
-                    <td className="py-3 px-4 capitalize whitespace-nowrap">
-                      <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-[10px] font-bold">
-                        {p.productType.replace('-', ' ')}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="bg-brand-50 text-brand-800 border border-brand-200/60 px-2.5 py-1 rounded-lg text-[10px] font-bold">
+                        {categoryNameMap[p.productType] || p.productType.replace(/-/g, ' ')}
                       </span>
                     </td>
 
@@ -667,6 +862,35 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
                           <>
                             <XCircle className="w-3 h-3 text-red-600" />
                             <span>Inactive</span>
+                          </>
+                        )}
+                      </button>
+                    </td>
+
+                    {/* Home Bottom Eye Toggle Button */}
+                    <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => handleToggleHomeShowcase(p)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition shadow-2xs ${
+                          homeProductIds.has(p.id)
+                            ? 'bg-brand-50 text-brand-700 border border-brand-200/80 hover:bg-brand-100'
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-navy-950'
+                        }`}
+                        title={
+                          homeProductIds.has(p.id)
+                            ? 'Showing on Homepage Bottom Banner Showcase (Click to hide)'
+                            : 'Click to show on Homepage Bottom Banner Showcase'
+                        }
+                      >
+                        {homeProductIds.has(p.id) ? (
+                          <>
+                            <Eye className="w-3.5 h-3.5 text-brand-600" />
+                            <span>On Home</span>
+                          </>
+                        ) : (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5" />
+                            <span>Hidden</span>
                           </>
                         )}
                       </button>
@@ -946,19 +1170,27 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
                   {/* Category, Gender, Closure Type */}
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-gray-700">Category</label>
+                        <Link
+                          href="/admin/categories"
+                          target="_blank"
+                          className="text-[10px] text-brand-600 hover:underline font-bold"
+                          title="Manage Categories in Category Section"
+                        >
+                          + Manage
+                        </Link>
+                      </div>
                       <select
                         value={formData.productType}
                         onChange={(e) => setFormData({ ...formData, productType: e.target.value })}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 font-bold focus:outline-none"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-navy-950 font-bold focus:outline-none focus:ring-1 focus:ring-brand-500"
                       >
-                        <option value="school-shoes">School Shoes</option>
-                        <option value="sports-shoes">Sports & PT Shoes</option>
-                        <option value="fabric-shoes">Canvas & Fabric Shoes</option>
-                        <option value="bags">School Bags</option>
-                        <option value="accessories">Accessories</option>
-                        <option value="sandals">Sandals</option>
-                        <option value="daily-wear">Daily Wear</option>
+                        {availableCategories.map((c) => (
+                          <option key={c.slug} value={c.slug}>
+                            {c.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -1020,6 +1252,17 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
                         className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
                       />
                       <span>New Arrival</span>
+                    </label>
+
+                    <label className="inline-flex items-center gap-2 cursor-pointer bg-brand-50 px-3 py-2 rounded-xl border border-brand-200 text-xs font-bold text-brand-800">
+                      <input
+                        type="checkbox"
+                        checked={!!formData.showOnHomepage}
+                        onChange={(e) => setFormData({ ...formData, showOnHomepage: e.target.checked })}
+                        className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
+                      />
+                      <Eye className="w-4 h-4 text-brand-600" />
+                      <span>Show on Homepage (Bottom Banner Showcase)</span>
                     </label>
                   </div>
                 </div>
@@ -1260,6 +1503,77 @@ Free shipping on prepaid orders over ₹499. Cash on delivery available.`;
                         ({formData.reviewCount ?? 100} reviews)
                       </span>
                     </div>
+                  </div>
+
+                  {/* Live Product Comments List & Admin Delete Section */}
+                  <div className="pt-4 border-t border-gray-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-brand-600" />
+                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                          Customer Comments for this Product ({productReviews.length})
+                        </span>
+                      </div>
+                      <Link
+                        href="/admin/reviews"
+                        className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                      >
+                        <span>All Reviews</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+
+                    {loadingProductReviews ? (
+                      <div className="py-6 text-center text-xs text-gray-400">Loading comments...</div>
+                    ) : productReviews.length === 0 ? (
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-center text-xs text-gray-500">
+                        No customer comments currently attached to this product.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                        {productReviews.map((rev) => (
+                          <div
+                            key={rev.id}
+                            className="p-3 bg-white border border-gray-200 rounded-xl flex items-start justify-between gap-3 text-xs shadow-sm hover:border-gray-300 transition"
+                          >
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-gray-900">{rev.user_name}</span>
+                                <div className="flex items-center">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`w-3 h-3 ${
+                                        i < rev.rating
+                                          ? 'fill-amber-400 text-amber-400'
+                                          : 'fill-gray-200 text-gray-200'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(rev.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              {rev.title && (
+                                <p className="font-semibold text-gray-800 truncate">{rev.title}</p>
+                              )}
+                              <p className="text-gray-600 line-clamp-2">{rev.comment}</p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSpecificReview(rev.id)}
+                              disabled={deletingProductReviewId === rev.id}
+                              title="Delete this comment from product"
+                              className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition shrink-0 cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

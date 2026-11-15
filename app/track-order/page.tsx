@@ -1,87 +1,92 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, PackageCheck, Truck, MapPin, Building, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
-import { getOrders, Order } from '@/services/api';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import {
+  Search,
+  PackageCheck,
+  Truck,
+  MapPin,
+  Building,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  Check,
+  Navigation,
+  Clock,
+  ExternalLink,
+} from 'lucide-react';
+import { getOrderByIdOrNumber, Order, OrderStatus } from '@/services/api';
 
-export default function TrackOrderPage() {
-  const [orderNumber, setOrderNumber] = useState('');
+const ORDER_STEPS: OrderStatus[] = [
+  'Order Placed',
+  'Order Confirmed',
+  'Processing',
+  'Packed',
+  'Shipped',
+  'In Transit',
+  'Out for Delivery',
+  'Delivered',
+];
+
+function TrackOrderContent() {
+  const searchParams = useSearchParams();
+  const initialOrderId = searchParams.get('orderId') || '';
+
+  const [orderNumber, setOrderNumber] = useState(initialOrderId);
   const [phone, setPhone] = useState('');
-  const [trackingInfo, setTrackingInfo] = useState<any>(null);
+  const [orderData, setOrderData] = useState<Order | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleTrack = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Automatically track if orderId was passed in URL query
+  useEffect(() => {
+    if (initialOrderId) {
+      trackOrder(initialOrderId);
+    }
+  }, [initialOrderId]);
+
+  const trackOrder = async (orderIdToTrack: string) => {
+    if (!orderIdToTrack.trim()) return;
     setNotFound(false);
     setLoading(true);
 
     try {
-      const allOrders = await getOrders({ search: orderNumber.trim() });
-      const found = allOrders.find(
-        (o) =>
-          o.order_number.toUpperCase() === orderNumber.trim().toUpperCase() ||
-          o.id === orderNumber.trim()
-      );
-
-      if (found) {
-        setTrackingInfo({
-          orderId: found.order_number,
-          customerName: found.customer_name,
-          status: found.status,
-          totalAmount: found.total_amount,
-          itemsCount: found.items.length,
-          origin: 'Sector 2, Bawana Industrial Area, Delhi',
-          courier: 'Delhivery Express Uniform Priority',
-          notes: found.tracking_notes || 'Package checked and prepared for school delivery.',
-          expectedDate: found.status === 'Delivered' ? 'Delivered' : 'Within 2-3 Working Days',
-          steps: [
-            {
-              title: 'Order Placed & Confirmed',
-              done: true,
-              time: new Date(found.created_at).toLocaleDateString([], {
-                month: 'short',
-                day: 'numeric',
-              }),
-            },
-            {
-              title: 'Uniform Quality Inspection (Bawana Unit)',
-              done: found.status !== 'Pending',
-              time: found.status !== 'Pending' ? 'Completed' : 'Queued',
-            },
-            {
-              title: 'Dispatched from Factory',
-              done: ['Shipped', 'Delivered'].includes(found.status),
-              time: ['Shipped', 'Delivered'].includes(found.status) ? 'Dispatched' : 'Pending',
-            },
-            {
-              title: 'Delivered to Student Address',
-              done: found.status === 'Delivered',
-              time: found.status === 'Delivered' ? 'Delivered' : 'In Transit',
-            },
-          ],
-        });
+      const order = await getOrderByIdOrNumber(orderIdToTrack.trim());
+      if (order) {
+        setOrderData(order);
       } else {
-        // Fallback simulated tracking for demonstration
-        setTrackingInfo({
-          orderId: orderNumber.toUpperCase(),
-          status: 'In Transit - Dispatched from Factory',
-          origin: 'Sector 2, Bawana Industrial Area, Delhi',
-          courier: 'Delhivery Express School Priority',
-          notes: 'Dispatched from Delhi facility, out for uniform distribution.',
-          expectedDate: 'Within 2-3 Working Days',
-          steps: [
-            { title: 'Order Placed & Verified', done: true, time: 'Confirmed' },
-            { title: 'Quality Inspection & Uniform QC Passed', done: true, time: 'Passed' },
-            { title: 'Dispatched from Bawana Factory, Delhi', done: true, time: 'Dispatched' },
-            { title: 'Out for School Delivery', done: false, time: 'In Transit' },
-          ],
-        });
+        setOrderData(null);
+        setNotFound(true);
       }
     } catch {
+      setOrderData(null);
       setNotFound(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTrackSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    trackOrder(orderNumber);
+  };
+
+  const getStatusBadgeClass = (status: OrderStatus) => {
+    switch (status) {
+      case 'Delivered':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'Shipped':
+      case 'In Transit':
+      case 'Out for Delivery':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Processing':
+      case 'Packed':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Cancelled':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-amber-100 text-amber-800 border-amber-200';
     }
   };
 
@@ -89,15 +94,19 @@ export default function TrackOrderPage() {
     <div className="bg-gray-50 min-h-screen py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-100 text-brand-700 text-xs font-bold uppercase tracking-wider mb-1">
+            <Truck className="w-3.5 h-3.5" />
+            <span>Factory Dispatch Tracking</span>
+          </div>
           <h1 className="text-2xl sm:text-4xl font-black text-navy-950">Track Your KOSKOOL Order</h1>
-          <p className="text-xs sm:text-sm text-gray-600">
-            Enter your order reference ID (e.g. KS-849201) to track dispatch progress from Bawana plant.
+          <p className="text-xs sm:text-sm text-gray-600 max-w-lg mx-auto">
+            Enter your order reference ID (e.g. KS-849201) to view real-time factory dispatch updates from our Bawana plant.
           </p>
         </div>
 
         {/* Tracking Input Card */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
-          <form onSubmit={handleTrack} className="space-y-4">
+          <form onSubmit={handleTrackSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Order ID *</label>
@@ -116,10 +125,10 @@ export default function TrackOrderPage() {
                 </label>
                 <input
                   type="tel"
-                  placeholder="10-digit mobile number"
+                  placeholder="+91 9876543210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono"
                 />
               </div>
             </div>
@@ -129,76 +138,190 @@ export default function TrackOrderPage() {
               disabled={loading}
               className="w-full bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold py-3.5 px-6 rounded-xl shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <span>{loading ? 'Searching...' : 'Track Package'}</span>
+              <span>{loading ? 'Searching Supabase Orders...' : 'Track Package'}</span>
               <Search className="w-4 h-4" />
             </button>
           </form>
 
           {notFound && (
-            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-800 flex items-center gap-2">
+            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-800 flex items-center gap-2 animate-fadeIn">
               <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
               <span>No order found with ID &quot;{orderNumber}&quot;. Please verify and try again.</span>
             </div>
           )}
 
-          {trackingInfo && (
+          {/* Tracking Result View */}
+          {orderData && (
             <div className="pt-6 border-t border-gray-100 space-y-6 animate-fadeIn">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 rounded-2xl bg-brand-50/50 border border-brand-100">
-                <div>
+              {/* Order Status Banner */}
+              <div className="p-4 rounded-2xl bg-brand-50/50 border border-brand-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
                   <span className="text-[10px] font-bold text-gray-500 uppercase">
-                    Order {trackingInfo.orderId}
+                    Order {orderData.order_number}
                   </span>
-                  <h3 className="text-base font-extrabold text-brand-700">{trackingInfo.status}</h3>
-                  {trackingInfo.notes && (
-                    <p className="text-xs text-gray-600 mt-0.5">{trackingInfo.notes}</p>
+                  <h3 className="text-base font-black text-navy-950">
+                    Recipient: {orderData.customer_name}
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    Destination: {orderData.city}, {orderData.state} - {orderData.pincode}
+                  </p>
+                </div>
+
+                <div className="text-left sm:text-right">
+                  <span
+                    className={`inline-block text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full border ${getStatusBadgeClass(
+                      orderData.status
+                    )}`}
+                  >
+                    {orderData.status}
+                  </span>
+                  <span className="text-[11px] text-gray-400 block pt-1">
+                    Amount: <strong className="text-navy-950">₹{orderData.total_amount}</strong> ({orderData.items.length} items)
+                  </span>
+                </div>
+              </div>
+
+              {/* Courier & Dispatch Facility Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 space-y-1">
+                  <span className="text-gray-400 text-[10px] uppercase font-bold block">
+                    Manufacturing &amp; Dispatch Facility
+                  </span>
+                  <strong className="text-navy-950 block">Sector 2, Bawana Industrial Area, Delhi</strong>
+                  <span className="text-[11px] text-gray-500">Quality Checked &amp; Uniform Dispatched</span>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 space-y-1">
+                  <span className="text-gray-400 text-[10px] uppercase font-bold block">
+                    Assigned Courier Service
+                  </span>
+                  <strong className="text-navy-950 block">
+                    {orderData.courier_name || 'Bawana Factory Express Dispatch'}
+                  </strong>
+                  {orderData.tracking_id ? (
+                    <span className="text-[11px] font-mono text-brand-600 font-bold">
+                      Tracking / AWB: {orderData.tracking_id}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-gray-400">AWB assigned upon courier intake</span>
                   )}
                 </div>
-                <div className="text-right text-xs">
-                  <span className="text-gray-500 block">Estimated Delivery:</span>
-                  <span className="font-bold text-navy-950">{trackingInfo.expectedDate}</span>
-                </div>
               </div>
 
-              {/* Progress Stepper */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-navy-950">
-                  Shipment Timeline
+              {/* GPS Coordinates link if present */}
+              {orderData.latitude && orderData.longitude && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <Navigation className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Doorstep Delivery Coordinates Verified via Google Maps</span>
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps?q=${orderData.latitude},${orderData.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold underline text-emerald-900 inline-flex items-center gap-1"
+                  >
+                    <span>View Map</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+
+              {/* Live Vertical Timeline */}
+              <div className="py-2">
+                <h4 className="text-xs font-black uppercase text-navy-950 tracking-wider mb-6">
+                  Delivery Timeline &amp; Factory Updates
                 </h4>
-                <div className="relative pl-6 space-y-6 border-l-2 border-brand-500 ml-3">
-                  {trackingInfo.steps.map((st: any, idx: number) => (
-                    <div key={idx} className="relative">
-                      <div
-                        className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 ${
-                          st.done
-                            ? 'bg-brand-600 border-white ring-2 ring-brand-500'
-                            : 'bg-gray-200 border-white'
-                        }`}
-                      />
-                      <div className="flex items-center justify-between text-xs">
-                        <span
-                          className={`font-semibold ${
-                            st.done ? 'text-navy-950' : 'text-gray-400'
+
+                <div className="relative pl-6 space-y-8 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+                  {ORDER_STEPS.map((step, idx) => {
+                    const currentStepIndex = ORDER_STEPS.indexOf(orderData.status as any);
+                    const isDone = currentStepIndex >= idx;
+                    const isCurrent = orderData.status === step;
+
+                    // Match with timestamped history records
+                    const updateRecord = orderData.tracking_history?.find((h) => h.status === step);
+
+                    return (
+                      <div key={step} className="relative flex items-start gap-4">
+                        <div
+                          className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
+                            isDone
+                              ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
+                              : 'bg-white border-gray-300 text-gray-300'
                           }`}
                         >
-                          {st.title}
-                        </span>
-                        <span className="text-[11px] text-gray-400">{st.time}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                          {isDone ? (
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          ) : (
+                            <span className="text-[9px] font-bold">{idx + 1}</span>
+                          )}
+                        </div>
 
-              <div className="p-4 bg-gray-50 rounded-2xl text-xs text-gray-600 flex items-center gap-2">
-                <Building className="w-4 h-4 text-brand-600 shrink-0" />
-                <span>
-                  Dispatched directly from KOSKOOL Factory: Sector 2, Bawana Industrial Area, Delhi. Helpline: +91 8130458265.
-                </span>
+                        <div className="space-y-0.5 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h5
+                              className={`text-xs font-bold ${
+                                isCurrent
+                                  ? 'text-brand-600'
+                                  : isDone
+                                  ? 'text-navy-950'
+                                  : 'text-gray-400'
+                              }`}
+                            >
+                              {step}
+                            </h5>
+                            {isCurrent && (
+                              <span className="text-[9px] font-black uppercase bg-brand-100 text-brand-800 px-2 py-0.5 rounded-full animate-pulse">
+                                Current Status
+                              </span>
+                            )}
+                          </div>
+
+                          {updateRecord?.update_time && (
+                            <span className="text-[10px] text-gray-400 block font-mono">
+                              {new Date(updateRecord.update_time).toLocaleDateString([], {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          )}
+
+                          {updateRecord?.notes ? (
+                            <p className="text-xs text-gray-600 pt-0.5 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                              {updateRecord.notes}
+                            </p>
+                          ) : isCurrent && orderData.tracking_notes ? (
+                            <p className="text-xs text-gray-600 pt-0.5 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                              {orderData.tracking_notes}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TrackOrderPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }
+    >
+      <TrackOrderContent />
+    </Suspense>
   );
 }

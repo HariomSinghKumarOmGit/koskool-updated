@@ -19,6 +19,8 @@ import {
   Check,
   Save,
   AlertTriangle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import {
   getCategories,
@@ -27,6 +29,8 @@ import {
   deleteCategory,
   reorderCategories,
   getProducts,
+  getAllCatalogProducts,
+  updateProduct,
   Category,
 } from '@/services/api';
 import { Product } from '@/data/products';
@@ -34,6 +38,8 @@ import { uploadToStorage } from '@/lib/supabase';
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [productCounts, setProductCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   // Selected Category Drilldown
@@ -41,6 +47,12 @@ export default function AdminCategoriesPage() {
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
   const [categoryProductSearch, setCategoryProductSearch] = useState('');
   const [categoryProductLoading, setCategoryProductLoading] = useState(false);
+
+  // Assign Products Modal State
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignSelectedIds, setAssignSelectedIds] = useState<Set<string>>(new Set());
+  const [assignSearch, setAssignSearch] = useState('');
+  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
 
   // Modals & Forms
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,6 +65,7 @@ export default function AdminCategoriesPage() {
     image_url: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
     starting_price: '₹499',
     badge: 'Uniform Approved',
+    show_on_homepage: true,
   });
 
   // Reorder State
@@ -63,9 +76,21 @@ export default function AdminCategoriesPage() {
   const fetchCategoriesList = async () => {
     setLoading(true);
     try {
-      const data = await getCategories();
+      const [data, prods] = await Promise.all([
+        getCategories(),
+        getAllCatalogProducts(),
+      ]);
       setCategories(data);
       setReorderedItems(data);
+      setAllProducts(prods);
+
+      const counts: Record<string, number> = {};
+      prods.forEach((p) => {
+        if (p.productType) {
+          counts[p.productType] = (counts[p.productType] || 0) + 1;
+        }
+      });
+      setProductCounts(counts);
     } catch (err) {
       console.error(err);
     } finally {
@@ -75,6 +100,13 @@ export default function AdminCategoriesPage() {
 
   useEffect(() => {
     fetchCategoriesList();
+    const handleUpdate = () => fetchCategoriesList();
+    window.addEventListener('koskool_categories_updated', handleUpdate);
+    window.addEventListener('koskool_products_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('koskool_categories_updated', handleUpdate);
+      window.removeEventListener('koskool_products_updated', handleUpdate);
+    };
   }, []);
 
   // Drilldown to category products
@@ -97,6 +129,64 @@ export default function AdminCategoriesPage() {
     setCategoryProductSearch('');
   };
 
+  // Open Assign Products Modal
+  const handleOpenAssignModal = () => {
+    if (!selectedCategory) return;
+    const currentIds = new Set(
+      allProducts
+        .filter((p) => p.productType === selectedCategory.slug)
+        .map((p) => p.id)
+    );
+    setAssignSelectedIds(currentIds);
+    setAssignSearch('');
+    setIsAssignModalOpen(true);
+  };
+
+  const handleToggleProduct = (id: string) => {
+    setAssignSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSaveAssignments = async () => {
+    if (!selectedCategory) return;
+    setIsSavingAssignment(true);
+    try {
+      const toAdd = allProducts.filter(
+        (p) => assignSelectedIds.has(p.id) && p.productType !== selectedCategory.slug
+      );
+      const toRemove = allProducts.filter(
+        (p) => !assignSelectedIds.has(p.id) && p.productType === selectedCategory.slug
+      );
+
+      await Promise.all([
+        ...toAdd.map((p) => updateProduct(p.id, { productType: selectedCategory.slug })),
+        ...toRemove.map((p) => updateProduct(p.id, { productType: 'school-shoes' })),
+      ]);
+
+      setIsAssignModalOpen(false);
+      await fetchCategoriesList();
+      await handleSelectCategory(selectedCategory);
+    } catch (err) {
+      console.error('Failed to update category products:', err);
+    } finally {
+      setIsSavingAssignment(false);
+    }
+  };
+
+  const handleRemoveProductFromCategory = async (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Remove this product from this category?')) return;
+    await updateProduct(productId, { productType: 'school-shoes' });
+    if (selectedCategory) {
+      await fetchCategoriesList();
+      await handleSelectCategory(selectedCategory);
+    }
+  };
+
   // Open Add Category
   const handleOpenAdd = () => {
     setFormData({
@@ -106,6 +196,7 @@ export default function AdminCategoriesPage() {
       image_url: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
       starting_price: '₹499',
       badge: 'Uniform Approved',
+      show_on_homepage: true,
     });
     setEditingCategory(null);
     setIsModalOpen(true);
@@ -122,17 +213,35 @@ export default function AdminCategoriesPage() {
       image_url: cat.image_url || '',
       starting_price: cat.starting_price || '₹499',
       badge: cat.badge || 'Uniform Approved',
+      show_on_homepage: cat.show_on_homepage !== false && cat.is_active !== false,
     });
     setIsModalOpen(true);
+  };
+
+  // Toggle Homepage Visibility with Eye Button
+  const handleToggleHomepage = async (cat: Category, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextVal = !(cat.show_on_homepage !== false && cat.is_active !== false);
+    await updateCategory(cat.id, { show_on_homepage: nextVal, is_active: nextVal });
+    setCategories((prev) =>
+      prev.map((c) => (c.id === cat.id ? { ...c, show_on_homepage: nextVal, is_active: nextVal } : c))
+    );
+    setReorderedItems((prev) =>
+      prev.map((c) => (c.id === cat.id ? { ...c, show_on_homepage: nextVal, is_active: nextVal } : c))
+    );
   };
 
   // Handle Form Submit
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      is_active: formData.show_on_homepage,
+    };
     if (editingCategory) {
-      await updateCategory(editingCategory.id, formData);
+      await updateCategory(editingCategory.id, payload);
     } else {
-      await createCategory(formData);
+      await createCategory(payload);
     }
     setIsModalOpen(false);
     fetchCategoriesList();
@@ -211,16 +320,26 @@ export default function AdminCategoriesPage() {
               </div>
             </div>
 
-            {/* Search within Category */}
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={categoryProductSearch}
-                onChange={(e) => setCategoryProductSearch(e.target.value)}
-                placeholder={`Search in ${selectedCategory.name}...`}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
-              />
+            {/* Search and Action within Category */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <div className="relative w-full sm:w-60">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={categoryProductSearch}
+                  onChange={(e) => setCategoryProductSearch(e.target.value)}
+                  placeholder={`Search in ${selectedCategory.name}...`}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
+                />
+              </div>
+
+              <button
+                onClick={handleOpenAssignModal}
+                className="inline-flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow transition shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Assign Products</span>
+              </button>
             </div>
           </div>
 
@@ -232,9 +351,19 @@ export default function AdminCategoriesPage() {
                 <span className="text-xs font-bold">Loading category items...</span>
               </div>
             ) : filteredCategoryProducts.length === 0 ? (
-              <div className="col-span-full py-16 text-center text-gray-400 bg-white rounded-3xl border border-gray-200">
-                <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p className="text-xs font-bold">No products found in this category.</p>
+              <div className="col-span-full py-16 text-center text-gray-400 bg-white rounded-3xl border border-gray-200 p-8 space-y-3">
+                <Package className="w-10 h-10 mx-auto text-gray-300" />
+                <p className="text-sm font-bold text-navy-950">No products assigned to {selectedCategory.name} yet.</p>
+                <p className="text-xs text-gray-500 max-w-md mx-auto">
+                  Click below to browse the catalog and apply this category to existing products.
+                </p>
+                <button
+                  onClick={handleOpenAssignModal}
+                  className="inline-flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow transition mt-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Assign Products to this Category</span>
+                </button>
               </div>
             ) : (
               filteredCategoryProducts.map((p) => (
@@ -257,6 +386,21 @@ export default function AdminCategoriesPage() {
                       <span className="text-xs font-black text-navy-950">₹{p.price}</span>
                       <span className="text-[10px] text-gray-500 capitalize">{p.gender}</span>
                     </div>
+                  </div>
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <Link
+                      href={`/admin/products?search=${encodeURIComponent(p.name)}`}
+                      className="text-[10px] text-brand-600 hover:underline font-bold"
+                    >
+                      Edit Product →
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveProductFromCategory(p.id, e)}
+                      className="text-[10px] text-red-500 hover:text-red-700 hover:underline font-bold"
+                    >
+                      Remove
+                    </button>
                   </div>
                 </div>
               ))
@@ -297,6 +441,16 @@ export default function AdminCategoriesPage() {
             </div>
           </div>
 
+          {/* Homepage Visibility Info Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-blue-900">
+            <div>
+              <strong>Homepage Categories Customizer:</strong> You can choose exactly which categories appear on the home page using the Eye button. For example, if you have 5 categories and want to display only 2 on the homepage, click the Eye icon on the 3 you want to hide!
+            </div>
+            <span className="font-bold text-[11px] bg-white px-3 py-1.5 rounded-xl border border-blue-200 shrink-0 self-start sm:self-auto">
+              {categories.filter((c) => c.show_on_homepage !== false && c.is_active !== false).length} of {categories.length} on Home
+            </span>
+          </div>
+
           {isReordering && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3 animate-fadeIn">
               <span className="text-xs font-bold text-amber-900">
@@ -321,85 +475,114 @@ export default function AdminCategoriesPage() {
 
           {/* Categories Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {(isReordering ? reorderedItems : categories).map((cat, idx) => (
-              <div
-                key={cat.id}
-                onClick={() => !isReordering && handleSelectCategory(cat)}
-                className={`bg-white rounded-3xl p-5 border border-gray-200 shadow-sm space-y-4 transition ${
-                  isReordering
-                    ? 'cursor-default ring-1 ring-amber-300'
-                    : 'hover:shadow-md cursor-pointer hover:border-brand-300'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gray-50 relative overflow-hidden border border-gray-100 shrink-0">
-                    <Image
-                      src={cat.image_url || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'}
-                      alt={cat.name}
-                      fill
-                      className="object-contain p-2"
-                    />
-                  </div>
+            {(isReordering ? reorderedItems : categories).map((cat, idx) => {
+              const isOnHome = cat.show_on_homepage !== false && cat.is_active !== false;
+              return (
+                <div
+                  key={cat.id}
+                  onClick={() => !isReordering && handleSelectCategory(cat)}
+                  className={`bg-white rounded-3xl p-5 border border-gray-200 shadow-sm space-y-4 transition ${
+                    isReordering
+                      ? 'cursor-default ring-1 ring-amber-300'
+                      : 'hover:shadow-md cursor-pointer hover:border-brand-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-gray-50 relative overflow-hidden border border-gray-100 shrink-0">
+                      <Image
+                        src={cat.image_url || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'}
+                        alt={cat.name}
+                        fill
+                        className="object-contain p-2"
+                      />
+                    </div>
 
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-bold text-gray-400 font-mono">
-                      Order: #{cat.display_order}
-                    </span>
-                    <h3 className="text-sm font-black text-navy-950 truncate">{cat.name}</h3>
-                    <p className="text-xs text-gray-500 line-clamp-1">{cat.description}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <span className="text-[11px] font-bold text-brand-600">
-                    Click to view products →
-                  </span>
-
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {isReordering ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleMoveCategory(idx, 'up')}
-                          disabled={idx === 0}
-                          className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
-                          title="Move Up"
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] font-bold text-gray-400 font-mono">
+                          Order: #{cat.display_order}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          {productCounts[cat.slug] || 0} {productCounts[cat.slug] === 1 ? 'Product' : 'Products'}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isOnHome
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : 'bg-gray-100 text-gray-500 border border-gray-200'
+                          }`}
                         >
-                          <MoveUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleMoveCategory(idx, 'down')}
-                          disabled={idx === reorderedItems.length - 1}
-                          className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
-                          title="Move Down"
-                        >
-                          <MoveDown className="w-3.5 h-3.5" />
-                        </button>
+                          {isOnHome ? 'On Home' : 'Hidden'}
+                        </span>
                       </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={(e) => handleOpenEdit(cat, e)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-navy-950 hover:bg-gray-100 transition"
-                          title="Edit Category"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteCandidate(cat);
-                          }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
-                          title="Delete Category"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
+                      <h3 className="text-sm font-black text-navy-950 truncate">{cat.name}</h3>
+                      <p className="text-xs text-gray-500 line-clamp-1">{cat.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span className="text-[11px] font-bold text-brand-600">
+                      Click to view products ({productCounts[cat.slug] || 0}) →
+                    </span>
+
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      {isReordering ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleMoveCategory(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
+                            title="Move Up"
+                          >
+                            <MoveUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleMoveCategory(idx, 'down')}
+                            disabled={idx === reorderedItems.length - 1}
+                            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
+                            title="Move Down"
+                          >
+                            <MoveDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            onClick={(e) => handleToggleHomepage(cat, e)}
+                            className={`p-1.5 rounded-lg transition flex items-center gap-1 text-xs font-bold ${
+                              isOnHome
+                                ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                                : 'text-gray-400 bg-gray-100 hover:bg-gray-200'
+                            }`}
+                            title={isOnHome ? 'Showing on Homepage (Click to hide)' : 'Hidden from Homepage (Click to show)'}
+                          >
+                            {isOnHome ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                            <span className="text-[10px] hidden sm:inline">{isOnHome ? 'On Home' : 'Hidden'}</span>
+                          </button>
+                          <button
+                            onClick={(e) => handleOpenEdit(cat, e)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-navy-950 hover:bg-gray-100 transition"
+                            title="Edit Category"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteCandidate(cat);
+                            }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+                            title="Delete Category"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -482,6 +665,20 @@ export default function AdminCategoriesPage() {
                 </div>
               </div>
 
+              {/* Show on Homepage Toggle */}
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="cat_show_on_home"
+                  checked={formData.show_on_homepage}
+                  onChange={(e) => setFormData({ ...formData, show_on_homepage: e.target.checked })}
+                  className="w-4 h-4 text-brand-600 rounded border-gray-300 focus:ring-brand-500 cursor-pointer"
+                />
+                <label htmlFor="cat_show_on_home" className="text-xs font-bold text-navy-950 cursor-pointer">
+                  Show on Homepage Category Showcase
+                </label>
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-gray-100">
                 <button
                   type="button"
@@ -526,6 +723,154 @@ export default function AdminCategoriesPage() {
               >
                 Confirm Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Products to Category Modal */}
+      {isAssignModalOpen && selectedCategory && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 border border-gray-200 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 className="text-base font-black text-navy-950">
+                  Assign Products to {selectedCategory.name}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Select products from the catalog to apply category <span className="font-mono font-bold text-navy-950">{selectedCategory.slug}</span> ({assignSelectedIds.size} selected)
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-navy-950 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search and Quick Selection */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={assignSearch}
+                  onChange={(e) => setAssignSearch(e.target.value)}
+                  placeholder="Filter products by title, SKU, gender..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const filtered = allProducts.filter((p) =>
+                    p.name.toLowerCase().includes(assignSearch.toLowerCase()) ||
+                    (p.brand && p.brand.toLowerCase().includes(assignSearch.toLowerCase())) ||
+                    (p.gender && p.gender.toLowerCase().includes(assignSearch.toLowerCase()))
+                  );
+                  const next = new Set(assignSelectedIds);
+                  filtered.forEach((p) => next.add(p.id));
+                  setAssignSelectedIds(next);
+                }}
+                className="text-[11px] font-bold text-brand-600 hover:underline px-2"
+              >
+                Select Filtered
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssignSelectedIds(new Set())}
+                className="text-[11px] font-bold text-gray-400 hover:text-gray-600 px-2"
+              >
+                Clear All
+              </button>
+            </div>
+
+            {/* Scrollable Products List */}
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-100 border border-gray-100 rounded-2xl p-1 max-h-[50vh]">
+              {allProducts
+                .filter((p) =>
+                  p.name.toLowerCase().includes(assignSearch.toLowerCase()) ||
+                  (p.brand && p.brand.toLowerCase().includes(assignSearch.toLowerCase())) ||
+                  (p.gender && p.gender.toLowerCase().includes(assignSearch.toLowerCase()))
+                )
+                .map((p) => {
+                  const isChecked = assignSelectedIds.has(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => handleToggleProduct(p.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition ${
+                        isChecked ? 'bg-brand-50/70 border border-brand-200/50' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleProduct(p.id)}
+                        className="w-4 h-4 rounded text-brand-600 border-gray-300 focus:ring-brand-500 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="w-10 h-10 rounded-lg bg-gray-50 relative overflow-hidden border border-gray-200 shrink-0">
+                        <Image
+                          src={p.images[0] || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg'}
+                          alt={p.name}
+                          fill
+                          className="object-contain p-1"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-navy-950 truncate">{p.name}</p>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                          <span className="font-bold text-navy-950">₹{p.price}</span>
+                          <span>•</span>
+                          <span className="capitalize">{p.gender}</span>
+                          <span>•</span>
+                          <span className="font-mono text-gray-400">Current: {p.productType}</span>
+                        </div>
+                      </div>
+                      {isChecked && (
+                        <span className="text-[10px] font-bold text-brand-700 bg-brand-100 px-2 py-0.5 rounded-md shrink-0">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              <span className="text-xs font-bold text-gray-500">
+                {assignSelectedIds.size} {assignSelectedIds.size === 1 ? 'product' : 'products'} assigned to {selectedCategory.name}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAssignments}
+                  disabled={isSavingAssignment}
+                  className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSavingAssignment ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save & Apply</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

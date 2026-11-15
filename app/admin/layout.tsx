@@ -23,6 +23,7 @@ import {
   Plus,
   SlidersHorizontal,
   Sparkles,
+  Star,
 } from 'lucide-react';
 
 interface NavItem {
@@ -38,6 +39,7 @@ const NAVIGATION: NavItem[] = [
   { name: 'Hero Slides', href: '/admin/hero', icon: ImageIcon },
   { name: 'Categories', href: '/admin/categories', icon: Layers },
   { name: 'Products', href: '/admin/products', icon: Package },
+  { name: 'Customer Reviews', href: '/admin/reviews', icon: Star, badge: 'Live' },
   { name: 'Promotional Board', href: '/admin/banners', icon: Sparkles },
   { name: 'Deliveries / Orders', href: '/admin/orders', icon: Truck },
   { name: 'Messages & Quotes', href: '/admin/inquiries', icon: MessageSquare },
