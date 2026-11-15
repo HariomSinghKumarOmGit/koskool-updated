@@ -11,6 +11,7 @@ import PopularSchoolPicks from '@/components/home/PopularSchoolPicks';
 import FeaturedProductShowcase from '@/components/home/FeaturedProductShowcase';
 import BannerSectionShowcase from '@/components/home/BannerSectionShowcase';
 import SchoolTrustReviews from '@/components/home/SchoolTrustReviews';
+import HomePageSkeleton from '@/components/home/HomePageSkeleton';
 import { getHomepageSections, HomepageSection, DEFAULT_HOMEPAGE_SECTIONS } from '@/services/api';
 
 const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
@@ -28,6 +29,7 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
 
 export default function HomePage() {
   const [sections, setSections] = useState<HomepageSection[]>(DEFAULT_HOMEPAGE_SECTIONS);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,6 +41,10 @@ export default function HomePage() {
         }
       } catch (err) {
         console.error('Failed to load dynamic homepage sections:', err);
+      } finally {
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     };
 
@@ -61,13 +67,17 @@ export default function HomePage() {
     };
   }, []);
 
+  if (isInitializing) {
+    return <HomePageSkeleton />;
+  }
+
   // Filter only active sections and render in ordered sequence
   const activeSections = sections
     .filter((sec) => sec.is_active !== false)
     .sort((a, b) => a.display_order - b.display_order);
 
   return (
-    <div className="flex flex-col min-h-screen overflow-x-hidden w-full max-w-full">
+    <div className="flex flex-col min-h-screen overflow-x-hidden w-full max-w-full animate-fadeIn">
       {activeSections.map((sec) => {
         const Component = SECTION_COMPONENTS[sec.id];
         if (!Component) return null;

@@ -2494,22 +2494,6 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
   },
   {
     id: 2,
-    desktopImage: '/uploads/hero-slides/1794699795876-benjamin-voros-phIFdC6lA4E-unsplash.jpg',
-    mobileImage: '/uploads/hero-slides/1794699795876-benjamin-voros-phIFdC6lA4E-unsplash.jpg',
-    badge: 'AA OFFICIAL 2026',
-    title: 'BrobbsuNew School Collection',
-    subtitle: 'bro boomDiscover uniform compliant footwear and school essentials.',
-    primaryCtaText: 'Hellp babu',
-    primaryCtaLink: '/collections/boys',
-    secondaryCtaText: 'good luck',
-    secondaryCtaLink: '/collections/girls',
-    tertiaryCtaText: 'Explore Accessories',
-    tertiaryCtaLink: '/collections/accessories',
-    display_order: 2,
-    is_active: true,
-  },
-  {
-    id: 3,
     desktopImage: '/cdn/shop/files/Sports-Shoe-Web-Banner_934e3fd0-00bd-4c35-a071-b8943d6e32a6.v_1778128141_width_5760.jpg',
     mobileImage: '/cdn/shop/files/Sports-Shoe-Mobile-Web-Banner_69c9e92b-1fbd-4f10-b3ec-b73554dfe45c.v_1778128140_width_1000.jpg',
     badge: 'PT & SPORTS UNIFORM',
@@ -2521,11 +2505,11 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
     secondaryCtaLink: '/collections/girls-sports-shoes-middle-wing',
     tertiaryCtaText: 'Explore Bags',
     tertiaryCtaLink: '/collections/bags',
-    display_order: 3,
+    display_order: 2,
     is_active: true,
   },
   {
-    id: 4,
+    id: 3,
     desktopImage: '/cdn/shop/files/Kids-Banner.v_1768369268_width_5760.jpg',
     mobileImage: '/cdn/shop/files/Kids-Mobile-Banner.v_1768369268_width_1000.jpg',
     badge: 'KINDERGARTEN SPECIAL',
@@ -2537,42 +2521,14 @@ export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
     secondaryCtaLink: '/collections/kids-accessories',
     tertiaryCtaText: 'Junior Bags',
     tertiaryCtaLink: '/collections/kids-school-bags',
-    display_order: 4,
+    display_order: 3,
     is_active: true,
   },
 ];
 
 export async function getHeroSlides(): Promise<HeroSlide[]> {
-  // 1. Try Supabase first (source of truth — works across all devices)
+  // 1. Try Supabase app_settings (universal cloud sync — works across all devices)
   try {
-    // Try hero_slides table if created
-    const { data: tableData, error: tableError } = await supabase
-      .from('hero_slides')
-      .select('*')
-      .order('display_order', { ascending: true });
-
-    if (!tableError && tableData && tableData.length > 0) {
-      const mapped: HeroSlide[] = tableData.map((row: any) => ({
-        id: row.slide_id || row.id,
-        badge: row.badge || '',
-        title: row.title || '',
-        subtitle: row.subtitle || '',
-        desktopImage: row.desktop_image || '',
-        mobileImage: row.mobile_image || row.desktop_image || '',
-        primaryCtaText: row.primary_cta_text || '',
-        primaryCtaLink: row.primary_cta_link || '',
-        secondaryCtaText: row.secondary_cta_text || '',
-        secondaryCtaLink: row.secondary_cta_link || '',
-        tertiaryCtaText: row.tertiary_cta_text || '',
-        tertiaryCtaLink: row.tertiary_cta_link || '',
-        display_order: Number(row.display_order) || 1,
-        is_active: row.is_active !== false,
-      }));
-      setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, mapped);
-      return mapped.sort((a, b) => a.display_order - b.display_order);
-    }
-
-    // Try app_settings key 'hero_slides' (guaranteed instant cloud sync)
     const { data: settingData, error: settingError } = await supabase
       .from('app_settings')
       .select('value')
@@ -2582,7 +2538,7 @@ export async function getHeroSlides(): Promise<HeroSlide[]> {
     if (!settingError && settingData?.value && Array.isArray(settingData.value) && settingData.value.length > 0) {
       const slides = settingData.value as HeroSlide[];
       setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, slides);
-      return [...slides].sort((a, b) => a.display_order - b.display_order);
+      return [...slides].sort((a, b) => (Number(a.display_order) || 0) - (Number(b.display_order) || 0));
     }
   } catch (err) {
     console.warn('getHeroSlides Supabase fallback:', err);
@@ -2590,7 +2546,7 @@ export async function getHeroSlides(): Promise<HeroSlide[]> {
 
   // 2. Fallback to localStorage
   const slides = getCache<HeroSlide[]>(LOCAL_STORAGE_HERO_SLIDES_KEY, DEFAULT_HERO_SLIDES);
-  return [...slides].sort((a, b) => a.display_order - b.display_order);
+  return [...slides].sort((a, b) => (Number(a.display_order) || 0) - (Number(b.display_order) || 0));
 }
 
 export async function saveHeroSlides(slides: HeroSlide[]) {
@@ -2604,31 +2560,7 @@ export async function saveHeroSlides(slides: HeroSlide[]) {
     console.warn('saveHeroSlides Supabase app_settings error:', err);
   }
 
-  // 2. Attempt to sync with public.hero_slides table if it exists
-  try {
-    const rows = slides.map((s, idx) => ({
-      slide_id: String(s.id),
-      badge: s.badge || '',
-      title: s.title || '',
-      subtitle: s.subtitle || '',
-      desktop_image: s.desktopImage || '',
-      mobile_image: s.mobileImage || s.desktopImage || '',
-      primary_cta_text: s.primaryCtaText || '',
-      primary_cta_link: s.primaryCtaLink || '',
-      secondary_cta_text: s.secondaryCtaText || '',
-      secondary_cta_link: s.secondaryCtaLink || '',
-      tertiary_cta_text: s.tertiaryCtaText || '',
-      tertiary_cta_link: s.tertiaryCtaLink || '',
-      display_order: s.display_order ?? idx + 1,
-      is_active: s.is_active !== false,
-      updated_at: new Date().toISOString(),
-    }));
-    await supabase.from('hero_slides').upsert(rows, { onConflict: 'slide_id' });
-  } catch (err) {
-    // hero_slides table might not exist yet; app_settings already handled persistence
-  }
-
-  // 3. Keep local cache updated & broadcast changes
+  // 2. Keep local cache updated & broadcast changes
   setCache(LOCAL_STORAGE_HERO_SLIDES_KEY, slides);
   broadcastDataChange('hero_slides');
   return { success: true };
@@ -2673,12 +2605,6 @@ export async function deleteHeroSlide(id: number | string) {
   const filtered = slides.filter((s) => String(s.id) !== String(id));
   const reindexed = filtered.map((s, idx) => ({ ...s, display_order: idx + 1 }));
   await saveHeroSlides(reindexed);
-
-  // Also delete from hero_slides table if it exists
-  try {
-    await supabase.from('hero_slides').delete().eq('slide_id', String(id));
-  } catch (err) {}
-
   return { success: true };
 }
 

@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-
+import HeroSkeleton from './HeroSkeleton';
 import {
   getHeroSlides,
   HeroSlide,
@@ -13,6 +12,7 @@ import {
 
 export default function HeroSlideshow() {
   const [slides, setSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -60,9 +60,13 @@ export default function HeroSlideshow() {
             setSlides(activeSlides);
             setCurrentSlide((prev) => (prev >= activeSlides.length ? 0 : prev));
           }
+          setIsLoading(false);
         }
       } catch (err) {
         console.error('Failed to load hero slides:', err);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -95,7 +99,7 @@ export default function HeroSlideshow() {
   };
 
   useEffect(() => {
-    if (isPlaying && slides.length > 1) {
+    if (isPlaying && slides.length > 1 && !isLoading) {
       timerRef.current = setInterval(() => {
         nextSlide();
       }, 5500);
@@ -103,13 +107,19 @@ export default function HeroSlideshow() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, currentSlide, slides.length]);
+  }, [isPlaying, currentSlide, slides.length, isLoading]);
+
+  // If still loading hero data on startup, show skeleton
+  if (isLoading) {
+    return <HeroSkeleton />;
+  }
 
   const activeIndex = currentSlide < slides.length ? currentSlide : 0;
+  const fallbackImage = DEFAULT_HERO_SLIDES[0]?.desktopImage || '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg';
 
   return (
     <div
-      className="relative w-full bg-navy-950 select-none overflow-hidden"
+      className="relative w-full bg-navy-950 select-none overflow-hidden animate-fadeIn"
       onMouseEnter={() => setIsPlaying(false)}
       onMouseLeave={() => setIsPlaying(true)}
     >
@@ -133,12 +143,21 @@ export default function HeroSlideshow() {
               title={`View ${slide.title || 'Collection'}`}
             >
               <picture className="w-full h-full block">
-                <source media="(max-width: 767px)" srcSet={slide.mobileImage || slide.desktopImage} />
+                <source
+                  media="(max-width: 767px)"
+                  srcSet={slide.mobileImage || slide.desktopImage || fallbackImage}
+                />
                 <img
-                  src={slide.desktopImage}
+                  src={slide.desktopImage || fallbackImage}
                   alt={slide.title || 'Hero Banner'}
                   className="w-full h-full object-cover object-center"
                   loading={idx === 0 ? 'eager' : 'lazy'}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (target.src !== fallbackImage) {
+                      target.src = fallbackImage;
+                    }
+                  }}
                 />
               </picture>
             </Link>
