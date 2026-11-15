@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { MAIN_NAVIGATION } from '@/data/navigation';
 import { X, ChevronDown, ChevronRight, Phone, Mail, MapPin, ExternalLink, User, Truck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -36,10 +37,14 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
       <div className="relative w-full max-w-[85vw] sm:max-w-sm bg-white h-full flex flex-col shadow-2xl z-10 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-navy-950 text-white">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center font-black text-white text-lg tracking-wider shadow">
-              K
-            </div>
+          <div className="flex items-center gap-2.5">
+            <Image
+              src="/logo-circle.png"
+              alt="KOSKOOL"
+              width={36}
+              height={36}
+              className="w-9 h-9 rounded-full object-contain shadow shrink-0"
+            />
             <div>
               <span className="font-extrabold text-lg tracking-wider text-white">KOSKOOL</span>
               <p className="text-[10px] text-gray-300 -mt-1">Aaao School Chale Hum</p>

@@ -32,7 +32,14 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: 'KOSKOOL - Owner Vipul Singla' }],
   icons: {
-    icon: '/cdn/shop/files/walkaroo-favicon_1.crop_center_height_32_v_1692935314_width_32.png',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/logo-circle.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/logo-circle.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
 };
 

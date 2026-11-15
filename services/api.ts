@@ -933,6 +933,8 @@ export async function reorderProducts(reorderedList: { id: string; display_order
 // 2. CATEGORIES API
 // ==========================================
 export async function getCategories(): Promise<Category[]> {
+  const localCache = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, []);
+
   try {
     const { data, error } = await supabase
       .from('categories')
@@ -940,38 +942,79 @@ export async function getCategories(): Promise<Category[]> {
       .order('display_order', { ascending: true });
 
     if (!error && data && data.length > 0) {
-      return data;
+      const formatted: Category[] = data.map((d: any) => {
+        const localMatch = localCache.find((lc) => lc.slug === d.slug || lc.id === d.id);
+        return {
+          id: d.id,
+          slug: d.slug,
+          name: d.name,
+          description: d.description || '',
+          image_url: d.image_url || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+          display_order: d.display_order ?? 0,
+          is_active: d.is_active !== false,
+          show_on_homepage: localMatch?.show_on_homepage !== undefined ? localMatch.show_on_homepage : true,
+          starting_price: localMatch?.starting_price || '₹499',
+          badge: localMatch?.badge || 'Uniform Approved',
+        };
+      });
+
+      // Merge local-only categories not yet in Supabase
+      const dbSlugs = new Set(formatted.map((f) => f.slug));
+      localCache.forEach((lc) => {
+        if (!dbSlugs.has(lc.slug)) {
+          formatted.push(lc);
+        }
+      });
+
+      formatted.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      setCache(LOCAL_STORAGE_CATEGORIES_KEY, formatted);
+      return formatted;
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('Supabase getCategories error:', err);
   }
 
   return getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
 }
 
 export async function createCategory(cat: Partial<Category>) {
-  const newCat: Category = {
-    id: `cat-${Date.now()}`,
-    slug: cat.slug || cat.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `category-${Date.now()}`,
+  const slug = cat.slug || cat.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `category-${Date.now()}`;
+  const dbPayload: any = {
+    slug,
     name: cat.name || 'New Category',
     description: cat.description || '',
     image_url: cat.image_url || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
-    display_order: cat.display_order || 1,
+    display_order: cat.display_order ?? 1,
     is_active: cat.is_active !== undefined ? cat.is_active : true,
-    show_on_homepage: cat.show_on_homepage !== undefined ? cat.show_on_homepage : true,
-    starting_price: cat.starting_price || '₹499',
-    badge: cat.badge || '',
   };
 
-  try {
-    await supabase.from('categories').insert([newCat]);
-  } catch {
-    // ignore
+  if (cat.id && isUUID(cat.id)) {
+    dbPayload.id = cat.id;
   }
 
+  let assignedId: string | undefined = undefined;
+  try {
+    const { data, error } = await supabase.from('categories').insert([dbPayload]).select().single();
+    if (!error && data) {
+      assignedId = data.id;
+    }
+  } catch (err) {
+    console.warn('Supabase createCategory error:', err);
+  }
+
+  const newCat: Category = {
+    ...dbPayload,
+    id: assignedId || cat.id || `cat-${Date.now()}`,
+    show_on_homepage: cat.show_on_homepage !== undefined ? cat.show_on_homepage : true,
+    starting_price: cat.starting_price || '₹499',
+    badge: cat.badge || 'Uniform Approved',
+  };
+
   const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
-  cached.push(newCat);
-  setCache(LOCAL_STORAGE_CATEGORIES_KEY, cached);
+  const filtered = cached.filter((c) => c.slug !== newCat.slug && c.id !== newCat.id);
+  filtered.push(newCat);
+  filtered.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+  setCache(LOCAL_STORAGE_CATEGORIES_KEY, filtered);
   broadcastDataChange('categories');
 
   return { success: true, data: newCat };
@@ -983,12 +1026,19 @@ export async function toggleCategoryHomepage(id: string) {
   if (idx > -1) {
     const nextState = !(cached[idx].show_on_homepage !== false && cached[idx].is_active !== false);
     cached[idx].show_on_homepage = nextState;
+    cached[idx].is_active = nextState;
     setCache(LOCAL_STORAGE_CATEGORIES_KEY, cached);
+
     try {
-      await supabase.from('categories').update({ show_on_homepage: nextState }).eq('id', id);
-    } catch {
-      // ignore
+      if (isUUID(id)) {
+        await supabase.from('categories').update({ is_active: nextState }).eq('id', id);
+      } else if (cached[idx].slug) {
+        await supabase.from('categories').update({ is_active: nextState }).eq('slug', cached[idx].slug);
+      }
+    } catch (err) {
+      console.warn('Supabase toggleCategoryHomepage error:', err);
     }
+
     broadcastDataChange('categories');
     return { success: true, show_on_homepage: nextState };
   }
@@ -996,14 +1046,32 @@ export async function toggleCategoryHomepage(id: string) {
 }
 
 export async function updateCategory(id: string, updates: Partial<Category>) {
+  const dbUpdates: any = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.slug !== undefined) dbUpdates.slug = updates.slug;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.image_url !== undefined) dbUpdates.image_url = updates.image_url;
+  if (updates.display_order !== undefined) dbUpdates.display_order = updates.display_order;
+  if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+
   try {
-    await supabase.from('categories').update(updates).eq('id', id);
-  } catch {
-    // ignore
+    if (isUUID(id)) {
+      await supabase.from('categories').update(dbUpdates).eq('id', id);
+    } else if (updates.slug) {
+      await supabase.from('categories').update(dbUpdates).eq('slug', updates.slug);
+    } else {
+      const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
+      const target = cached.find((c) => c.id === id);
+      if (target?.slug) {
+        await supabase.from('categories').update(dbUpdates).eq('slug', target.slug);
+      }
+    }
+  } catch (err) {
+    console.warn('Supabase updateCategory error:', err);
   }
 
   const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
-  const idx = cached.findIndex((c) => c.id === id);
+  const idx = cached.findIndex((c) => c.id === id || (updates.slug && c.slug === updates.slug));
   if (idx > -1) {
     cached[idx] = { ...cached[idx], ...updates };
     setCache(LOCAL_STORAGE_CATEGORIES_KEY, cached);
@@ -1015,9 +1083,17 @@ export async function updateCategory(id: string, updates: Partial<Category>) {
 
 export async function deleteCategory(id: string) {
   try {
-    await supabase.from('categories').delete().eq('id', id);
-  } catch {
-    // ignore
+    if (isUUID(id)) {
+      await supabase.from('categories').delete().eq('id', id);
+    } else {
+      const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
+      const target = cached.find((c) => c.id === id);
+      if (target?.slug) {
+        await supabase.from('categories').delete().eq('slug', target.slug);
+      }
+    }
+  } catch (err) {
+    console.warn('Supabase deleteCategory error:', err);
   }
 
   const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
@@ -1029,17 +1105,26 @@ export async function deleteCategory(id: string) {
 }
 
 export async function reorderCategories(reorderedList: { id: string; display_order: number }[]) {
+  const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
+  const idMap = new Map(cached.map((c) => [c.id, c]));
+
   try {
     for (const item of reorderedList) {
-      await supabase.from('categories').update({ display_order: item.display_order }).eq('id', item.id);
+      if (isUUID(item.id)) {
+        await supabase.from('categories').update({ display_order: item.display_order }).eq('id', item.id);
+      } else {
+        const cat = idMap.get(item.id);
+        if (cat?.slug) {
+          await supabase.from('categories').update({ display_order: item.display_order }).eq('slug', cat.slug);
+        }
+      }
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('Supabase reorderCategories error:', err);
   }
 
-  const cached = getCache<Category[]>(LOCAL_STORAGE_CATEGORIES_KEY, DEFAULT_CATEGORIES);
-  const map = new Map(reorderedList.map((i) => [i.id, i.display_order]));
-  const updated = cached.map((c) => (map.has(c.id) ? { ...c, display_order: map.get(c.id)! } : c));
+  const orderMap = new Map(reorderedList.map((i) => [i.id, i.display_order]));
+  const updated = cached.map((c) => (orderMap.has(c.id) ? { ...c, display_order: orderMap.get(c.id)! } : c));
   updated.sort((a, b) => a.display_order - b.display_order);
   setCache(LOCAL_STORAGE_CATEGORIES_KEY, updated);
   broadcastDataChange('categories');

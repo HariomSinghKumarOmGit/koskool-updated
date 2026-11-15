@@ -79,6 +79,9 @@ export default function CollectionPage() {
   else if (slug.includes('fabric-shoes') || slug.includes('canvas')) initialProductType = 'fabric-shoes';
   else if (slug.includes('bag')) initialProductType = 'bags';
   else if (slug.includes('accessories')) initialProductType = 'accessories';
+  else if (slug !== 'boys' && slug !== 'girls' && slug !== 'kids' && slug !== 'all' && !slug.includes('wing') && !slug.includes('kindergarten')) {
+    initialProductType = slug;
+  }
 
   let initialSchoolLevel: string | undefined = undefined;
   if (slug.includes('kindergarten')) initialSchoolLevel = 'kindergarten';

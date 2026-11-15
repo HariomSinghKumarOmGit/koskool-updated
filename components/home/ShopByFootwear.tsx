@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getFootwearCategories, FootwearCategoryCard, DEFAULT_FOOTWEAR_CATEGORIES } from '@/services/api';
+import { getFootwearCategories, getCategories, FootwearCategoryCard, DEFAULT_FOOTWEAR_CATEGORIES } from '@/services/api';
 
 export default function ShopByFootwear() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -16,7 +16,32 @@ export default function ShopByFootwear() {
     let isMounted = true;
     async function loadFootwear() {
       try {
-        const loaded = await getFootwearCategories();
+        const [cats, loaded] = await Promise.all([getCategories(), getFootwearCategories()]);
+        const homeCats = cats.filter((c) => c.is_active !== false && c.show_on_homepage !== false);
+        if (homeCats.length > 0) {
+          const cards: FootwearCategoryCard[] = homeCats.map((c) => {
+            const fallback = loaded.find((f) => f.id === c.slug || f.href.endsWith(`/${c.slug}`));
+            return {
+              id: c.slug,
+              title: c.name,
+              subtitle: c.description || fallback?.subtitle || 'Engineered for comfort and uniform standards.',
+              image: c.image_url || fallback?.image || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
+              tag: c.badge || fallback?.tag || 'Uniform Approved',
+              href: `/collections/${c.slug}`,
+              features: fallback?.features || ['Cushioned Insole', 'Anti-Slip Sole'],
+              startingPrice: c.starting_price || fallback?.startingPrice || '₹499',
+              display_order: c.display_order ?? 1,
+              is_active: true,
+              show_on_homepage: true,
+            };
+          });
+          cards.sort((a, b) => a.display_order - b.display_order);
+          if (isMounted) {
+            setCategories(cards);
+          }
+          return;
+        }
+
         const active = loaded.filter((c) => c.is_active !== false && c.show_on_homepage !== false);
         if (isMounted) {
           active.sort((a, b) => a.display_order - b.display_order);

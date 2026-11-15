@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Phone,
   Mail,
@@ -32,12 +33,18 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           {/* Column 1: Brand Info */}
           <div className="col-span-2 space-y-4">
-            <div className="flex flex-col">
-              <span className="text-2xl font-black text-white tracking-wider">KOSKOOL</span>
-              <span className="text-[11px] font-bold text-brand-400 tracking-widest uppercase">
+            <Link href="/" className="inline-block group">
+              <Image
+                src="/logo.png"
+                alt="KOSKOOL"
+                width={150}
+                height={46}
+                className="h-9 sm:h-10 w-auto object-contain brightness-105 group-hover:scale-[1.02] transition-transform duration-150"
+              />
+              <span className="block text-[10px] font-bold text-brand-400 tracking-widest uppercase mt-2">
                 Aaao School Chale Hum
               </span>
-            </div>
+            </Link>
             <p className="text-xs text-gray-400 leading-relaxed pr-4">
               KOSKOOL is India’s dedicated brand for durable, comfortable school footwear and everyday student accessories. Engineered to support children from kindergarten steps through high school milestones.
             </p>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -130,9 +131,13 @@ function LoginContent() {
     <div className="bg-gray-50 min-h-screen py-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
       <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-gray-200 shadow-xl space-y-6 animate-scaleIn">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-navy-950 text-white rounded-2xl flex items-center justify-center font-black text-xl mx-auto shadow-md">
-            K
-          </div>
+          <Image
+            src="/logo-circle.png"
+            alt="KOSKOOL"
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-full mx-auto shadow-md object-contain"
+          />
           <h1 className="text-2xl font-black text-navy-950">
             {signupComplete
               ? 'Verify Your Email'

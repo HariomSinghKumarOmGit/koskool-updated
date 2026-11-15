@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { MAIN_NAVIGATION, NavItem } from '@/data/navigation';
 import MegaMenu from './MegaMenu';
@@ -61,14 +62,18 @@ export default function Navbar() {
 
             {/* Brand Logo */}
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/" className="group flex flex-col items-start select-none">
-                <div className="flex items-center gap-1">
-                  <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-navy-950 group-hover:text-brand-600 transition duration-150">
-                    KOSKOOL
-                  </span>
-                  <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-brand-600 inline-block mb-1 group-hover:scale-125 transition"></span>
+              <Link href="/" className="group flex flex-col items-start select-none py-1">
+                <div className="flex items-center">
+                  <Image
+                    src="/logo.png"
+                    alt="KOSKOOL"
+                    width={150}
+                    height={46}
+                    priority
+                    className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                  />
                 </div>
-                <span className="text-[9px] sm:text-[10px] tracking-widest font-semibold uppercase text-brand-600 -mt-0.5 sm:-mt-1 group-hover:text-navy-900 transition">
+                <span className="text-[8px] sm:text-[9.5px] tracking-widest font-bold uppercase text-brand-600 group-hover:text-navy-900 transition mt-0.5 pl-0.5 select-none">
                   Aaao School Chale Hum
                 </span>
               </Link>

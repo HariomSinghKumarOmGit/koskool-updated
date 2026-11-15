@@ -4,23 +4,54 @@ import React, { useState, useRef, useEffect } from 'react';
 import { PRODUCTS, Product } from '@/data/products';
 import ProductCard from '@/components/product/ProductCard';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getPreviewProducts } from '@/services/api';
+import { getPreviewProducts, getCategories, Category } from '@/services/api';
 
 export default function PopularSchoolPicks() {
-  const [activeTab, setActiveTab] = useState<
-    'all' | 'school-shoes' | 'sports-shoes' | 'fabric-shoes' | 'accessories' | 'bags'
-  >('all');
+  const [activeTab, setActiveTab] = useState<string>('all');
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [dynamicCategories, setDynamicCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCategories().then((cats) => {
+      if (isMounted && cats && cats.length > 0) {
+        setDynamicCategories(cats);
+      }
+    });
+
+    const handleUpdate = () => {
+      getCategories().then((cats) => {
+        if (isMounted && cats && cats.length > 0) {
+          setDynamicCategories(cats);
+        }
+      });
+    };
+
+    window.addEventListener('koskool_categories_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('koskool_categories_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const tabs = [
     { id: 'all', label: 'All Picks' },
-    { id: 'school-shoes', label: 'School Shoes' },
-    { id: 'sports-shoes', label: 'Sports & PT' },
-    { id: 'fabric-shoes', label: 'Canvas & Fabric' },
-    { id: 'bags', label: 'School Bags' },
-    { id: 'accessories', label: 'Accessories' },
+    ...(dynamicCategories.length > 0
+      ? dynamicCategories
+          .filter((c) => c.is_active !== false)
+          .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+          .map((c) => ({ id: c.slug, label: c.name }))
+      : [
+          { id: 'school-shoes', label: 'School Uniform Shoes' },
+          { id: 'sports-shoes', label: 'PT & Sports Shoes' },
+          { id: 'fabric-shoes', label: 'Fabric & Canvas Shoes' },
+          { id: 'bags', label: 'School Backpacks' },
+          { id: 'accessories', label: 'Student Accessories' },
+        ]),
   ];
 
   // Load preview products with minimal images to save Supabase egress & client memory

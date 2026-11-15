@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useAuth, AuthModalMode } from '@/context/AuthContext';
 import {
   Lock,
@@ -130,9 +131,13 @@ export default function AuthModal() {
 
         {/* Header */}
         <div className="text-center space-y-1.5">
-          <div className="w-12 h-12 bg-navy-950 text-white rounded-2xl flex items-center justify-center font-black text-xl mx-auto shadow-md">
-            K
-          </div>
+          <Image
+            src="/logo-circle.png"
+            alt="KOSKOOL"
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-full mx-auto shadow-md object-contain"
+          />
           <h2 className="text-xl sm:text-2xl font-black text-navy-950">
             {signupComplete
               ? 'Verify Your Email'

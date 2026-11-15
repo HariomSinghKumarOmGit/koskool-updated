@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/data/products';
+import { getCategories, Category } from '@/services/api';
 import {
   ChevronRight,
   SlidersHorizontal,
@@ -75,6 +76,37 @@ export default function CategoryTemplate({
     price: true,
   });
 
+  // Dynamic categories synced with Category Management & Supabase
+  const [dynamicCategories, setDynamicCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCategories = async () => {
+      try {
+        const cats = await getCategories();
+        if (isMounted && cats && cats.length > 0) {
+          setDynamicCategories(cats);
+        }
+      } catch (err) {
+        console.error('Failed to load dynamic categories:', err);
+      }
+    };
+
+    loadCategories();
+
+    const handleUpdate = () => loadCategories();
+    window.addEventListener('koskool_categories_updated', handleUpdate);
+    window.addEventListener('koskool_data_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('koskool_categories_updated', handleUpdate);
+      window.removeEventListener('koskool_data_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
   const toggleAccordion = (key: string) => {
     setAccordionState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -135,7 +167,7 @@ export default function CategoryTemplate({
     return list;
   }, [masterProducts]);
 
-  // Category filter options with counts
+  // Category filter options with counts (synced with Category Management)
   const categoryFilterOptions = useMemo(() => {
     const counts: Record<string, number> = {};
     masterProducts.forEach((p) => {
@@ -153,21 +185,54 @@ export default function CategoryTemplate({
       counts[p.productType] = (counts[p.productType] || 0) + 1;
     });
 
-    const standard: { id: string; label: string }[] = [
-      { id: 'school-shoes', label: 'School Shoes' },
-      { id: 'sports-shoes', label: 'Sports & PT Shoes' },
-      { id: 'fabric-shoes', label: 'Canvas & Fabric (Fibre)' },
-      { id: 'bags', label: 'School Backpacks' },
-      { id: 'accessories', label: 'Accessories' },
-    ];
+    const categoryList: { id: string; label: string; order: number }[] = [];
+    const seen = new Set<string>();
 
-    return standard
+    if (dynamicCategories.length > 0) {
+      dynamicCategories
+        .filter((c) => c.is_active !== false)
+        .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+        .forEach((c) => {
+          seen.add(c.slug);
+          categoryList.push({
+            id: c.slug,
+            label: c.name,
+            order: c.display_order ?? 0,
+          });
+        });
+    } else {
+      const standard: { id: string; label: string; order: number }[] = [
+        { id: 'school-shoes', label: 'School Uniform Shoes', order: 1 },
+        { id: 'sports-shoes', label: 'PT & Sports Shoes', order: 2 },
+        { id: 'fabric-shoes', label: 'Fabric & Canvas Shoes', order: 3 },
+        { id: 'bags', label: 'School Backpacks', order: 4 },
+        { id: 'accessories', label: 'Student Accessories', order: 5 },
+      ];
+      standard.forEach((s) => {
+        seen.add(s.id);
+        categoryList.push(s);
+      });
+    }
+
+    // Also include any active product types in masterProducts that aren't yet in the list
+    Object.keys(counts).forEach((pt) => {
+      if (pt && !seen.has(pt) && counts[pt] > 0) {
+        seen.add(pt);
+        categoryList.push({
+          id: pt,
+          label: pt.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          order: 99,
+        });
+      }
+    });
+
+    return categoryList
       .map((item) => ({
         ...item,
         count: counts[item.id] || 0,
       }))
-      .filter((item) => item.count > 0 || selectedProductTypes.includes(item.id));
-  }, [masterProducts, selectedGenders, selectedProductTypes]);
+      .filter((item) => item.count > 0 || selectedProductTypes.includes(item.id) || dynamicCategories.some((c) => c.slug === item.id && c.is_active !== false));
+  }, [masterProducts, selectedGenders, selectedProductTypes, dynamicCategories]);
 
   // School Wing options with counts
   const schoolWingOptions = useMemo(() => {
@@ -218,15 +283,22 @@ export default function CategoryTemplate({
     });
 
     const counts: Record<string, number> = {};
+    const catNameMap = new Map<string, string>();
+    dynamicCategories.forEach((c) => {
+      catNameMap.set(c.slug, c.name);
+    });
 
     relevantPool.forEach((p) => {
-      if (p.productType === 'school-shoes') counts['School Shoes'] = (counts['School Shoes'] || 0) + 1;
-      else if (p.productType === 'sports-shoes') counts['Sports & PT'] = (counts['Sports & PT'] || 0) + 1;
-      else if (p.productType === 'fabric-shoes') counts['Canvas & Fabric'] = (counts['Canvas & Fabric'] || 0) + 1;
-      else if (p.productType === 'bags') counts['School Bags'] = (counts['School Bags'] || 0) + 1;
-      else if (p.productType === 'accessories') counts['Accessories'] = (counts['Accessories'] || 0) + 1;
+      const dynamicName = catNameMap.get(p.productType);
+      if (dynamicName) {
+        counts[dynamicName] = (counts[dynamicName] || 0) + 1;
+      } else if (p.productType === 'school-shoes') counts['School Uniform Shoes'] = (counts['School Uniform Shoes'] || 0) + 1;
+      else if (p.productType === 'sports-shoes') counts['PT & Sports Shoes'] = (counts['PT & Sports Shoes'] || 0) + 1;
+      else if (p.productType === 'fabric-shoes') counts['Fabric & Canvas Shoes'] = (counts['Fabric & Canvas Shoes'] || 0) + 1;
+      else if (p.productType === 'bags') counts['School Backpacks'] = (counts['School Backpacks'] || 0) + 1;
+      else if (p.productType === 'accessories') counts['Student Accessories'] = (counts['Student Accessories'] || 0) + 1;
       else {
-        const sub = p.subcategory || 'Footwear';
+        const sub = p.subcategory || p.productType.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
         counts[sub] = (counts[sub] || 0) + 1;
       }
     });
@@ -258,7 +330,7 @@ export default function CategoryTemplate({
     }
 
     return list;
-  }, [masterProducts, selectedGenders]);
+  }, [masterProducts, selectedGenders, dynamicCategories]);
 
   // Extract available sizes with live counts from this collection (curated to top 4-5 sizes)
   const sizeCounts = useMemo(() => {
@@ -447,7 +519,18 @@ export default function CategoryTemplate({
 
         // Subcategory tab filter
         if (activeSubcategory !== 'all') {
+          const matchedCategory = dynamicCategories.find(
+            (c) => c.slug === p.productType || c.name.toLowerCase() === activeSubcategory.toLowerCase()
+          );
           const typeMatch =
+            (matchedCategory && matchedCategory.name.toLowerCase() === activeSubcategory.toLowerCase()) ||
+            p.productType.toLowerCase() === activeSubcategory.toLowerCase() ||
+            (p.subcategory && p.subcategory.toLowerCase() === activeSubcategory.toLowerCase()) ||
+            (activeSubcategory === 'School Uniform Shoes' && p.productType === 'school-shoes') ||
+            (activeSubcategory === 'PT & Sports Shoes' && p.productType === 'sports-shoes') ||
+            (activeSubcategory === 'Fabric & Canvas Shoes' && p.productType === 'fabric-shoes') ||
+            (activeSubcategory === 'School Backpacks' && p.productType === 'bags') ||
+            (activeSubcategory === 'Student Accessories' && p.productType === 'accessories') ||
             (activeSubcategory === 'School Shoes' && p.productType === 'school-shoes') ||
             (activeSubcategory === 'Sports & PT' && p.productType === 'sports-shoes') ||
             (activeSubcategory === 'Canvas & Fabric' && p.productType === 'fabric-shoes') ||

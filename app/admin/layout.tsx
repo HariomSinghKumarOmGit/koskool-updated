@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -113,9 +114,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Top Bar */}
       <header className="md:hidden bg-navy-950 text-white px-4 py-3 flex items-center justify-between border-b border-navy-900 sticky top-0 z-40">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-brand-600 text-white font-black flex items-center justify-center text-sm shadow">
-            K
-          </div>
+          <Image
+            src="/logo-circle.png"
+            alt="KOSKOOL"
+            width={32}
+            height={32}
+            className="w-8 h-8 rounded-full object-contain shadow shrink-0"
+          />
           <div>
             <span className="font-black text-sm tracking-wider block">KOSKOOL</span>
             <span className="text-[9px] text-gray-400 block -mt-0.5">Management Portal</span>
@@ -140,9 +145,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Logo & Store Header */}
           <div className="p-6 border-b border-navy-900">
             <Link href="/admin" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-600 text-white font-black flex items-center justify-center text-lg shadow-lg shadow-brand-600/30 shrink-0">
-                K
-              </div>
+              <Image
+                src="/logo-circle.png"
+                alt="KOSKOOL"
+                width={40}
+                height={40}
+                className="w-10 h-10 rounded-full object-contain shadow-lg shrink-0"
+              />
               <div>
                 <span className="font-black text-base text-white tracking-wider block">
                   KOSKOOL
