@@ -30,7 +30,7 @@ export default function AddressCard({
         selectionMode ? 'cursor-pointer select-none' : ''
       } ${
         isSelected
-          ? 'border-brand-600 bg-brand-50/40 shadow-sm'
+          ? 'border-red-500 bg-white shadow-sm ring-1 ring-red-500/20'
           : 'border-gray-200 bg-white hover:border-gray-300'
       }`}
     >
