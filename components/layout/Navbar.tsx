@@ -49,8 +49,8 @@ export default function Navbar() {
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
-            {/* Mobile Hamburger Button */}
-            <div className="flex items-center lg:hidden">
+            {/* Mobile Hamburger Button - Hidden on phone, accessible via bottom nav */}
+            <div className="hidden md:flex items-center lg:hidden">
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
                 className="p-2 -ml-1 rounded-lg text-navy-950 hover:bg-gray-100 active:bg-gray-200 transition"
@@ -176,10 +176,10 @@ export default function Navbar() {
               {user ? (
                 <Link
                   href={isAdmin ? '/admin' : '/account'}
-                  className="flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-gray-100 hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
+                  className="flex items-center gap-1.5 p-2 sm:p-2.5 md:py-1.5 md:px-3 rounded-full text-navy-900 md:bg-gray-100 hover:bg-gray-100 md:hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
                   aria-label="Account"
                 >
-                  <User className="w-3.5 h-3.5 text-brand-600" />
+                  <User className="w-5 h-5 md:w-3.5 md:h-3.5 text-brand-600" />
                   <span className="hidden md:inline max-w-[100px] truncate">
                     {user.name ? user.name.split(' ')[0] : 'Account'}
                   </span>
@@ -187,10 +187,10 @@ export default function Navbar() {
               ) : (
                 <Link
                   href="/account"
-                  className="flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-gray-100 hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
+                  className="flex items-center gap-1.5 p-2 sm:p-2.5 md:py-1.5 md:px-3 rounded-full text-navy-900 md:bg-gray-100 hover:bg-gray-100 md:hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
                   aria-label="Account"
                 >
-                  <User className="w-3.5 h-3.5 text-navy-600" />
+                  <User className="w-5 h-5 md:w-3.5 md:h-3.5 text-navy-600" />
                   <span className="hidden md:inline">Account</span>
                 </Link>
               )}
