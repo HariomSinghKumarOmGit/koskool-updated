@@ -135,9 +135,10 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
     removePromoCode();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('reset_cart_promocode'));
+      window.scrollTo({ top: 0, behavior: 'instant' });
     }
     addToCart(product, selectedSize, selectedColour, quantity);
-    router.push('/cart');
+    router.push('/checkout');
   };
 
   // Color variants setup: use product variants, colours, or primaryColour without hardcoded fallbacks

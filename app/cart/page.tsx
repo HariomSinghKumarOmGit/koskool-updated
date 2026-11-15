@@ -106,6 +106,9 @@ export default function CartPage() {
 
   const handleProceedToCheckout = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
     if (!user) {
       openAuthModal(() => router.push('/checkout'));
     } else {
