@@ -571,7 +571,7 @@ export default function CategoryTemplate({
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white min-h-screen overflow-x-hidden w-full max-w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         
         {/* Breadcrumb Navigation */}
@@ -658,8 +658,8 @@ export default function CategoryTemplate({
             </div>
           </div>
 
-          {/* Sub-category filter pills / links with item counts in superscript */}
-          <div className="flex items-center gap-3 sm:gap-6 overflow-x-auto no-scrollbar py-1">
+          {/* Sub-category filter pills - Wrapping cleanly, zero horizontal scroll */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 py-1">
             {subcategories.map((sub, idx) => {
               const isActive = activeSubcategory === sub.id;
               return (

@@ -33,7 +33,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="relative w-full max-w-sm bg-white h-full flex flex-col shadow-2xl z-10 overflow-hidden">
+      <div className="relative w-full max-w-[85vw] sm:max-w-sm bg-white h-full flex flex-col shadow-2xl z-10 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-navy-950 text-white">
           <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
               className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-navy-950 text-white font-bold transition"
             >
               <User className="w-3.5 h-3.5 text-brand-500" />
-              <span className="truncate">{isAdmin ? 'Admin Portal' : 'My Account'}</span>
+              <span className="truncate">{isAdmin ? 'Control Panel' : 'My Account'}</span>
             </Link>
           ) : (
             <button

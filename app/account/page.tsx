@@ -336,7 +336,7 @@ function AccountContent() {
                 <h1 className="text-xl sm:text-2xl font-black text-navy-950">{user.name || 'Valued Customer'}</h1>
                 {isAdmin && (
                   <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
-                    Administrator
+                    Authorized
                   </span>
                 )}
                 {isVerified ? (
@@ -366,7 +366,7 @@ function AccountContent() {
                 href="/admin"
                 className="px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition shadow"
               >
-                Open Admin Portal
+                Open Dashboard
               </Link>
             )}
             <button

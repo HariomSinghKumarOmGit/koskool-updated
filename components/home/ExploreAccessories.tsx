@@ -48,15 +48,10 @@ export default function ExploreAccessories() {
           </div>
         </div>
 
-        {/* Carousel Slider on mobile, 3-column grid on desktop */}
-        <div
-          className="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible no-scrollbar gap-4 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
-        >
+        {/* Clean Responsive Grid - Zero Horizontal Scroll on Mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           {cards.map((card, idx) => (
-            <div
-              key={idx}
-              className="w-[76vw] sm:w-[320px] md:w-auto flex-shrink-0 snap-start"
-            >
+            <div key={idx} className="w-full">
               <Link
                 href={card.href}
                 className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-200 transition-all duration-300 flex flex-col h-full transform hover:-translate-y-1"
@@ -66,7 +61,7 @@ export default function ExploreAccessories() {
                     src={card.image}
                     alt={card.title}
                     fill
-                    sizes="(max-width: 640px) 80vw, 360px"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-contain p-3 group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>

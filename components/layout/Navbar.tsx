@@ -19,7 +19,7 @@ import {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { totalItems, openCartDrawer } = useCart();
+  const { totalItems, removePromoCode } = useCart();
   const { user, isAdmin, openAuthModal } = useAuth();
 
   const [activeMega, setActiveMega] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export default function Navbar() {
     <>
       {/* Main Sticky Header */}
       <header
-        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm"
+        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm w-full max-w-full"
         onMouseLeave={() => setActiveMega(null)}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -176,7 +176,7 @@ export default function Navbar() {
                 >
                   <User className="w-3.5 h-3.5 text-brand-600" />
                   <span className="hidden md:inline max-w-[100px] truncate">
-                    {isAdmin ? 'Admin' : user.name.split(' ')[0]}
+                    {user.name ? user.name.split(' ')[0] : 'Account'}
                   </span>
                 </Link>
               ) : (
@@ -190,9 +190,14 @@ export default function Navbar() {
               )}
 
               {/* Shopping Cart Trigger */}
-              <button
-                type="button"
-                onClick={() => openCartDrawer()}
+              <Link
+                href="/cart"
+                onClick={() => {
+                  removePromoCode();
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('reset_cart_promocode'));
+                  }
+                }}
                 className="relative p-2 sm:p-2.5 rounded-full text-navy-900 hover:text-brand-600 hover:bg-gray-100 transition"
                 aria-label="View Cart"
               >
@@ -202,7 +207,7 @@ export default function Navbar() {
                     {totalItems}
                   </span>
                 )}
-              </button>
+              </Link>
             </div>
           </div>
         </div>

@@ -77,7 +77,7 @@ function LoginContent() {
           router.replace(redirectUrl || '/admin');
         } else {
           if (isAdminRedirect) {
-            setError('Access Denied: This account does not have administrator privileges.');
+            setError('Access Denied: You do not have permission to access this area.');
           } else {
             router.replace(redirectUrl || '/account');
           }
@@ -126,12 +126,6 @@ function LoginContent() {
     }
   };
 
-  const fillAdmin = () => {
-    setMode('login');
-    setEmail('admin@gmail.com');
-    setPassword('admin');
-  };
-
   return (
     <div className="bg-gray-50 min-h-screen py-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
       <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-gray-200 shadow-xl space-y-6 animate-scaleIn">
@@ -142,8 +136,6 @@ function LoginContent() {
           <h1 className="text-2xl font-black text-navy-950">
             {signupComplete
               ? 'Verify Your Email'
-              : isAdminRedirect
-              ? 'Administrator Login'
               : mode === 'login'
               ? 'Sign In to KOSKOOL'
               : mode === 'signup'
@@ -153,8 +145,6 @@ function LoginContent() {
           <p className="text-xs text-gray-500">
             {signupComplete
               ? 'Click the verification link sent to your email to activate your account.'
-              : isAdminRedirect
-              ? 'Please authenticate with your administrator credentials to access the management portal.'
               : mode === 'login'
               ? 'Manage school orders, track dispatches, and save delivery addresses.'
               : mode === 'signup'
@@ -162,34 +152,6 @@ function LoginContent() {
               : 'Enter your registered email address to receive password reset instructions.'}
           </p>
         </div>
-
-        {/* Admin notice banner when redirected from admin area */}
-        {isAdminRedirect && (
-          <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs leading-relaxed">
-            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold block">Admin Authentication Required</span>
-              <span>Sign in with authorized administrator credentials to open the control panel.</span>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Admin fill button */}
-        {mode === 'login' && !signupComplete && (
-          <div className="bg-brand-50/70 border border-brand-200 rounded-2xl p-3 flex items-center justify-between text-xs">
-            <div>
-              <span className="font-bold text-brand-900 block">Administrator Credentials:</span>
-              <span className="text-gray-600 font-mono text-[11px]">admin@gmail.com | pass: admin</span>
-            </div>
-            <button
-              type="button"
-              onClick={fillAdmin}
-              className="text-[11px] font-bold text-white bg-brand-600 hover:bg-brand-500 px-3 py-1.5 rounded-lg transition shrink-0"
-            >
-              Auto Fill
-            </button>
-          </div>
-        )}
 
         {/* Error message */}
         {error && (

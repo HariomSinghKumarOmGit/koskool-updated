@@ -26,7 +26,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-navy-950 text-gray-300 pt-16 pb-12 border-t border-navy-900">
+    <footer className="bg-navy-950 text-gray-300 pt-16 pb-12 border-t border-navy-900 w-full max-w-full overflow-hidden">
       {/* Main Footer Links */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
@@ -393,12 +393,6 @@ export default function Footer() {
           </p>
 
           <div className="flex items-center gap-4">
-            <Link
-              href="/admin"
-              className="text-amber-400 hover:text-amber-300 font-bold transition flex items-center gap-1"
-            >
-              <span>Admin Portal</span>
-            </Link>
             <a
               href="https://wa.me/918130458265"
               target="_blank"

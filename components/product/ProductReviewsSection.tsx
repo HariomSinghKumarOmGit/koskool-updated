@@ -357,7 +357,7 @@ export default function ProductReviewsSection({
   // Admin Delete Review from Product Section
   const handleDeleteReview = async (reviewId: string) => {
     if (!isAdmin) {
-      alert('Only administrators have permission to delete reviews.');
+      alert('You do not have permission to delete reviews.');
       return;
     }
 
@@ -500,12 +500,6 @@ export default function ProductReviewsSection({
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   <span>Real Customer Feedback</span>
                 </div>
-                {isAdmin && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-100 text-red-700 border border-red-200 text-[11px] font-black uppercase tracking-wider">
-                    <ShieldAlert className="w-3 h-3 text-red-600" />
-                    <span>Admin Mode Active (Can Delete Comments)</span>
-                  </span>
-                )}
               </div>
               <span className="text-xs text-gray-500">
                 Verified buyer comments, ratings and real product pictures
@@ -617,7 +611,7 @@ export default function ProductReviewsSection({
                   </span>
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                <div className="flex flex-wrap gap-2.5 sm:gap-3 pb-2">
                   {allCustomerPhotos.map((item, idx) => (
                     <button
                       key={idx}
@@ -842,7 +836,7 @@ export default function ProductReviewsSection({
                               type="button"
                               onClick={() => handleDeleteReview(rev.id)}
                               disabled={isDeleting}
-                              title="Admin: Delete this comment permanently"
+                              title="Delete this comment permanently"
                               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border border-red-200 text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
                             >
                               {isDeleting ? (

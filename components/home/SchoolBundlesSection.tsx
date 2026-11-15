@@ -175,19 +175,13 @@ export default function SchoolBundlesSection() {
           </div>
         </div>
 
-        {/* Responsive slider on mobile/tablet, balanced 3-column grid on desktop */}
-        <div
-          ref={scrollRef}
-          className="flex lg:grid lg:grid-cols-3 overflow-x-auto lg:overflow-visible no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
-        >
+        {/* Clean Responsive Grid - Zero Horizontal Scroll on Mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {bundles.map((bundle) => {
             const isAdded = !!addedBundles[bundle.id];
 
             return (
-              <div
-                key={bundle.id}
-                className="w-[86vw] sm:w-[360px] lg:w-auto flex-shrink-0 snap-start flex flex-col"
-              >
+              <div key={bundle.id} className="w-full flex flex-col">
                 <div className="bg-white/5 border border-white/15 rounded-3xl p-5 sm:p-6 flex flex-col justify-between h-full backdrop-blur-md shadow-2xl hover:border-brand-500/50 transition duration-300">
                   <div className="space-y-4">
                     {/* Badge & Tag */}

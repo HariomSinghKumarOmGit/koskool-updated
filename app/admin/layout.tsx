@@ -72,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-navy-950 border-t-brand-600 rounded-full animate-spin" />
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-            Verifying Admin Access...
+            Verifying Access...
           </p>
         </div>
       </div>
@@ -86,16 +86,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-black text-navy-950">Admin Sign In Required</h2>
+          <h2 className="text-xl font-black text-navy-950">Sign In Required</h2>
           <p className="text-xs text-gray-500">
-            You must be logged in with administrator privileges to access this page. Redirecting to login...
+            You must be logged in with authorized privileges to access this page. Redirecting to login...
           </p>
           <div className="pt-2">
             <Link
               href={`/account/login?redirect=${encodeURIComponent(pathname)}`}
               className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow transition"
             >
-              Sign In to Admin
+              Sign In
             </Link>
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div>
             <span className="font-black text-sm tracking-wider block">KOSKOOL</span>
-            <span className="text-[9px] text-gray-400 block -mt-0.5">Admin Management</span>
+            <span className="text-[9px] text-gray-400 block -mt-0.5">Management Portal</span>
           </div>
         </div>
 
@@ -148,7 +148,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   KOSKOOL
                 </span>
                 <span className="text-[10px] text-brand-400 font-bold uppercase tracking-widest block">
-                  Admin Panel
+                  Control Panel
                 </span>
               </div>
             </Link>
@@ -198,7 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {user?.name || 'Vipul Singla'}
               </span>
               <span className="text-[10px] text-gray-400 block font-mono truncate">
-                {user?.email || 'admin@gmail.com'}
+                {user?.email || 'manager@koskool.com'}
               </span>
             </div>
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" title="Online" />

@@ -67,7 +67,7 @@ export default function HomePage() {
     .sort((a, b) => a.display_order - b.display_order);
 
   return (
-    <div className="flex flex-col min-h-screen overflow-x-hidden">
+    <div className="flex flex-col min-h-screen overflow-x-hidden w-full max-w-full">
       {activeSections.map((sec) => {
         const Component = SECTION_COMPONENTS[sec.id];
         if (!Component) return null;

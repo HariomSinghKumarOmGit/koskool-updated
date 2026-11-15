@@ -116,12 +116,6 @@ export default function AuthModal() {
     }
   };
 
-  const fillAdmin = () => {
-    handleModeChange('login');
-    setEmail('admin@gmail.com');
-    setPassword('admin');
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
       <div className="relative w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-2xl space-y-5 animate-scaleIn">
@@ -158,23 +152,6 @@ export default function AuthModal() {
               : 'Enter your account email to receive secure password recovery instructions.'}
           </p>
         </div>
-
-        {/* Quick Admin Fill Banner (only in login mode) */}
-        {authModalMode === 'login' && !signupComplete && (
-          <div className="bg-brand-50/70 border border-brand-200 rounded-2xl p-3 flex items-center justify-between text-xs">
-            <div>
-              <span className="font-bold text-brand-900 block">Administrator Credentials:</span>
-              <span className="text-gray-600 font-mono text-[11px]">admin@gmail.com | pass: admin</span>
-            </div>
-            <button
-              type="button"
-              onClick={fillAdmin}
-              className="text-[11px] font-bold text-white bg-brand-600 hover:bg-brand-500 px-3 py-1.5 rounded-lg transition shrink-0"
-            >
-              Auto Fill
-            </button>
-          </div>
-        )}
 
         {/* Error message */}
         {error && (

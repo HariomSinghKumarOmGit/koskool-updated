@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Product, PRODUCTS } from '@/data/products';
 import { PromoCode, INITIAL_PROMO_CODES } from '@/data/promocodes';
 import { getPromoCodes } from '@/services/api';
@@ -58,6 +59,7 @@ const getInitialDemoItems = (): CartItem[] => {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [items, setItems] = useState<CartItem[]>(getInitialDemoItems);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>(INITIAL_PROMO_CODES);
@@ -158,9 +160,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const loadedPromos = loadStoredPromos();
       setPromoCodes(loadedPromos);
 
-      const savedApplied = localStorage.getItem('koskool_applied_promo');
-      if (savedApplied) {
-        setAppliedPromo(JSON.parse(savedApplied));
+      // If opening directly on /cart, reset promo code section
+      if (typeof window !== 'undefined' && window.location.pathname === '/cart') {
+        localStorage.removeItem('koskool_applied_promo');
+        setAppliedPromo(null);
+      } else {
+        const savedApplied = localStorage.getItem('koskool_applied_promo');
+        if (savedApplied) {
+          setAppliedPromo(JSON.parse(savedApplied));
+        }
       }
     } catch {
       // ignore
@@ -276,7 +284,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (openDrawer) {
-      setIsCartDrawerOpen(true);
+      setAppliedPromo(null);
+      try {
+        localStorage.removeItem('koskool_applied_promo');
+      } catch {}
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('reset_cart_promocode'));
+      }
+      router.push('/cart');
     }
 
     try {
@@ -479,8 +494,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         shippingCost,
         finalTotal,
         freeShippingThreshold,
-        isCartDrawerOpen,
-        openCartDrawer: () => setIsCartDrawerOpen(true),
+        isCartDrawerOpen: false,
+        openCartDrawer: () => {
+          setAppliedPromo(null);
+          try {
+            localStorage.removeItem('koskool_applied_promo');
+          } catch {}
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('reset_cart_promocode'));
+          }
+          router.push('/cart');
+        },
         closeCartDrawer: () => setIsCartDrawerOpen(false),
         promoCodes,
         appliedPromo,

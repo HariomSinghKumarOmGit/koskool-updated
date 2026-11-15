@@ -4,7 +4,6 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import CartDrawer from '@/components/layout/CartDrawer';
 import AuthModal from '@/components/auth/AuthModal';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
 import { CartProvider } from '@/context/CartContext';
@@ -20,7 +19,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {!isAdminRoute && <Navbar />}
         <main className={`flex-1 ${!isAdminRoute ? 'pb-16 md:pb-0' : 'min-h-screen'}`}>{children}</main>
         {!isAdminRoute && <Footer />}
-        {!isAdminRoute && <CartDrawer />}
         {!isAdminRoute && <MobileBottomNav />}
         <AuthModal />
       </CartProvider>

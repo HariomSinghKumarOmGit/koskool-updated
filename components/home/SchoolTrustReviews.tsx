@@ -119,46 +119,21 @@ export default function SchoolTrustReviews() {
           })}
         </div>
 
-        {/* Parent & School Reviews with Left/Right Arrows */}
+        {/* Parent & School Reviews - Clean Grid, Zero Horizontal Scroll */}
         <div>
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
-            <div className="space-y-2 max-w-2xl">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
-                Trusted by 50,000+ Indian Parents &amp; Schools
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                Hear from families across Delhi NCR, Mumbai, Bengaluru, and Pune who rely on Koskool every morning.
-              </p>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-2 self-start sm:self-end shrink-0">
-              <button
-                onClick={() => scroll('left')}
-                className="w-10 h-10 rounded-full border border-gray-300 bg-white text-navy-950 hover:bg-navy-950 hover:text-white flex items-center justify-center transition shadow-sm"
-                aria-label="Previous review"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => scroll('right')}
-                className="w-10 h-10 rounded-full border border-navy-950 bg-navy-950 text-white hover:bg-brand-600 hover:border-brand-600 flex items-center justify-center transition shadow-sm"
-                aria-label="Next review"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="mb-6 sm:mb-8 space-y-2 max-w-2xl text-left">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
+              Trusted by 50,000+ Indian Parents &amp; Schools
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+              Hear from families across Delhi NCR, Mumbai, Bengaluru, and Pune who rely on Koskool every morning.
+            </p>
           </div>
 
-          {/* Carousel */}
-          <div
-            ref={scrollRef}
-            className="flex overflow-x-auto no-scrollbar gap-4 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
-          >
+          {/* Clean Grid on Mobile & Desktop */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {reviews.map((rev) => (
-              <div
-                key={rev.id}
-                className="w-[80vw] sm:w-[320px] md:w-[360px] flex-shrink-0 snap-start"
-              >
+              <div key={rev.id} className="w-full">
                 <div className="bg-gray-50 rounded-2xl border border-gray-200 p-4 sm:p-6 flex flex-col justify-between h-full shadow-sm hover:shadow-md transition space-y-3 sm:space-y-4">
                   <div className="space-y-3">
                     {/* Stars */}

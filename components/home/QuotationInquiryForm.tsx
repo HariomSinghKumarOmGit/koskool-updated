@@ -87,7 +87,7 @@ export default function QuotationInquiryForm() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Principal / Administrator / Parent"
+                  placeholder="Principal / Management / Parent"
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
                 />
               </div>

@@ -191,20 +191,14 @@ export default function QuickAddToCartSection() {
           </div>
         )}
 
-        {/* Carousel of Quick-Add Items */}
-        <div
-          ref={scrollRef}
-          className="flex overflow-x-auto no-scrollbar gap-5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
-        >
+        {/* Responsive Grid of Quick-Add Items - Zero Horizontal Scroll */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {quickItems.map((product) => {
             const currentSize = getSelectedSize(product);
             const isAdded = !!addedItems[product.id];
 
             return (
-              <div
-                key={product.id}
-                className="w-[84vw] sm:w-[300px] md:w-[330px] flex-shrink-0 snap-start"
-              >
+              <div key={product.id} className="w-full">
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 p-5 flex flex-col justify-between h-full group">
                   {/* Image & Badges */}
                   <div>

@@ -9,7 +9,7 @@ import { Home, LayoutGrid, Search, ShoppingBag, User } from 'lucide-react';
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
-  const { totalItems, openCartDrawer } = useCart();
+  const { totalItems, removePromoCode } = useCart();
   const { user, isAdmin, openAuthModal } = useAuth();
 
   const handleOpenCategories = (e: React.MouseEvent) => {
@@ -20,11 +20,6 @@ export default function MobileBottomNav() {
   const handleOpenSearch = (e: React.MouseEvent) => {
     e.preventDefault();
     window.dispatchEvent(new CustomEvent('koskool_open_search'));
-  };
-
-  const handleOpenCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    openCartDrawer();
   };
 
   const handleOpenAccount = (e: React.MouseEvent) => {
@@ -42,7 +37,7 @@ export default function MobileBottomNav() {
   return (
     <nav
       aria-label="Mobile Bottom Navigation"
-      className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-lg border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden safe-area-bottom"
+      className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-lg border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] md:hidden safe-area-bottom w-full max-w-full overflow-hidden"
     >
       <div className="grid grid-cols-5 h-16 items-center px-1 max-w-lg mx-auto">
         {/* Home */}
@@ -81,9 +76,14 @@ export default function MobileBottomNav() {
         </button>
 
         {/* Cart */}
-        <button
-          type="button"
-          onClick={handleOpenCart}
+        <Link
+          href="/cart"
+          onClick={() => {
+            removePromoCode();
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('reset_cart_promocode'));
+            }
+          }}
           className={`relative flex flex-col items-center justify-center gap-1 py-1 transition-colors select-none ${
             isCart ? 'text-brand-600 font-bold' : 'text-gray-500 hover:text-navy-900 font-medium'
           }`}
@@ -98,7 +98,7 @@ export default function MobileBottomNav() {
             )}
           </div>
           <span className="text-[10px] tracking-tight">Cart</span>
-        </button>
+        </Link>
 
         {/* Account */}
         <Link
@@ -111,7 +111,7 @@ export default function MobileBottomNav() {
         >
           <User className={`w-5 h-5 ${isAccount ? 'stroke-[2.5]' : 'stroke-2'}`} />
           <span className="text-[10px] tracking-tight truncate max-w-[60px]">
-            {user ? (isAdmin ? 'Admin' : user.name.split(' ')[0]) : 'Account'}
+            {user ? (user.name ? user.name.split(' ')[0] : 'Account') : 'Account'}
           </span>
         </Link>
       </div>

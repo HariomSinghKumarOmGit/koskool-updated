@@ -77,55 +77,24 @@ export default function PopularSchoolPicks() {
   return (
     <section className="scroll-mt-24 py-12 sm:py-16 bg-gray-50 border-b border-gray-200 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
-          <div className="space-y-2 max-w-2xl">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
-              Popular School Picks
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              The most sought-after school shoes, drill canvas, sports trainers, and classroom essentials across India.
-            </p>
-          </div>
-
-          {/* Left and Right navigation arrows (Desktop only, mobile uses swipe) */}
-          <div className="hidden sm:flex items-center gap-2 self-start sm:self-end shrink-0">
-            <button
-              onClick={() => scroll('left')}
-              disabled={!canScrollLeft}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                canScrollLeft
-                  ? 'bg-white border-gray-300 text-navy-950 hover:bg-navy-950 hover:text-white'
-                  : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
-              aria-label="Previous products"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => scroll('right')}
-              disabled={!canScrollRight}
-              className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                canScrollRight
-                  ? 'bg-navy-950 border-navy-950 text-white hover:bg-brand-600 hover:border-brand-600'
-                  : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
-              aria-label="Next products"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="mb-6 sm:mb-8 space-y-2 max-w-2xl text-left">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-navy-950 tracking-tight">
+            Popular School Picks
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+            The most sought-after school shoes, drill canvas, sports trainers, and classroom essentials across India.
+          </p>
         </div>
 
-        {/* Interactive Filtering Tabs */}
-        <div className="flex items-center gap-1.5 sm:gap-2 mb-5 sm:mb-6 overflow-x-auto no-scrollbar pb-1">
+        {/* Interactive Filtering Tabs - Wrapping naturally, zero horizontal scroll */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-6">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => {
                 setActiveTab(tab.id as any);
-                if (scrollRef.current) scrollRef.current.scrollLeft = 0;
               }}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-bold rounded-xl transition ${
                 activeTab === tab.id
                   ? 'bg-navy-950 text-white shadow-md'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
@@ -136,17 +105,10 @@ export default function PopularSchoolPicks() {
           ))}
         </div>
 
-        {/* Horizontal Smooth Carousel with Snap */}
-        <div
-          ref={scrollRef}
-          onScroll={checkScroll}
-          className="flex overflow-x-auto no-scrollbar gap-3.5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
-        >
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              className="w-[68vw] sm:w-[260px] md:w-[280px] lg:w-[290px] flex-shrink-0 snap-start"
-            >
+        {/* Clean 2-Column Responsive Grid on Mobile - Zero Horizontal Scroll */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+          {filteredProducts.slice(0, 8).map((product) => (
+            <div key={product.id} className="w-full">
               <ProductCard product={product} />
             </div>
           ))}

@@ -208,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const adminUser: UserProfile = {
         id: 'admin-super-01',
         email: trimmedEmail,
-        name: 'KOSKOOL Master Administrator',
+        name: 'KOSKOOL Manager',
         phone: '+91 8130458265',
         role: 'admin',
         is_verified: true,

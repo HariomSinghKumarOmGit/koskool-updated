@@ -62,17 +62,12 @@ export default function ShopBySchoolLevel() {
           </div>
         </div>
 
-        {/* Responsive slider on mobile, balanced 3-column grid on desktop */}
-        <div
-          className="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible no-scrollbar gap-4 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
-        >
+        {/* Clean Responsive Grid - Zero Horizontal Scroll on Mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {levels.map((lvl, idx) => {
             const Icon = LEVEL_ICONS[lvl.id] || School;
             return (
-              <div
-                key={lvl.id || idx}
-                className="w-[76vw] sm:w-[320px] md:w-auto flex-shrink-0 snap-start"
-              >
+              <div key={lvl.id || idx} className="w-full">
                 <div className="relative bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 p-5 sm:p-7 flex flex-col justify-between h-full group overflow-hidden">
                   {/* Top Colored Bar */}
                   <div className={`absolute top-0 left-0 right-0 h-2 bg-gradient-to-r ${lvl.color || 'from-blue-600 to-navy-900'}`} />

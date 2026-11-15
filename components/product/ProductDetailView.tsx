@@ -29,7 +29,7 @@ interface ProductDetailViewProps {
 
 export default function ProductDetailView({ product: initialProduct, isHomePage = false }: ProductDetailViewProps) {
   const router = useRouter();
-  const { addToCart } = useCart();
+  const { addToCart, removePromoCode } = useCart();
 
   // Find featured or requested product
   const defaultProduct = PRODUCTS.find((p) => p.slug === 'mens-daily-wear-sandals-wgp53410-tan') || PRODUCTS[0];
@@ -132,6 +132,10 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   };
 
   const handleBuyItNow = () => {
+    removePromoCode();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('reset_cart_promocode'));
+    }
     addToCart(product, selectedSize, selectedColour, quantity);
     router.push('/cart');
   };
@@ -170,7 +174,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   ).slice(0, 4);
 
   return (
-    <div className={`bg-white ${isHomePage ? '' : 'min-h-screen'}`}>
+    <div className={`bg-white overflow-x-hidden w-full max-w-full ${isHomePage ? '' : 'min-h-screen'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
         {/* Breadcrumb Navigation */}
         {!isHomePage && (
@@ -241,15 +245,15 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                 )}
               </div>
 
-              {/* Horizontal Thumbnails Row for Mobile */}
+              {/* Thumbnails Row for Mobile - Wrapping cleanly, zero horizontal scroll */}
               {galleryImages.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 pt-0.5">
+                <div className="flex flex-wrap gap-2 pt-0.5">
                   {galleryImages.map((imgSrc, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setActiveMobileImg(idx)}
-                      className={`relative w-14 h-14 rounded-xl border-2 overflow-hidden bg-[#fbfbfb] shrink-0 p-1 transition-all ${
+                      className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 overflow-hidden bg-[#fbfbfb] shrink-0 p-1 transition-all ${
                         activeMobileImg === idx
                           ? 'border-gray-950 ring-1 ring-gray-950 scale-105'
                           : 'border-gray-200 hover:border-gray-400 opacity-70'

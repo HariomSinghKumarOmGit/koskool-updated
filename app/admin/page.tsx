@@ -54,7 +54,7 @@ export default function AdminDashboardPage() {
             Live Supabase Connected
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white">
-            KOSKOOL Admin Dashboard
+            KOSKOOL Management Dashboard
           </h1>
           <p className="text-xs text-gray-300 max-w-xl">
             Managing products, categories, factory deliveries, customer messages &amp; dynamic promo codes for Bawana Industrial Area manufacturing unit.

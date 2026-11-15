@@ -72,52 +72,18 @@ export default function PopularBags() {
           <div className="flex items-center gap-3 self-start sm:self-end shrink-0">
             <Link
               href="/collections/bags"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-700 transition group mr-2"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 hover:text-brand-700 transition group"
             >
               <span>View All Bags ({bagProducts.length})</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
             </Link>
-
-            <div className="hidden sm:flex items-center gap-2">
-              <button
-                onClick={() => scroll('left')}
-                disabled={!canScrollLeft}
-                className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                  canScrollLeft
-                    ? 'bg-white border-gray-300 text-navy-950 hover:bg-navy-950 hover:text-white'
-                    : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-                }`}
-                aria-label="Previous bags"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => scroll('right')}
-                disabled={!canScrollRight}
-                className={`w-10 h-10 rounded-full border flex items-center justify-center transition shadow-sm ${
-                  canScrollRight
-                    ? 'bg-navy-950 border-navy-950 text-white hover:bg-brand-600 hover:border-brand-600'
-                    : 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-                }`}
-                aria-label="Next bags"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Horizontal Carousel */}
-        <div
-          ref={scrollRef}
-          onScroll={checkScroll}
-          className="flex overflow-x-auto no-scrollbar gap-3.5 sm:gap-6 pb-4 pt-1 snap-x snap-mandatory scroll-smooth"
-        >
-          {bagProducts.map((product) => (
-            <div
-              key={product.id}
-              className="w-[68vw] sm:w-[260px] md:w-[280px] lg:w-[290px] flex-shrink-0 snap-start"
-            >
+        {/* Clean 2-Column Responsive Grid on Mobile - Zero Horizontal Scroll */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+          {bagProducts.slice(0, 8).map((product) => (
+            <div key={product.id} className="w-full">
               <ProductCard product={product} />
             </div>
           ))}

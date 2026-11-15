@@ -47,6 +47,26 @@ export default function CartPage() {
   const [couponStatus, setCouponStatus] = useState<{ text: string; success: boolean } | null>(null);
   const [addedIds, setAddedIds] = useState<{ [id: string]: boolean }>({});
 
+  const resetPromoSection = () => {
+    removePromoCode();
+    setCouponInput('');
+    setCouponStatus(null);
+  };
+
+  // Reset promocode section whenever cart opens or event fires
+  useEffect(() => {
+    resetPromoSection();
+
+    const handleResetEvent = () => {
+      resetPromoSection();
+    };
+
+    window.addEventListener('reset_cart_promocode', handleResetEvent);
+    return () => {
+      window.removeEventListener('reset_cart_promocode', handleResetEvent);
+    };
+  }, []);
+
   // Sync latest promo codes from Supabase
   useEffect(() => {
     getPromoCodes().then((dbPromos) => {
@@ -135,7 +155,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="bg-white min-h-screen text-[#1a1a1a]">
+    <div className="bg-white min-h-screen text-[#1a1a1a] overflow-x-hidden w-full max-w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
         {/* Top Header: "Your cart" + "Continue shopping" */}
         <div className="flex items-center justify-between pb-8">
@@ -329,7 +349,7 @@ export default function CartPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={removePromoCode}
+                        onClick={resetPromoSection}
                         className="text-gray-400 hover:text-red-600 font-bold text-base px-1"
                         title="Remove promo"
                       >
