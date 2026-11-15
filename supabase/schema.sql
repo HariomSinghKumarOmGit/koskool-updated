@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- Ensure columns exist if table was previously created
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS addresses JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cart JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'customer';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auth_user_id UUID;
