@@ -2220,3 +2220,81 @@ ON CONFLICT (id) DO UPDATE SET
   material = EXCLUDED.material,
   display_order = EXCLUDED.display_order;
 
+
+-- ============================================================
+-- ADDITION: Homepage Admin Panel Tables (cross-device sync)
+-- ============================================================
+
+-- homepage_sections
+CREATE TABLE IF NOT EXISTS public.homepage_sections (
+    section_id  VARCHAR(100) PRIMARY KEY,
+    name        VARCHAR(255) NOT NULL,
+    description TEXT,
+    badge       VARCHAR(100),
+    display_order INT DEFAULT 0,
+    is_active   BOOLEAN DEFAULT true,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.homepage_sections ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read homepage_sections" ON public.homepage_sections;
+CREATE POLICY "Public read homepage_sections" ON public.homepage_sections FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public write homepage_sections" ON public.homepage_sections;
+CREATE POLICY "Public write homepage_sections" ON public.homepage_sections FOR ALL USING (true) WITH CHECK (true);
+
+-- footwear_categories
+CREATE TABLE IF NOT EXISTS public.footwear_categories (
+    category_id    VARCHAR(100) PRIMARY KEY,
+    title          VARCHAR(255) NOT NULL,
+    subtitle       TEXT,
+    image          TEXT,
+    tag            VARCHAR(100),
+    href           VARCHAR(255),
+    features       TEXT[] DEFAULT '{}',
+    starting_price VARCHAR(50) DEFAULT '₹499',
+    display_order  INT DEFAULT 0,
+    is_active      BOOLEAN DEFAULT true,
+    show_on_homepage BOOLEAN DEFAULT true,
+    created_at     TIMESTAMPTZ DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.footwear_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read footwear_categories" ON public.footwear_categories;
+CREATE POLICY "Public read footwear_categories" ON public.footwear_categories FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public write footwear_categories" ON public.footwear_categories;
+CREATE POLICY "Public write footwear_categories" ON public.footwear_categories FOR ALL USING (true) WITH CHECK (true);
+
+-- school_levels
+CREATE TABLE IF NOT EXISTS public.school_levels (
+    level_id      VARCHAR(100) PRIMARY KEY,
+    title         VARCHAR(255) NOT NULL,
+    subtitle      VARCHAR(255),
+    badge         VARCHAR(100),
+    description   TEXT,
+    color         VARCHAR(255),
+    href          VARCHAR(255),
+    starting_price VARCHAR(50) DEFAULT '₹399',
+    points        TEXT[] DEFAULT '{}',
+    display_order INT DEFAULT 0,
+    is_active     BOOLEAN DEFAULT true,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.school_levels ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read school_levels" ON public.school_levels;
+CREATE POLICY "Public read school_levels" ON public.school_levels FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public write school_levels" ON public.school_levels;
+CREATE POLICY "Public write school_levels" ON public.school_levels FOR ALL USING (true) WITH CHECK (true);
+
+-- app_settings (key-value store for spotlight config etc.)
+CREATE TABLE IF NOT EXISTS public.app_settings (
+    key        VARCHAR(100) PRIMARY KEY,
+    value      JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read app_settings" ON public.app_settings;
+CREATE POLICY "Public read app_settings" ON public.app_settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public write app_settings" ON public.app_settings;
+CREATE POLICY "Public write app_settings" ON public.app_settings FOR ALL USING (true) WITH CHECK (true);

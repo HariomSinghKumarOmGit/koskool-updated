@@ -2152,6 +2152,28 @@ export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
 ];
 
 export async function getHomepageSections(): Promise<HomepageSection[]> {
+  // 1. Try Supabase first (source of truth — works across all devices)
+  try {
+    const { data, error } = await supabase
+      .from('homepage_sections')
+      .select('*')
+      .order('display_order', { ascending: true });
+    if (!error && data && data.length > 0) {
+      const mapped: HomepageSection[] = data.map((row: any) => ({
+        id: row.section_id,
+        name: row.name,
+        description: row.description,
+        badge: row.badge,
+        display_order: row.display_order,
+        is_active: row.is_active,
+      }));
+      setCache(LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY, mapped);
+      return mapped.filter((s) => s.id !== 'school_bundles');
+    }
+  } catch (err) {
+    console.warn('getHomepageSections Supabase fallback:', err);
+  }
+  // 2. Fallback to localStorage
   const sections = getCache<HomepageSection[]>(LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY, DEFAULT_HOMEPAGE_SECTIONS);
   return [...sections]
     .filter((sec) => sec.id !== 'school_bundles')
@@ -2159,6 +2181,20 @@ export async function getHomepageSections(): Promise<HomepageSection[]> {
 }
 
 export async function saveHomepageSections(sections: HomepageSection[]) {
+  // Upsert every section to Supabase
+  try {
+    const rows = sections.map((s) => ({
+      section_id: s.id,
+      name: s.name,
+      description: s.description,
+      badge: s.badge ?? null,
+      display_order: s.display_order,
+      is_active: s.is_active,
+    }));
+    await supabase.from('homepage_sections').upsert(rows, { onConflict: 'section_id' });
+  } catch (err) {
+    console.warn('saveHomepageSections Supabase error:', err);
+  }
   setCache(LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY, sections);
   broadcastDataChange('sections');
   return { success: true };
@@ -2169,19 +2205,31 @@ export async function reorderHomepageSections(reorderedList: { id: string; displ
   const map = new Map(reorderedList.map((i) => [i.id, i.display_order]));
   const updated = sections.map((s) => (map.has(s.id) ? { ...s, display_order: map.get(s.id)! } : s));
   updated.sort((a, b) => a.display_order - b.display_order);
-  setCache(LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY, updated);
-  broadcastDataChange('sections');
+  await saveHomepageSections(updated);
   return { success: true };
 }
 
 export async function updateHomepageSection(id: string, updates: Partial<HomepageSection>) {
+  // Update in Supabase directly
+  try {
+    const dbUpdates: any = {};
+    if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+    if (updates.display_order !== undefined) dbUpdates.display_order = updates.display_order;
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.badge !== undefined) dbUpdates.badge = updates.badge;
+    await supabase.from('homepage_sections').update(dbUpdates).eq('section_id', id);
+  } catch (err) {
+    console.warn('updateHomepageSection Supabase error:', err);
+  }
+  // Also update localStorage cache
   const sections = await getHomepageSections();
   const idx = sections.findIndex((s) => s.id === id);
   if (idx > -1) {
     sections[idx] = { ...sections[idx], ...updates };
     setCache(LOCAL_STORAGE_HOMEPAGE_SECTIONS_KEY, sections);
-    broadcastDataChange('sections');
   }
+  broadcastDataChange('sections');
   return { success: true };
 }
 
@@ -2272,11 +2320,57 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
 ];
 
 export async function getFootwearCategories(): Promise<FootwearCategoryCard[]> {
+  // 1. Try Supabase first (source of truth — works across all devices)
+  try {
+    const { data, error } = await supabase
+      .from('footwear_categories')
+      .select('*')
+      .order('display_order', { ascending: true });
+    if (!error && data && data.length > 0) {
+      const mapped: FootwearCategoryCard[] = data.map((row: any) => ({
+        id: row.category_id,
+        title: row.title,
+        subtitle: row.subtitle,
+        image: row.image,
+        tag: row.tag,
+        href: row.href,
+        features: row.features || [],
+        startingPrice: row.starting_price,
+        display_order: row.display_order,
+        is_active: row.is_active,
+        show_on_homepage: row.show_on_homepage,
+      }));
+      setCache(LOCAL_STORAGE_FOOTWEAR_CATEGORIES_KEY, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('getFootwearCategories Supabase fallback:', err);
+  }
+  // 2. Fallback to localStorage
   const items = getCache<FootwearCategoryCard[]>(LOCAL_STORAGE_FOOTWEAR_CATEGORIES_KEY, DEFAULT_FOOTWEAR_CATEGORIES);
   return [...items].sort((a, b) => a.display_order - b.display_order);
 }
 
 export async function saveFootwearCategories(items: FootwearCategoryCard[]) {
+  // Upsert all items to Supabase
+  try {
+    const rows = items.map((c) => ({
+      category_id: c.id,
+      title: c.title,
+      subtitle: c.subtitle,
+      image: c.image,
+      tag: c.tag,
+      href: c.href,
+      features: c.features,
+      starting_price: c.startingPrice,
+      display_order: c.display_order,
+      is_active: c.is_active,
+      show_on_homepage: c.show_on_homepage !== false,
+    }));
+    await supabase.from('footwear_categories').upsert(rows, { onConflict: 'category_id' });
+  } catch (err) {
+    console.warn('saveFootwearCategories Supabase error:', err);
+  }
   setCache(LOCAL_STORAGE_FOOTWEAR_CATEGORIES_KEY, items);
   broadcastDataChange('footwear_categories');
   return { success: true };
@@ -2323,13 +2417,31 @@ export async function toggleFootwearCategoryHomepage(id: string) {
 }
 
 export async function updateFootwearCategory(id: string, updates: Partial<FootwearCategoryCard>) {
+  // Update in Supabase directly
+  try {
+    const dbUpdates: any = {};
+    if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+    if (updates.show_on_homepage !== undefined) dbUpdates.show_on_homepage = updates.show_on_homepage;
+    if (updates.display_order !== undefined) dbUpdates.display_order = updates.display_order;
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.subtitle !== undefined) dbUpdates.subtitle = updates.subtitle;
+    if (updates.image !== undefined) dbUpdates.image = updates.image;
+    if (updates.tag !== undefined) dbUpdates.tag = updates.tag;
+    if (updates.href !== undefined) dbUpdates.href = updates.href;
+    if (updates.features !== undefined) dbUpdates.features = updates.features;
+    if (updates.startingPrice !== undefined) dbUpdates.starting_price = updates.startingPrice;
+    await supabase.from('footwear_categories').update(dbUpdates).eq('category_id', id);
+  } catch (err) {
+    console.warn('updateFootwearCategory Supabase error:', err);
+  }
+  // Also update localStorage cache
   const items = await getFootwearCategories();
   const idx = items.findIndex((i) => i.id === id);
   if (idx > -1) {
     items[idx] = { ...items[idx], ...updates };
     setCache(LOCAL_STORAGE_FOOTWEAR_CATEGORIES_KEY, items);
-    broadcastDataChange('footwear_categories');
   }
+  broadcastDataChange('footwear_categories');
   return { success: true };
 }
 
@@ -2338,8 +2450,7 @@ export async function reorderFootwearCategories(reorderedList: { id: string; dis
   const map = new Map(reorderedList.map((i) => [i.id, i.display_order]));
   const updated = items.map((c) => (map.has(c.id) ? { ...c, display_order: map.get(c.id)! } : c));
   updated.sort((a, b) => a.display_order - b.display_order);
-  setCache(LOCAL_STORAGE_FOOTWEAR_CATEGORIES_KEY, updated);
-  broadcastDataChange('footwear_categories');
+  await saveFootwearCategories(updated);
   return { success: true };
 }
 
@@ -2557,24 +2668,87 @@ export const DEFAULT_SCHOOL_LEVELS: SchoolLevelItem[] = [
 ];
 
 export async function getSchoolLevels(): Promise<SchoolLevelItem[]> {
+  // 1. Try Supabase first (source of truth — works across all devices)
+  try {
+    const { data, error } = await supabase
+      .from('school_levels')
+      .select('*')
+      .order('display_order', { ascending: true });
+    if (!error && data && data.length > 0) {
+      const mapped: SchoolLevelItem[] = data.map((row: any) => ({
+        id: row.level_id,
+        title: row.title,
+        subtitle: row.subtitle,
+        badge: row.badge,
+        description: row.description,
+        color: row.color,
+        href: row.href,
+        startingPrice: row.starting_price,
+        points: row.points || [],
+        display_order: row.display_order,
+        is_active: row.is_active,
+      }));
+      setCache(LOCAL_STORAGE_SCHOOL_LEVELS_KEY, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('getSchoolLevels Supabase fallback:', err);
+  }
+  // 2. Fallback to localStorage
   const levels = getCache<SchoolLevelItem[]>(LOCAL_STORAGE_SCHOOL_LEVELS_KEY, DEFAULT_SCHOOL_LEVELS);
   return [...levels].sort((a, b) => a.display_order - b.display_order);
 }
 
 export async function saveSchoolLevels(items: SchoolLevelItem[]) {
+  try {
+    const rows = items.map((l) => ({
+      level_id: l.id,
+      title: l.title,
+      subtitle: l.subtitle,
+      badge: l.badge,
+      description: l.description,
+      color: l.color,
+      href: l.href,
+      starting_price: l.startingPrice,
+      points: l.points,
+      display_order: l.display_order,
+      is_active: l.is_active !== false,
+    }));
+    await supabase.from('school_levels').upsert(rows, { onConflict: 'level_id' });
+  } catch (err) {
+    console.warn('saveSchoolLevels Supabase error:', err);
+  }
   setCache(LOCAL_STORAGE_SCHOOL_LEVELS_KEY, items);
   broadcastDataChange('school_levels');
   return { success: true };
 }
 
 export async function updateSchoolLevel(id: string, updates: Partial<SchoolLevelItem>) {
+  // Update in Supabase directly
+  try {
+    const dbUpdates: any = {};
+    if (updates.startingPrice !== undefined) dbUpdates.starting_price = updates.startingPrice;
+    if (updates.display_order !== undefined) dbUpdates.display_order = updates.display_order;
+    if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.subtitle !== undefined) dbUpdates.subtitle = updates.subtitle;
+    if (updates.badge !== undefined) dbUpdates.badge = updates.badge;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.href !== undefined) dbUpdates.href = updates.href;
+    if (updates.points !== undefined) dbUpdates.points = updates.points;
+    await supabase.from('school_levels').update(dbUpdates).eq('level_id', id);
+  } catch (err) {
+    console.warn('updateSchoolLevel Supabase error:', err);
+  }
+  // Also update localStorage cache
   const items = await getSchoolLevels();
   const idx = items.findIndex((i) => i.id === id);
   if (idx > -1) {
     items[idx] = { ...items[idx], ...updates };
     setCache(LOCAL_STORAGE_SCHOOL_LEVELS_KEY, items);
-    broadcastDataChange('school_levels');
   }
+  broadcastDataChange('school_levels');
   return { success: true };
 }
 
@@ -2583,8 +2757,7 @@ export async function reorderSchoolLevels(reorderedList: { id: string; display_o
   const map = new Map(reorderedList.map((i) => [i.id, i.display_order]));
   const updated = items.map((l) => (map.has(l.id) ? { ...l, display_order: map.get(l.id)! } : l));
   updated.sort((a, b) => a.display_order - b.display_order);
-  setCache(LOCAL_STORAGE_SCHOOL_LEVELS_KEY, updated);
-  broadcastDataChange('school_levels');
+  await saveSchoolLevels(updated);
   return { success: true };
 }
 
@@ -2605,10 +2778,35 @@ const DEFAULT_FEATURED_SPOTLIGHT: FeaturedSpotlightConfig = {
 };
 
 export async function getFeaturedSpotlightConfig(): Promise<FeaturedSpotlightConfig> {
+  // 1. Try Supabase first (source of truth — works across all devices)
+  try {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'featured_spotlight')
+      .maybeSingle();
+    if (!error && data?.value) {
+      const cfg = data.value as FeaturedSpotlightConfig;
+      setCache(LOCAL_STORAGE_FEATURED_PRODUCT_KEY, cfg);
+      return cfg;
+    }
+  } catch (err) {
+    console.warn('getFeaturedSpotlightConfig Supabase fallback:', err);
+  }
+  // 2. Fallback to localStorage
   return getCache<FeaturedSpotlightConfig>(LOCAL_STORAGE_FEATURED_PRODUCT_KEY, DEFAULT_FEATURED_SPOTLIGHT);
 }
 
 export async function saveFeaturedSpotlightConfig(cfg: FeaturedSpotlightConfig) {
+  // Save to Supabase app_settings table
+  try {
+    await supabase.from('app_settings').upsert(
+      { key: 'featured_spotlight', value: cfg },
+      { onConflict: 'key' }
+    );
+  } catch (err) {
+    console.warn('saveFeaturedSpotlightConfig Supabase error:', err);
+  }
   setCache(LOCAL_STORAGE_FEATURED_PRODUCT_KEY, cfg);
   broadcastDataChange('featured_spotlight');
   return { success: true };
