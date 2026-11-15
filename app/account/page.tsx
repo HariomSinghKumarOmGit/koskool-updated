@@ -120,6 +120,13 @@ function AccountContent() {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
 
+  // Redirect unauthenticated visitors to /login
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/login');
+    }
+  }, [authLoading, user, router]);
+
   // Sync profile fields from user or local storage
   useEffect(() => {
     if (user) {
@@ -145,14 +152,14 @@ function AccountContent() {
     }
   }, [user, guestProfile]);
 
-  // Load addresses and orders (from Supabase if logged in, local storage if guest)
+  // Load addresses and orders (from Supabase if logged in)
   const loadCustomerData = async () => {
+    if (!user) return;
     setLoadingData(true);
     try {
-      const targetUserId = user ? user.id : 'guest';
       const [addrList, orderList] = await Promise.all([
-        getCustomerAddresses(targetUserId),
-        user ? getOrders({ userId: user.id }) : getOrders({ isGuest: true }),
+        getCustomerAddresses(user.id),
+        getOrders({ userId: user.id }),
       ]);
       setAddresses(addrList);
       setOrders(orderList);
@@ -341,12 +348,14 @@ function AccountContent() {
     }
   };
 
-  if (authLoading) {
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs font-bold text-gray-500">Loading your account...</p>
+          <p className="text-xs font-bold text-gray-500">
+            {authLoading ? 'Loading your account...' : 'Redirecting to login...'}
+          </p>
         </div>
       </div>
     );

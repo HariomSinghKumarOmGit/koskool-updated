@@ -186,7 +186,7 @@ export default function Navbar() {
                 </Link>
               ) : (
                 <Link
-                  href="/account"
+                  href="/login"
                   className="flex items-center gap-1.5 p-2 sm:p-2.5 md:py-1.5 md:px-3 rounded-full text-navy-900 md:bg-gray-100 hover:bg-gray-100 md:hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
                   aria-label="Account"
                 >

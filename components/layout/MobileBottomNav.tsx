@@ -22,17 +22,14 @@ export default function MobileBottomNav() {
     window.dispatchEvent(new CustomEvent('koskool_open_search'));
   };
 
-  const handleOpenAccount = (e: React.MouseEvent) => {
-    if (!user) {
-      e.preventDefault();
-      openAuthModal();
-    }
-  };
-
   const isHome = pathname === '/';
   const isCollections = pathname?.startsWith('/collections');
   const isCart = pathname === '/cart';
-  const isAccount = pathname?.startsWith('/account') || pathname?.startsWith('/admin');
+  const isAccount =
+    pathname === '/login' ||
+    pathname?.startsWith('/login') ||
+    pathname?.startsWith('/account') ||
+    pathname?.startsWith('/admin');
 
   return (
     <nav
@@ -102,7 +99,7 @@ export default function MobileBottomNav() {
 
         {/* Account */}
         <Link
-          href={isAdmin ? '/admin' : '/account'}
+          href={user ? (isAdmin ? '/admin' : '/account') : '/login'}
           className={`flex flex-col items-center justify-center gap-1 py-1 transition-colors select-none ${
             isAccount ? 'text-brand-600 font-bold' : 'text-gray-500 hover:text-navy-900 font-medium'
           }`}

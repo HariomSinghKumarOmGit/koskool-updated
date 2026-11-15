@@ -492,17 +492,14 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
               <span className="truncate">{isAdmin ? 'Admin Panel' : 'My Account'}</span>
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                openAuthModal();
-              }}
+            <Link
+              href="/login"
+              onClick={onClose}
               className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-navy-950 hover:bg-navy-900 active:scale-98 text-white font-bold transition shadow-xs"
             >
               <User className="w-3.5 h-3.5" />
-              <span>Sign In / Join</span>
-            </button>
+              <span>Sign In / Login</span>
+            </Link>
           )}
 
           <Link
