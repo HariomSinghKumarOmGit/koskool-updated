@@ -105,22 +105,43 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
   React.useEffect(() => {
     if (isHomePage) return;
 
-    const footer = document.querySelector('footer');
-    if (!footer) return;
+    let isObserverIntersecting = false;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsFooterVisible(entry.isIntersecting);
-      },
-      {
-        root: null,
-        rootMargin: '20px 0px 0px 0px',
-        threshold: 0,
+    const handleScroll = () => {
+      const scrollY = window.scrollY || window.pageYOffset;
+      const windowHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
+      if (scrollY + windowHeight >= docHeight - 150) {
+        setIsFooterVisible(true);
+      } else if (!isObserverIntersecting) {
+        setIsFooterVisible(false);
       }
-    );
+    };
 
-    observer.observe(footer);
-    return () => observer.disconnect();
+    const footer = document.querySelector('footer');
+    let observer: IntersectionObserver | null = null;
+
+    if (footer) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          isObserverIntersecting = entry.isIntersecting;
+          setIsFooterVisible(entry.isIntersecting);
+        },
+        {
+          root: null,
+          rootMargin: '20px 0px 0px 0px',
+          threshold: 0,
+        }
+      );
+      observer.observe(footer);
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, [isHomePage]);
 
   // Mobile image touch swipe handling

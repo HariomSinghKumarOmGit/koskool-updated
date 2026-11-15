@@ -44,7 +44,7 @@ export default function Navbar() {
     <>
       {/* Main Sticky Header */}
       <header
-        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm w-full max-w-full"
+        className="sticky top-0 z-40 bg-white/75 backdrop-blur-xl backdrop-saturate-150 border-b border-white/40 shadow-xs w-full max-w-full transition-colors duration-200"
         onMouseLeave={() => setActiveMega(null)}
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
