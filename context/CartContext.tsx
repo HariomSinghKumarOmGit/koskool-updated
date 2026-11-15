@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Product, PRODUCTS } from '@/data/products';
 import { PromoCode, INITIAL_PROMO_CODES } from '@/data/promocodes';
 import { getPromoCodes } from '@/services/api';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export interface CartItem {
   product: Product;
@@ -40,32 +42,19 @@ interface CartContextType {
   resetPromoCodesToDefaults: () => void;
 }
 
-const getInitialDemoItems = (): CartItem[] => {
-  const p1 = PRODUCTS.find((p) => p.id === 'wgp53358-brown');
-  const p2 = PRODUCTS.find((p) => p.id === 'wgp53283-tan');
-  const p3 = PRODUCTS.find((p) => p.id === 'wgp53283-black');
-  const p4 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-blue');
-  const p5 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-black');
-
-  const initial: CartItem[] = [];
-  if (p1) initial.push({ product: p1, selectedSize: '7', selectedColour: 'Brown', quantity: 1 });
-  if (p2) initial.push({ product: p2, selectedSize: '9', selectedColour: 'Tan', quantity: 1 });
-  if (p3) initial.push({ product: p3, selectedSize: '8', selectedColour: 'Black', quantity: 1 });
-  if (p4) initial.push({ product: p4, selectedSize: '', selectedColour: 'Blue', quantity: 1 });
-  if (p5) initial.push({ product: p5, selectedSize: '', selectedColour: 'Black', quantity: 1 });
-  return initial;
-};
-
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [items, setItems] = useState<CartItem[]>(getInitialDemoItems);
+  const { user } = useAuth();
+  // Cart is initially empty when opening the web for the first time
+  const [items, setItems] = useState<CartItem[]>([]);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>(INITIAL_PROMO_CODES);
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
 
   const isInitializedRef = useRef(false);
+  const lastSyncedUserRef = useRef<string | null>(null);
 
   // Helper to load promo codes from localStorage syncing with koskool_promos_cache
   const loadStoredPromos = (): PromoCode[] => {
@@ -119,43 +108,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return INITIAL_PROMO_CODES;
   };
 
-  // Load cart and promo codes from localStorage on mount (with default items matching demo if empty)
+  // Load cart and promo codes from localStorage on mount (cart is empty if not stored)
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('koskool_cart');
       const hasCleared = localStorage.getItem('koskool_cart_cleared') === 'true';
-      let loadedItems: CartItem[] | null = null;
+      let loadedItems: CartItem[] = [];
 
-      if (savedCart) {
+      if (savedCart && !hasCleared) {
         const parsed = JSON.parse(savedCart);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           loadedItems = parsed;
-        } else if (hasCleared) {
-          loadedItems = [];
         }
       }
 
-      if (loadedItems !== null) {
-        setItems(loadedItems);
-      } else {
-        // Initialize with default demo items matching reference screenshots
-        const p1 = PRODUCTS.find((p) => p.id === 'wgp53358-brown');
-        const p2 = PRODUCTS.find((p) => p.id === 'wgp53283-tan');
-        const p3 = PRODUCTS.find((p) => p.id === 'wgp53283-black');
-        const p4 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-blue');
-        const p5 = PRODUCTS.find((p) => p.id === 'aztech-laptop-bag-black');
-
-        const initialDemoItems: CartItem[] = [];
-        if (p1) initialDemoItems.push({ product: p1, selectedSize: '7', selectedColour: 'Brown', quantity: 1 });
-        if (p2) initialDemoItems.push({ product: p2, selectedSize: '9', selectedColour: 'Tan', quantity: 1 });
-        if (p3) initialDemoItems.push({ product: p3, selectedSize: '8', selectedColour: 'Black', quantity: 1 });
-        if (p4) initialDemoItems.push({ product: p4, selectedSize: '', selectedColour: 'Blue', quantity: 1 });
-        if (p5) initialDemoItems.push({ product: p5, selectedSize: '', selectedColour: 'Black', quantity: 1 });
-
-        if (initialDemoItems.length > 0) {
-          setItems(initialDemoItems);
-        }
-      }
+      // Empty by default for first-time visitors
+      setItems(loadedItems);
 
       const loadedPromos = loadStoredPromos();
       setPromoCodes(loadedPromos);
@@ -212,14 +180,59 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Save cart to localStorage on changes
+  // Sync Supabase cart when user logs in
   useEffect(() => {
+    if (user?.id && user.id !== lastSyncedUserRef.current) {
+      lastSyncedUserRef.current = user.id;
+
+      // 1. Check if user has remote cart stored in Supabase
+      supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+        const remoteCart = authUser?.user_metadata?.cart;
+        if (Array.isArray(remoteCart) && remoteCart.length > 0) {
+          setItems((currentItems) => {
+            if (currentItems.length === 0) {
+              return remoteCart;
+            }
+            // Merge local guest items with remote cart
+            const merged = [...currentItems];
+            for (const r of remoteCart) {
+              const exists = merged.some(
+                (m) => m.product.id === r.product?.id && m.selectedSize === r.selectedSize
+              );
+              if (!exists) merged.push(r);
+            }
+            return merged;
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [user]);
+
+  // Save cart to localStorage on changes (locally for guest and cache for all)
+  // If user is logged in, also save cart to Supabase
+  useEffect(() => {
+    if (!isInitializedRef.current) return;
     try {
       localStorage.setItem('koskool_cart', JSON.stringify(items));
+      if (items.length > 0) {
+        localStorage.removeItem('koskool_cart_cleared');
+      }
     } catch {
       // ignore
     }
-  }, [items]);
+
+    // If logged in: save cart data to Supabase
+    if (user?.id) {
+      supabase.auth.updateUser({
+        data: { cart: items },
+      }).then(() => {}, () => {});
+
+      supabase.from('profiles').update({
+        cart: items,
+        updated_at: new Date().toISOString(),
+      }).eq('id', user.id).then(() => {}, () => {});
+    }
+  }, [items, user]);
 
   // Save promo codes to localStorage on changes once initialized
   useEffect(() => {

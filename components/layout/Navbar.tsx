@@ -185,13 +185,14 @@ export default function Navbar() {
                   </span>
                 </Link>
               ) : (
-                <button
-                  onClick={() => openAuthModal()}
-                  className="p-2.5 rounded-full text-navy-900 hover:text-brand-600 hover:bg-gray-100 transition hidden sm:inline-flex"
-                  aria-label="Sign In"
+                <Link
+                  href="/account"
+                  className="flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-gray-100 hover:bg-gray-200 text-navy-950 text-xs font-bold transition"
+                  aria-label="Account"
                 >
-                  <User className="w-5 h-5" />
-                </button>
+                  <User className="w-3.5 h-3.5 text-navy-600" />
+                  <span className="hidden md:inline">Account</span>
+                </Link>
               )}
 
               {/* Shopping Cart Trigger */}

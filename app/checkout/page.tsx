@@ -31,7 +31,7 @@ import GoogleMapsAddressPicker from '@/components/address/GoogleMapsAddressPicke
 import AddressCard from '@/components/address/AddressCard';
 
 export default function CheckoutPage() {
-  const { user, isVerified, openAuthModal, resendVerificationEmail } = useAuth();
+  const { user, isVerified, openAuthModal, resendVerificationEmail, guestProfile, updateGuestProfile } = useAuth();
   const {
     items,
     subtotal,
@@ -43,6 +43,11 @@ export default function CheckoutPage() {
     applyPromoCode,
     removePromoCode,
   } = useCart();
+
+  // Guest Personal Information (Saved Locally)
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
 
   // Saved Addresses
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
@@ -108,16 +113,13 @@ export default function CheckoutPage() {
     }
   }, [orderPlaced]);
 
-  // Load Saved Addresses whenever user logs in
+  // Load Saved Addresses (locally for guest or Supabase for logged in)
   useEffect(() => {
     async function loadAddresses() {
-      if (!user) {
-        setSavedAddresses([]);
-        return;
-      }
+      const targetUserId = user ? user.id : 'guest';
       setLoadingAddresses(true);
       try {
-        const addresses = await getCustomerAddresses(user.id);
+        const addresses = await getCustomerAddresses(targetUserId);
 
         if (addresses && addresses.length > 0) {
           setSavedAddresses(addresses);
@@ -126,28 +128,8 @@ export default function CheckoutPage() {
           setSelectedBillingAddressId(defaultAddr.id);
           setShowNewShippingPicker(false);
         } else {
-          // Provide default initial address matching Koskool delivery profile
-          const defaultAddr: CustomerAddress = {
-            id: 'addr_default_koskool',
-            user_id: user.id,
-            name: user.name || 'Edward',
-            phone: user.phone || '32323232',
-            house_flat: '232344',
-            street_area: 'Knowledge Park III',
-            city: 'Greater Noida',
-            state: 'Uttar Pradesh',
-            pincode: '210310',
-            country: 'India',
-            address_type: 'shipping',
-            is_default: true,
-            latitude: 28.4644,
-            longitude: 77.5024,
-            created_at: new Date().toISOString(),
-          };
-          setSavedAddresses([defaultAddr]);
-          setSelectedShippingAddressId(defaultAddr.id);
-          setSelectedBillingAddressId(defaultAddr.id);
-          setShowNewShippingPicker(false);
+          setSavedAddresses([]);
+          setShowNewShippingPicker(true);
         }
       } catch (err) {
         console.error('Failed to load customer addresses:', err);
@@ -159,7 +141,65 @@ export default function CheckoutPage() {
     loadAddresses();
   }, [user]);
 
-  // Autofill name and phone from profile
+  // Initialize and sync guest personal information
+  useEffect(() => {
+    if (!user) {
+      try {
+        const saved = localStorage.getItem('koskool_guest_profile');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setGuestName(parsed.name || '');
+          setGuestPhone(parsed.phone || '');
+          setGuestEmail(parsed.email || '');
+          setNewShippingAddress((prev) => ({
+            ...prev,
+            name: prev.name || parsed.name || '',
+            phone: prev.phone || parsed.phone || '',
+          }));
+        } else if (guestProfile) {
+          setGuestName(guestProfile.name || '');
+          setGuestPhone(guestProfile.phone || '');
+          setGuestEmail(guestProfile.email || '');
+          setNewShippingAddress((prev) => ({
+            ...prev,
+            name: prev.name || guestProfile.name || '',
+            phone: prev.phone || guestProfile.phone || '',
+          }));
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [user, guestProfile]);
+
+  const handleGuestFieldChange = (field: 'name' | 'phone' | 'email', value: string) => {
+    if (field === 'name') setGuestName(value);
+    if (field === 'phone') setGuestPhone(value);
+    if (field === 'email') setGuestEmail(value);
+
+    const updated = {
+      name: field === 'name' ? value : guestName,
+      phone: field === 'phone' ? value : guestPhone,
+      email: field === 'email' ? value : guestEmail,
+    };
+
+    try {
+      localStorage.setItem('koskool_guest_profile', JSON.stringify(updated));
+      updateGuestProfile(updated);
+    } catch {
+      // ignore
+    }
+
+    // Also sync to new address form if blank
+    if (field === 'name') {
+      setNewShippingAddress((prev) => ({ ...prev, name: prev.name ? prev.name : value }));
+    }
+    if (field === 'phone') {
+      setNewShippingAddress((prev) => ({ ...prev, phone: prev.phone ? prev.phone : value }));
+    }
+  };
+
+  // Autofill name and phone from profile when logged in
   useEffect(() => {
     if (user) {
       setNewShippingAddress((prev) => ({
@@ -176,14 +216,6 @@ export default function CheckoutPage() {
   }, [user]);
 
   const handleApplyPromo = () => {
-    if (!user) {
-      openAuthModal(() => {
-        const res = applyPromoCode(promoInput);
-        setPromoMsg({ text: res.message, success: res.success });
-        if (res.success) setPromoInput('');
-      });
-      return;
-    }
     const res = applyPromoCode(promoInput);
     setPromoMsg({ text: res.message, success: res.success });
     if (res.success) setPromoInput('');
@@ -211,23 +243,35 @@ export default function CheckoutPage() {
     e.preventDefault();
     setSubmitError('');
 
-    // 1. Must be logged in
-    if (!user) {
-      openAuthModal(() => handleSubmit(e));
+    // Determine final customer details
+    const finalCustomerName = (user?.name || guestName || newShippingAddress.name || '').trim();
+    const finalCustomerPhone = (user?.phone || guestPhone || newShippingAddress.phone || '').trim();
+    const finalCustomerEmail = (user?.email || guestEmail || '').trim();
+
+    if (!finalCustomerName) {
+      setSubmitError('Please enter your full name in the customer information section.');
+      return;
+    }
+    if (!finalCustomerPhone) {
+      setSubmitError('Please enter a valid phone number for shipping & delivery notifications.');
+      return;
+    }
+    if (!finalCustomerEmail) {
+      setSubmitError('Please enter an email address for order confirmation and receipts.');
       return;
     }
 
-    // 2. Email verification is mandatory
-    if (!isVerified) {
+    // Email verification check for logged-in accounts
+    if (user && !isVerified) {
       setSubmitError(
-        'Email verification is mandatory before placing an order. Please click the link sent to ' +
+        'Email verification is required for registered accounts. Please click the link sent to ' +
           user.email +
           ' to verify your account.'
       );
       return;
     }
 
-    // 3. Resolve Shipping Address Snapshot
+    // Resolve Shipping Address Snapshot
     let shippingSnapshot: CustomerAddress | any;
     if (!showNewShippingPicker && selectedShippingAddressId) {
       shippingSnapshot = savedAddresses.find((a) => a.id === selectedShippingAddressId);
@@ -235,17 +279,17 @@ export default function CheckoutPage() {
 
     if (!shippingSnapshot) {
       // Validate new shipping fields
-      if (!newShippingAddress.name || !newShippingAddress.phone || !newShippingAddress.street_area || !newShippingAddress.pincode) {
-        setSubmitError('Please complete all required delivery address fields (Recipient Name, Phone, Street, and PIN Code).');
+      if (!newShippingAddress.street_area || !newShippingAddress.pincode) {
+        setSubmitError('Please complete all required delivery address fields (Street / Area and PIN Code).');
         return;
       }
 
       shippingSnapshot = {
         id: `addr-${Date.now()}`,
-        user_id: user.id,
+        user_id: user ? user.id : 'guest',
         address_type: 'shipping',
-        name: newShippingAddress.name,
-        phone: newShippingAddress.phone,
+        name: newShippingAddress.name || finalCustomerName,
+        phone: newShippingAddress.phone || finalCustomerPhone,
         house_flat: newShippingAddress.house_flat || '',
         street_area: newShippingAddress.street_area,
         landmark: newShippingAddress.landmark || '',
@@ -258,13 +302,13 @@ export default function CheckoutPage() {
         is_default: savedAddresses.length === 0,
       };
 
-      // Save to profile if requested
+      // Save to profile (locally if guest, Supabase if logged in)
       if (saveShippingToProfile) {
-        saveCustomerAddress(user.id, shippingSnapshot).catch(() => {});
+        saveCustomerAddress(user ? user.id : 'guest', shippingSnapshot).catch(() => {});
       }
     }
 
-    // 4. Resolve Billing Address Snapshot
+    // Resolve Billing Address Snapshot
     let billingSnapshot: CustomerAddress | any;
     if (billingSameAsShipping) {
       billingSnapshot = { ...shippingSnapshot, address_type: 'billing' };
@@ -273,17 +317,17 @@ export default function CheckoutPage() {
         billingSnapshot = savedAddresses.find((a) => a.id === selectedBillingAddressId);
       }
       if (!billingSnapshot) {
-        if (!newBillingAddress.name || !newBillingAddress.phone || !newBillingAddress.street_area || !newBillingAddress.pincode) {
+        if (!newBillingAddress.street_area || !newBillingAddress.pincode) {
           setSubmitError('Please complete all required billing address fields.');
           return;
         }
 
         billingSnapshot = {
           id: `addr-${Date.now()}-bill`,
-          user_id: user.id,
+          user_id: user ? user.id : 'guest',
           address_type: 'billing',
-          name: newBillingAddress.name,
-          phone: newBillingAddress.phone,
+          name: newBillingAddress.name || finalCustomerName,
+          phone: newBillingAddress.phone || finalCustomerPhone,
           house_flat: newBillingAddress.house_flat || '',
           street_area: newBillingAddress.street_area,
           landmark: newBillingAddress.landmark || '',
@@ -297,7 +341,7 @@ export default function CheckoutPage() {
         };
 
         if (saveBillingToProfile) {
-          saveCustomerAddress(user.id, billingSnapshot).catch(() => {});
+          saveCustomerAddress(user ? user.id : 'guest', billingSnapshot).catch(() => {});
         }
       }
     }
@@ -310,10 +354,10 @@ export default function CheckoutPage() {
     setSubmitting(true);
     try {
       const orderPayload = {
-        user_id: user.id,
-        customer_name: shippingSnapshot.name || user.name,
-        customer_email: user.email,
-        customer_phone: shippingSnapshot.phone || user.phone || '+91 98000 00000',
+        user_id: user ? user.id : null,
+        customer_name: finalCustomerName,
+        customer_email: finalCustomerEmail,
+        customer_phone: finalCustomerPhone,
         delivery_address: `${shippingSnapshot.house_flat ? shippingSnapshot.house_flat + ', ' : ''}${shippingSnapshot.street_area}`,
         shipping_address: shippingSnapshot,
         billing_address: billingSnapshot,
@@ -435,18 +479,18 @@ export default function CheckoutPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Auth prompt if not logged in */}
         {!user ? (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5 text-amber-800">
-              <User className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 text-blue-900">
+              <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
               <span>
-                Please sign in or register with your verified email to place an order and save your delivery details.{' '}
-                <strong className="text-navy-950">Email verification is mandatory.</strong>
+                <strong>Guest Mode:</strong> You can place orders directly without signing in! All personal details and orders are saved locally on this device.{' '}
+                <span className="text-gray-600">Want cloud sync across multiple devices?</span>
               </span>
             </div>
             <button
               type="button"
               onClick={() => openAuthModal()}
-              className="px-4 py-2.5 rounded-xl bg-navy-950 text-white font-bold text-xs shrink-0 hover:bg-navy-900 transition self-start sm:self-auto shadow"
+              className="px-4 py-2 rounded-xl bg-navy-950 text-white font-bold text-xs shrink-0 hover:bg-navy-900 transition self-start sm:self-auto shadow"
             >
               Sign In / Register
             </button>
@@ -498,24 +542,78 @@ export default function CheckoutPage() {
                 <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider">
                   1. Customer Information
                 </h2>
-                {user && (
+                {user ? (
                   <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Verified Account</span>
+                    <span>Verified Account (Cloud Synced)</span>
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Saved Locally on Device</span>
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <span className="text-gray-500 block text-[11px]">Account Name</span>
-                  <span className="font-bold text-navy-950 text-sm">{user?.name || 'Guest Student/Parent'}</span>
+              {user ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Account Name</span>
+                    <span className="font-bold text-navy-950 text-sm">{user.name || 'Valued Customer'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block text-[11px]">Email for Order Updates</span>
+                    <span className="font-bold text-navy-950 text-sm">{user.email}</span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-500 block text-[11px]">Email for Order Updates</span>
-                  <span className="font-bold text-navy-950 text-sm">{user?.email || 'Sign in to sync'}</span>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-[11px] text-gray-500">
+                    Your personal information is saved locally on your browser. Enter your details to receive delivery updates.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={guestName}
+                        onChange={(e) => handleGuestFieldChange('name', e.target.value)}
+                        placeholder="Parent / Student name"
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        Phone Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={guestPhone}
+                        onChange={(e) => handleGuestFieldChange('phone', e.target.value)}
+                        placeholder="+91 98765 43210"
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        Email Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={guestEmail}
+                        onChange={(e) => handleGuestFieldChange('email', e.target.value)}
+                        placeholder="parent@example.com"
+                        className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Step 2: Shipping Address */}
@@ -543,7 +641,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Saved Shipping Addresses Selector */}
-              {user && savedAddresses.length > 0 && !showNewShippingPicker ? (
+              {savedAddresses.length > 0 && !showNewShippingPicker ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 gap-3">
                     {savedAddresses.map((addr) => (
@@ -575,19 +673,17 @@ export default function CheckoutPage() {
                     addressType="shipping"
                   />
 
-                  {user && (
-                    <label className="flex items-center gap-2 cursor-pointer select-none text-xs pt-1">
-                      <input
-                        type="checkbox"
-                        checked={saveShippingToProfile}
-                        onChange={(e) => setSaveShippingToProfile(e.target.checked)}
-                        className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
-                      />
-                      <span className="font-medium text-gray-700">
-                        Save this shipping address to my profile for future orders
-                      </span>
-                    </label>
-                  )}
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-xs pt-1">
+                    <input
+                      type="checkbox"
+                      checked={saveShippingToProfile}
+                      onChange={(e) => setSaveShippingToProfile(e.target.checked)}
+                      className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
+                    />
+                    <span className="font-medium text-gray-700">
+                      Save this shipping address {user ? 'to my profile (Cloud)' : 'locally on this device'} for future orders
+                    </span>
+                  </label>
                 </div>
               )}
             </div>
@@ -614,7 +710,7 @@ export default function CheckoutPage() {
 
               {!billingSameAsShipping && (
                 <div className="pt-2 space-y-4 animate-fadeIn">
-                  {user && savedAddresses.length > 0 && !showNewBillingPicker ? (
+                  {savedAddresses.length > 0 && !showNewBillingPicker ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 gap-3">
                         {savedAddresses.map((addr) => (
@@ -645,19 +741,17 @@ export default function CheckoutPage() {
                         addressType="billing"
                       />
 
-                      {user && (
-                        <label className="flex items-center gap-2 cursor-pointer select-none text-xs pt-1">
-                          <input
-                            type="checkbox"
-                            checked={saveBillingToProfile}
-                            onChange={(e) => setSaveBillingToProfile(e.target.checked)}
-                            className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
-                          />
-                          <span className="font-medium text-gray-700">
-                            Save this billing address to my profile
-                          </span>
-                        </label>
-                      )}
+                      <label className="flex items-center gap-2 cursor-pointer select-none text-xs pt-1">
+                        <input
+                          type="checkbox"
+                          checked={saveBillingToProfile}
+                          onChange={(e) => setSaveBillingToProfile(e.target.checked)}
+                          className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4"
+                        />
+                        <span className="font-medium text-gray-700">
+                          Save this billing address {user ? 'to my profile (Cloud)' : 'locally on this device'}
+                        </span>
+                      </label>
                     </div>
                   )}
                 </div>

@@ -16,10 +16,18 @@ export interface UserProfile {
   created_at?: string;
 }
 
+export interface GuestProfile {
+  name: string;
+  email: string;
+  phone: string;
+}
+
 export type AuthModalMode = 'login' | 'signup' | 'forgot_password';
 
 interface AuthContextType {
   user: UserProfile | null;
+  guestProfile: GuestProfile;
+  updateGuestProfile: (data: Partial<GuestProfile>) => void;
   isAdmin: boolean;
   isVerified: boolean;
   isLoading: boolean;
@@ -41,7 +49,7 @@ interface AuthContextType {
   resendVerificationEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  updateProfile: (data: { name?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: { name?: string; phone?: string; email?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -49,10 +57,42 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [guestProfile, setGuestProfile] = useState<GuestProfile>({ name: '', email: '', phone: '' });
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('login');
   const [pendingCallback, setPendingCallback] = useState<(() => void) | null>(null);
+
+  // Load guest profile from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedGuest = localStorage.getItem('koskool_guest_profile');
+      if (savedGuest) {
+        setGuestProfile(JSON.parse(savedGuest));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const updateGuestProfile = (data: Partial<GuestProfile>) => {
+    setGuestProfile((prev) => {
+      const updated: GuestProfile = {
+        name: data.name !== undefined ? data.name : prev.name,
+        email: data.email !== undefined ? data.email : prev.email,
+        phone: data.phone !== undefined ? data.phone : prev.phone,
+      };
+      try {
+        localStorage.setItem('koskool_guest_profile', JSON.stringify(updated));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('koskool_guest_profile_updated', { detail: updated }));
+        }
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
 
   // Helper: fetch or create profile in Supabase profiles table
   const fetchOrCreateProfile = async (
@@ -65,6 +105,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let profilePhone = authUser.user_metadata?.phone || '';
     let role: 'admin' | 'customer' = forcedRole || (userEmail === 'admin@gmail.com' ? 'admin' : 'customer');
     let addresses: CustomerAddress[] = [];
+
+    // Check if guest had filled personal information locally before logging in
+    try {
+      const savedGuest = localStorage.getItem('koskool_guest_profile');
+      if (savedGuest) {
+        const guestData = JSON.parse(savedGuest);
+        if ((!profileName || profileName === 'Valued Customer') && guestData.name) {
+          profileName = guestData.name;
+        }
+        if (!profilePhone && guestData.phone) {
+          profilePhone = guestData.phone;
+        }
+      }
+    } catch {
+      // ignore
+    }
 
     try {
       const { data: dbProfile } = await supabase
@@ -94,6 +150,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role,
           },
         ]);
+      }
+
+      // Check if guest had addresses saved locally before logging in - sync them to Supabase!
+      const savedGuestAddrs = localStorage.getItem('koskool_guest_addresses');
+      if (savedGuestAddrs) {
+        const guestList = JSON.parse(savedGuestAddrs);
+        if (Array.isArray(guestList) && guestList.length > 0) {
+          const merged = [...addresses];
+          let changed = false;
+          for (const gAddr of guestList) {
+            if (!merged.some((m) => m.street_area === gAddr.street_area && m.pincode === gAddr.pincode)) {
+              merged.push({
+                ...gAddr,
+                id: `addr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                user_id: authUser.id,
+              });
+              changed = true;
+            }
+          }
+          if (changed) {
+            addresses = merged;
+            await supabase.from('profiles').update({ addresses: merged, updated_at: new Date().toISOString() }).eq('id', authUser.id);
+            localStorage.setItem(`koskool_addresses_${authUser.id}`, JSON.stringify(merged));
+            localStorage.removeItem('koskool_guest_addresses');
+          }
+        }
       }
     } catch (err) {
       console.warn('Profile fetch/sync notice:', err);
@@ -393,9 +475,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateProfile = async (data: { name?: string; phone?: string }): Promise<{ success: boolean; error?: string }> => {
-    if (!user) return { success: false, error: 'No user signed in' };
+  const updateProfile = async (data: { name?: string; phone?: string; email?: string }): Promise<{ success: boolean; error?: string }> => {
+    if (!user) {
+      // User is not logged in: save all personal information locally
+      updateGuestProfile({
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+      });
+      return { success: true };
+    }
 
+    // User is logged in: save to Supabase and cache locally
     const updatedUser: UserProfile = {
       ...user,
       name: data.name !== undefined ? data.name : user.name,
@@ -443,6 +534,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        guestProfile,
+        updateGuestProfile,
         isAdmin: user?.role === 'admin',
         isVerified: Boolean(user?.is_verified),
         isLoading,

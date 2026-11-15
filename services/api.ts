@@ -1447,8 +1447,12 @@ export async function deletePromotionalBanner(id: string) {
 // ==========================================
 // 5. CUSTOMER ADDRESSES & PROFILES API
 // ==========================================
-export async function getCustomerAddresses(userId: string): Promise<CustomerAddress[]> {
-  if (!userId) return [];
+export async function getCustomerAddresses(userId?: string): Promise<CustomerAddress[]> {
+  const isGuest = !userId || userId === 'guest';
+  if (isGuest) {
+    return getCache<CustomerAddress[]>('koskool_guest_addresses', []);
+  }
+
   const localKey = `koskool_addresses_${userId}`;
 
   // 1. Try dedicated customer_addresses table
@@ -1492,7 +1496,8 @@ export async function saveCustomerAddress(
   userId: string,
   addressData: Partial<CustomerAddress>
 ): Promise<{ success: boolean; address: CustomerAddress }> {
-  const localKey = `koskool_addresses_${userId}`;
+  const isGuest = !userId || userId === 'guest';
+  const localKey = isGuest ? 'koskool_guest_addresses' : `koskool_addresses_${userId}`;
   const now = new Date().toISOString();
   const addressId = addressData.id || `addr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
@@ -1503,7 +1508,7 @@ export async function saveCustomerAddress(
 
   const fullAddress: CustomerAddress = {
     id: addressId,
-    user_id: userId,
+    user_id: isGuest ? 'guest' : userId,
     address_type: addressData.address_type || 'shipping',
     name: addressData.name || 'Student / Parent',
     phone: addressData.phone || '',
@@ -1536,30 +1541,32 @@ export async function saveCustomerAddress(
       : [fullAddress, ...currentAddresses];
   }
 
-  // Save to local cache immediately
+  // Save to local cache immediately (in localStorage)
   setCache(localKey, updatedList);
 
-  // Attempt sync to Supabase customer_addresses table
-  try {
-    if (isDefault) {
-      await supabase
-        .from('customer_addresses')
-        .update({ is_default: false })
-        .eq('user_id', userId);
+  if (!isGuest) {
+    // Attempt sync to Supabase customer_addresses table
+    try {
+      if (isDefault) {
+        await supabase
+          .from('customer_addresses')
+          .update({ is_default: false })
+          .eq('user_id', userId);
+      }
+      await supabase.from('customer_addresses').upsert([fullAddress], { onConflict: 'id' });
+    } catch {
+      // ignore
     }
-    await supabase.from('customer_addresses').upsert([fullAddress], { onConflict: 'id' });
-  } catch {
-    // ignore
-  }
 
-  // Attempt sync to Supabase profiles.addresses JSONB column
-  try {
-    await supabase
-      .from('profiles')
-      .update({ addresses: updatedList, updated_at: now })
-      .eq('id', userId);
-  } catch {
-    // ignore
+    // Attempt sync to Supabase profiles.addresses JSONB column
+    try {
+      await supabase
+        .from('profiles')
+        .update({ addresses: updatedList, updated_at: now })
+        .eq('id', userId);
+    } catch {
+      // ignore
+    }
   }
 
   broadcastDataChange('addresses');
@@ -1570,7 +1577,8 @@ export async function deleteCustomerAddress(
   userId: string,
   addressId: string
 ): Promise<{ success: boolean }> {
-  const localKey = `koskool_addresses_${userId}`;
+  const isGuest = !userId || userId === 'guest';
+  const localKey = isGuest ? 'koskool_guest_addresses' : `koskool_addresses_${userId}`;
   const currentAddresses = await getCustomerAddresses(userId);
   const remaining = currentAddresses.filter((a) => a.id !== addressId);
 
@@ -1581,19 +1589,21 @@ export async function deleteCustomerAddress(
 
   setCache(localKey, remaining);
 
-  try {
-    await supabase.from('customer_addresses').delete().eq('id', addressId).eq('user_id', userId);
-  } catch {
-    // ignore
-  }
+  if (!isGuest) {
+    try {
+      await supabase.from('customer_addresses').delete().eq('id', addressId).eq('user_id', userId);
+    } catch {
+      // ignore
+    }
 
-  try {
-    await supabase
-      .from('profiles')
-      .update({ addresses: remaining, updated_at: new Date().toISOString() })
-      .eq('id', userId);
-  } catch {
-    // ignore
+    try {
+      await supabase
+        .from('profiles')
+        .update({ addresses: remaining, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+    } catch {
+      // ignore
+    }
   }
 
   broadcastDataChange('addresses');
@@ -1604,7 +1614,8 @@ export async function setDefaultCustomerAddress(
   userId: string,
   addressId: string
 ): Promise<{ success: boolean }> {
-  const localKey = `koskool_addresses_${userId}`;
+  const isGuest = !userId || userId === 'guest';
+  const localKey = isGuest ? 'koskool_guest_addresses' : `koskool_addresses_${userId}`;
   const currentAddresses = await getCustomerAddresses(userId);
   const updated = currentAddresses.map((a) => ({
     ...a,
@@ -1613,20 +1624,22 @@ export async function setDefaultCustomerAddress(
 
   setCache(localKey, updated);
 
-  try {
-    await supabase.from('customer_addresses').update({ is_default: false }).eq('user_id', userId);
-    await supabase.from('customer_addresses').update({ is_default: true }).eq('id', addressId).eq('user_id', userId);
-  } catch {
-    // ignore
-  }
+  if (!isGuest) {
+    try {
+      await supabase.from('customer_addresses').update({ is_default: false }).eq('user_id', userId);
+      await supabase.from('customer_addresses').update({ is_default: true }).eq('id', addressId).eq('user_id', userId);
+    } catch {
+      // ignore
+    }
 
-  try {
-    await supabase
-      .from('profiles')
-      .update({ addresses: updated, updated_at: new Date().toISOString() })
-      .eq('id', userId);
-  } catch {
-    // ignore
+    try {
+      await supabase
+        .from('profiles')
+        .update({ addresses: updated, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+    } catch {
+      // ignore
+    }
   }
 
   broadcastDataChange('addresses');
@@ -1638,9 +1651,30 @@ export async function setDefaultCustomerAddress(
 // ==========================================
 export async function getOrders(params?: {
   userId?: string;
+  isGuest?: boolean;
   status?: string;
   search?: string;
 }): Promise<Order[]> {
+  const isGuest = params?.isGuest || params?.userId === 'guest';
+
+  // If fetching for guest, return locally saved guest orders
+  if (isGuest) {
+    let guestOrders = getCache<Order[]>('koskool_guest_orders', []);
+    if (params?.status && params.status !== 'all') {
+      guestOrders = guestOrders.filter((o) => o.status === params.status);
+    }
+    if (params?.search && params.search.trim()) {
+      const term = params.search.toLowerCase();
+      guestOrders = guestOrders.filter(
+        (o) =>
+          o.order_number.toLowerCase().includes(term) ||
+          o.customer_name.toLowerCase().includes(term) ||
+          o.customer_phone.includes(term)
+      );
+    }
+    return guestOrders;
+  }
+
   try {
     let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
 
@@ -1759,6 +1793,15 @@ export async function getOrderByIdOrNumber(
       return null;
     }
     return found;
+  }
+
+  // Fallback to guest orders
+  const guestOrders = getCache<Order[]>('koskool_guest_orders', []);
+  const guestFound = guestOrders.find(
+    (o) => o.id === clean || o.order_number.toUpperCase() === clean.toUpperCase()
+  );
+  if (guestFound) {
+    return guestFound;
   }
 
   return null;
@@ -1897,6 +1940,14 @@ export async function createOrder(
   const cached = getCache<Order[]>(LOCAL_STORAGE_ORDERS_KEY, DEFAULT_ORDERS);
   cached.unshift(newOrder);
   setCache(LOCAL_STORAGE_ORDERS_KEY, cached);
+
+  // If order was placed as a guest (no user_id), save into local guest orders storage
+  if (!newOrder.user_id) {
+    const guestOrders = getCache<Order[]>('koskool_guest_orders', []);
+    guestOrders.unshift(newOrder);
+    setCache('koskool_guest_orders', guestOrders);
+  }
+
   broadcastDataChange('orders');
 
   return { success: true, orderId: orderNumber, order: newOrder };

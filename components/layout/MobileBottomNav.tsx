@@ -102,8 +102,7 @@ export default function MobileBottomNav() {
 
         {/* Account */}
         <Link
-          href={isAdmin ? '/admin' : user ? '/account' : '#'}
-          onClick={handleOpenAccount}
+          href={isAdmin ? '/admin' : '/account'}
           className={`flex flex-col items-center justify-center gap-1 py-1 transition-colors select-none ${
             isAccount ? 'text-brand-600 font-bold' : 'text-gray-500 hover:text-navy-900 font-medium'
           }`}

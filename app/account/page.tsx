@@ -60,12 +60,14 @@ function AccountContent() {
   const router = useRouter();
   const {
     user,
+    guestProfile,
     isAdmin,
     isVerified,
     isLoading: authLoading,
     updateProfile,
     updatePassword,
     resendVerificationEmail,
+    openAuthModal,
     logout,
   } = useAuth();
 
@@ -78,7 +80,19 @@ function AccountContent() {
 
   // Address modal states
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<Partial<CustomerAddress> | null>(null);
+  const [editingAddress, setEditingAddress] = useState<Partial<CustomerAddress> | null>({
+    name: '',
+    phone: '',
+    house_flat: '',
+    street_area: '',
+    landmark: '',
+    city: 'Delhi',
+    state: 'Delhi',
+    pincode: '',
+    country: 'India',
+    address_type: 'shipping',
+    is_default: false,
+  });
   const [addressModalType, setAddressModalType] = useState<'shipping' | 'billing' | 'both'>('shipping');
 
   // Order Details modal
@@ -92,6 +106,7 @@ function AccountContent() {
   // Profile Edit states
   const [nameInput, setNameInput] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ text: string; success: boolean } | null>(null);
 
@@ -105,29 +120,39 @@ function AccountContent() {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/account/login?redirect=/account');
-    }
-  }, [user, authLoading, router]);
-
-  // Sync profile fields
+  // Sync profile fields from user or local storage
   useEffect(() => {
     if (user) {
       setNameInput(user.name || '');
       setPhoneInput(user.phone || '');
+      setEmailInput(user.email || '');
+    } else {
+      try {
+        const saved = localStorage.getItem('koskool_guest_profile');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setNameInput(parsed.name || '');
+          setPhoneInput(parsed.phone || '');
+          setEmailInput(parsed.email || '');
+        } else if (guestProfile) {
+          setNameInput(guestProfile.name || '');
+          setPhoneInput(guestProfile.phone || '');
+          setEmailInput(guestProfile.email || '');
+        }
+      } catch {
+        // ignore
+      }
     }
-  }, [user]);
+  }, [user, guestProfile]);
 
-  // Load addresses and orders
+  // Load addresses and orders (from Supabase if logged in, local storage if guest)
   const loadCustomerData = async () => {
-    if (!user) return;
     setLoadingData(true);
     try {
+      const targetUserId = user ? user.id : 'guest';
       const [addrList, orderList] = await Promise.all([
-        getCustomerAddresses(user.id),
-        getOrders({ userId: user.id }),
+        getCustomerAddresses(targetUserId),
+        user ? getOrders({ userId: user.id }) : getOrders({ isGuest: true }),
       ]);
       setAddresses(addrList);
       setOrders(orderList);
@@ -139,15 +164,13 @@ function AccountContent() {
   };
 
   useEffect(() => {
-    if (user) {
-      loadCustomerData();
-    }
+    loadCustomerData();
   }, [user]);
 
   // Listen for broadcast data updates (e.g. from admin panel updates)
   useEffect(() => {
     const handleUpdate = () => {
-      if (user) loadCustomerData();
+      loadCustomerData();
     };
     window.addEventListener('koskool_data_updated', handleUpdate);
     return () => window.removeEventListener('koskool_data_updated', handleUpdate);
@@ -159,9 +182,18 @@ function AccountContent() {
     setProfileSaving(true);
     setProfileMsg(null);
     try {
-      const res = await updateProfile({ name: nameInput, phone: phoneInput });
+      const res = await updateProfile({
+        name: nameInput,
+        phone: phoneInput,
+        email: emailInput,
+      });
       if (res.success) {
-        setProfileMsg({ text: 'Profile updated successfully!', success: true });
+        setProfileMsg({
+          text: user
+            ? 'Profile updated successfully and synced with cloud!'
+            : 'Personal information saved locally on this browser!',
+          success: true,
+        });
       } else {
         setProfileMsg({ text: res.error || 'Failed to update profile.', success: false });
       }
@@ -244,29 +276,30 @@ function AccountContent() {
   };
 
   const handleDeleteAddress = async (addressId: string) => {
-    if (!user) return;
     if (confirm('Are you sure you want to delete this address?')) {
-      await deleteCustomerAddress(user.id, addressId);
+      const targetUserId = user ? user.id : 'guest';
+      await deleteCustomerAddress(targetUserId, addressId);
       loadCustomerData();
     }
   };
 
   const handleSetDefaultAddress = async (addressId: string) => {
-    if (!user) return;
-    await setDefaultCustomerAddress(user.id, addressId);
+    const targetUserId = user ? user.id : 'guest';
+    await setDefaultCustomerAddress(targetUserId, addressId);
     loadCustomerData();
   };
 
   const handleSaveAddressModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !editingAddress) return;
+    if (!editingAddress) return;
 
     if (!editingAddress.name || !editingAddress.phone || !editingAddress.street_area || !editingAddress.pincode) {
       alert('Please fill out all required address fields.');
       return;
     }
 
-    await saveCustomerAddress(user.id, {
+    const targetUserId = user ? user.id : 'guest';
+    await saveCustomerAddress(targetUserId, {
       ...editingAddress,
       address_type: addressModalType,
     });
@@ -308,7 +341,7 @@ function AccountContent() {
     }
   };
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -329,33 +362,48 @@ function AccountContent() {
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-navy-950 text-white flex items-center justify-center font-black text-2xl shadow-md">
-              {(user.name || 'K')[0].toUpperCase()}
+              {user ? (user.name || 'K')[0].toUpperCase() : (nameInput ? nameInput[0].toUpperCase() : 'G')}
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-navy-950">{user.name || 'Valued Customer'}</h1>
+                <h1 className="text-xl sm:text-2xl font-black text-navy-950">
+                  {user ? (user.name || 'Valued Customer') : (nameInput || 'Guest Customer')}
+                </h1>
                 {isAdmin && (
                   <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full border border-purple-200">
                     Authorized
                   </span>
                 )}
-                {isVerified ? (
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Email Verified</span>
-                  </span>
+                {user ? (
+                  isVerified ? (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Email Verified (Supabase Cloud)</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>Unverified Email</span>
+                    </span>
+                  )
                 ) : (
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>Unverified Email</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>Saved Locally on this Device</span>
                   </span>
                 )}
               </div>
               <p className="text-xs text-gray-500 font-mono">
-                {user.email} {user.phone ? `• ${user.phone}` : ''}
+                {user
+                  ? `${user.email} ${user.phone ? `• ${user.phone}` : ''}`
+                  : `${emailInput || 'No email saved yet'} ${phoneInput ? `• ${phoneInput}` : ''}`}
               </p>
               <p className="text-[11px] text-gray-400">
-                Customer Account ID: <code className="text-navy-950 font-bold">{user.id}</code>
+                {user ? (
+                  <>Customer Account ID: <code className="text-navy-950 font-bold">{user.id}</code></>
+                ) : (
+                  <>Storage Mode: <code className="text-blue-700 font-bold">Local Device Storage (No Account Required)</code></>
+                )}
               </p>
             </div>
           </div>
@@ -369,21 +417,53 @@ function AccountContent() {
                 Open Dashboard
               </Link>
             )}
-            <button
-              onClick={() => {
-                logout();
-                router.replace('/');
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-navy-950 text-xs font-bold transition shadow-sm"
-            >
-              <LogOut className="w-4 h-4 text-gray-500" />
-              <span>Log Out</span>
-            </button>
+            {user ? (
+              <button
+                onClick={() => {
+                  logout();
+                  router.replace('/');
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-navy-950 text-xs font-bold transition shadow-sm"
+              >
+                <LogOut className="w-4 h-4 text-gray-500" />
+                <span>Log Out</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => openAuthModal()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-navy-950 hover:bg-navy-900 text-white text-xs font-bold transition shadow"
+              >
+                <User className="w-4 h-4" />
+                <span>Sign In / Create Account</span>
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Guest Mode Banner */}
+        {!user && (
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-blue-900">
+            <div className="flex items-start gap-2.5">
+              <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block text-sm text-navy-950">Local Storage Active (Guest Mode)</strong>
+                <span>
+                  All your personal details, delivery addresses, and orders placed on this device are saved safely in your local browser storage. You can sign in anytime to sync to Supabase across all your devices.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => openAuthModal()}
+              className="px-4 py-2 rounded-xl bg-navy-950 hover:bg-navy-900 text-white font-bold text-xs shrink-0 transition shadow self-start sm:self-auto"
+            >
+              Sign In to Cloud
+            </button>
+          </div>
+        )}
+
         {/* Verification Alert if unverified */}
-        {!isVerified && (
+        {user && !isVerified && (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -891,27 +971,44 @@ function AccountContent() {
 
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Email Address (Verified Identity)
+                        Email Address {user ? '(Verified Identity)' : '*'}
                       </label>
                       <input
                         type="email"
-                        disabled
-                        value={user.email}
-                        className="w-full bg-gray-100 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs text-gray-600 font-medium cursor-not-allowed"
+                        disabled={Boolean(user)}
+                        value={user ? user.email : emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        placeholder="parent@example.com"
+                        className={`w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs font-medium ${
+                          user
+                            ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                            : 'bg-gray-50 text-navy-950 focus:outline-none focus:ring-1 focus:ring-brand-500'
+                        }`}
+                        required={!user}
                       />
                       <span className="text-[11px] text-gray-400 mt-1 block">
-                        Email address is locked to your Supabase Auth user record.
+                        {user
+                          ? 'Email address is locked to your Supabase Auth user record.'
+                          : 'Saved locally on this device for your receipts and order updates.'}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                       <span className="text-[11px] text-gray-400">
-                        Account created on:{' '}
-                        {new Date(user.created_at || Date.now()).toLocaleDateString([], {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
+                        {user ? (
+                          <>
+                            Account created on:{' '}
+                            {new Date(user.created_at || Date.now()).toLocaleDateString([], {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </>
+                        ) : (
+                          <>
+                            Storage: <strong className="text-blue-700">Local Browser Cache</strong>
+                          </>
+                        )}
                       </span>
 
                       <button
@@ -919,20 +1016,40 @@ function AccountContent() {
                         disabled={profileSaving}
                         className="px-5 py-2.5 rounded-xl bg-navy-950 hover:bg-navy-900 text-white text-xs font-bold transition shadow disabled:opacity-50"
                       >
-                        {profileSaving ? 'Saving...' : 'Save Profile Changes'}
+                        {profileSaving ? 'Saving...' : user ? 'Save Profile Changes' : 'Save Changes Locally'}
                       </button>
                     </div>
                   </form>
                 </div>
 
-                {/* Password Change Form */}
-                <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
-                  <div className="border-b border-gray-100 pb-3">
-                    <h2 className="text-base font-black text-navy-950">Change Password</h2>
-                    <p className="text-xs text-gray-500">
-                      Update your Supabase authentication password to secure your account.
-                    </p>
+                {/* Cloud Sync prompt for Guest */}
+                {!user && (
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl p-6 border border-blue-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-black text-navy-950">Want your data synced to Supabase Cloud?</h3>
+                      <p className="text-xs text-gray-600">
+                        Sign in or register an account. All your locally saved addresses and orders will automatically sync to your Supabase cloud profile.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openAuthModal()}
+                      className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shrink-0 transition shadow self-start sm:self-auto"
+                    >
+                      Sign In / Register
+                    </button>
                   </div>
+                )}
+
+                {/* Password Change Form (for registered users) */}
+                {user && (
+                  <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
+                    <div className="border-b border-gray-100 pb-3">
+                      <h2 className="text-base font-black text-navy-950">Change Password</h2>
+                      <p className="text-xs text-gray-500">
+                        Update your Supabase authentication password to secure your account.
+                      </p>
+                    </div>
 
                   {passwordMsg && (
                     <div
@@ -987,6 +1104,7 @@ function AccountContent() {
                     </button>
                   </form>
                 </div>
+                )}
               </div>
             )}
           </div>
