@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Filter, X, RotateCcw } from 'lucide-react';
+import { getColorStyle } from '@/data/colors';
 
 export interface FilterState {
   gender: string[];
@@ -169,18 +170,29 @@ export default function ProductFilters({
       {availableColours.length > 0 && (
         <div className="space-y-2.5 pt-3 border-t border-gray-100">
           <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">Colour</h4>
-          <div className="space-y-1.5">
-            {availableColours.slice(0, 5).map((c) => (
-              <label key={c} className="flex items-center gap-2.5 text-xs text-gray-700 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={filters.colours.includes(c)}
-                  onChange={() => toggleArrayItem('colours', c)}
-                  className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-gray-300"
-                />
-                <span>{c}</span>
-              </label>
-            ))}
+          <div className="flex flex-wrap gap-2 pt-1">
+            {availableColours.slice(0, 8).map((c) => {
+              const isSelected = filters.colours.includes(c);
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleArrayItem('colours', c)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${
+                    isSelected
+                      ? 'border-black bg-gray-50 font-bold shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-gray-400 text-gray-700'
+                  }`}
+                  title={c}
+                >
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block shrink-0 shadow-xs"
+                    style={getColorStyle(c)}
+                  />
+                  <span>{c}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import { Product, PRODUCTS } from '@/data/products';
 import { useCart } from '@/context/CartContext';
 import ProductCard from '@/components/product/ProductCard';
 import ProductReviewsSection from '@/components/product/ProductReviewsSection';
+import { getColorStyle } from '@/data/colors';
 import {
   Star,
   Ruler,
@@ -143,22 +144,40 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
 
   // Color variants setup: use product variants, colours, or primaryColour without hardcoded fallbacks
   const colorVariants = React.useMemo(() => {
+    const list: { name: string; image?: string }[] = [];
+    const seen = new Set<string>();
+
     if (product.colorVariants && product.colorVariants.length > 0) {
-      return product.colorVariants;
+      product.colorVariants.forEach((v) => {
+        const key = v.name.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push(v);
+        }
+      });
     }
+
     if (product.colours && product.colours.length > 0) {
-      return product.colours.map((name, i) => ({
-        name,
-        image: product.images[i] || product.images[0] || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
-      }));
+      product.colours.forEach((c, i) => {
+        const key = c.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({
+            name: c.trim(),
+            image: product.images[i] || product.images[0],
+          });
+        }
+      });
     }
-    if (product.primaryColour) {
-      return [{
+
+    if (list.length === 0 && product.primaryColour) {
+      list.push({
         name: product.primaryColour,
-        image: product.images[0] || '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg',
-      }];
+        image: product.images[0],
+      });
     }
-    return [];
+
+    return list;
   }, [product]);
 
   // Images for current selection
@@ -388,7 +407,7 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                 <div className="text-xs text-gray-900 font-medium">
                   Colour: <span className="font-semibold text-gray-950">{selectedColour}</span>
                 </div>
-                <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   {colorVariants.map((variant) => {
                     const isSelected = selectedColour.toLowerCase() === variant.name.toLowerCase();
                     return (
@@ -396,27 +415,19 @@ export default function ProductDetailView({ product: initialProduct, isHomePage 
                         key={variant.name}
                         type="button"
                         onClick={() => setSelectedColour(variant.name)}
-                        className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 overflow-hidden bg-white p-1 transition-all flex items-center justify-center ${
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition cursor-pointer ${
                           isSelected
-                            ? 'border-gray-900 shadow-sm ring-1 ring-gray-900'
-                            : 'border-gray-200 hover:border-gray-400'
+                            ? 'border-black bg-gray-50 font-bold shadow-sm ring-1 ring-black/10'
+                            : 'border-gray-200 bg-white hover:border-gray-400 text-gray-700'
                         }`}
                         aria-label={`Select colour ${variant.name}`}
                         title={variant.name}
                       >
-                        {variant.image ? (
-                          <Image
-                            src={variant.image}
-                            alt={variant.name}
-                            fill
-                            className="object-contain p-1"
-                            sizes="64px"
-                          />
-                        ) : (
-                          <span className="text-[10px] font-bold text-gray-800 text-center px-1">
-                            {variant.name}
-                          </span>
-                        )}
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-black/10 inline-block shrink-0 shadow-xs"
+                          style={getColorStyle(variant.name)}
+                        />
+                        <span>{variant.name}</span>
                       </button>
                     );
                   })}

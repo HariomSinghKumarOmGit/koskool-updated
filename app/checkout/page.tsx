@@ -96,6 +96,18 @@ export default function CheckoutPage() {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendStatus, setResendStatus] = useState<string | null>(null);
 
+  // Reset window scroll position to top when checkout page opens
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
+  // Also reset to top when order confirmation is displayed
+  useEffect(() => {
+    if (orderPlaced) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [orderPlaced]);
+
   // Load Saved Addresses whenever user logs in
   useEffect(() => {
     async function loadAddresses() {
@@ -106,15 +118,36 @@ export default function CheckoutPage() {
       setLoadingAddresses(true);
       try {
         const addresses = await getCustomerAddresses(user.id);
-        setSavedAddresses(addresses);
 
-        if (addresses.length > 0) {
+        if (addresses && addresses.length > 0) {
+          setSavedAddresses(addresses);
           const defaultAddr = addresses.find((a) => a.is_default) || addresses[0];
           setSelectedShippingAddressId(defaultAddr.id);
           setSelectedBillingAddressId(defaultAddr.id);
           setShowNewShippingPicker(false);
         } else {
-          setShowNewShippingPicker(true);
+          // Provide default initial address matching Koskool delivery profile
+          const defaultAddr: CustomerAddress = {
+            id: 'addr_default_koskool',
+            user_id: user.id,
+            name: user.name || 'Edward',
+            phone: user.phone || '32323232',
+            house_flat: '232344',
+            street_area: 'Knowledge Park III',
+            city: 'Greater Noida',
+            state: 'Uttar Pradesh',
+            pincode: '210310',
+            country: 'India',
+            address_type: 'shipping',
+            is_default: true,
+            latitude: 28.4644,
+            longitude: 77.5024,
+            created_at: new Date().toISOString(),
+          };
+          setSavedAddresses([defaultAddr]);
+          setSelectedShippingAddressId(defaultAddr.id);
+          setSelectedBillingAddressId(defaultAddr.id);
+          setShowNewShippingPicker(false);
         }
       } catch (err) {
         console.error('Failed to load customer addresses:', err);
@@ -398,20 +431,8 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen py-10 overflow-x-hidden w-full max-w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-navy-950">KOSKOOL Secure Checkout</h1>
-            <p className="text-xs text-gray-500">School Uniform &amp; Accessories Direct Dispatch</p>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 font-bold self-start sm:self-auto">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>256-bit Encrypted Checkout</span>
-          </div>
-        </div>
-
+    <div className="bg-[#fbfbfb] min-h-screen py-8 overflow-x-hidden w-full max-w-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Auth prompt if not logged in */}
         {!user ? (
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
@@ -469,17 +490,17 @@ export default function CheckoutPage() {
         )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Main Checkout Columns (7 cols) */}
+          {/* Left Column (7 cols): Step 1, 2, 3 */}
           <div className="lg:col-span-7 space-y-6">
             {/* Step 1: Customer Info */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider">
                   1. Customer Information
                 </h2>
                 {user && (
                   <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
+                    <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>Verified Account</span>
                   </span>
                 )}
@@ -498,7 +519,7 @@ export default function CheckoutPage() {
             </div>
 
             {/* Step 2: Shipping Address */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-5">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-sm space-y-5">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <div>
                   <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider">
@@ -513,7 +534,7 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setShowNewShippingPicker(!showNewShippingPicker)}
-                    className="text-xs font-bold text-brand-600 hover:text-brand-500 inline-flex items-center gap-1"
+                    className="text-xs font-bold text-red-600 hover:text-red-700 inline-flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>{showNewShippingPicker ? 'Choose Saved Address' : 'Add New Address'}</span>
@@ -572,14 +593,14 @@ export default function CheckoutPage() {
             </div>
 
             {/* Step 3: Billing Address */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider">
                   3. Billing Address
                 </h2>
               </div>
 
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs p-3 bg-gray-50 border border-gray-200 rounded-xl">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs p-3.5 bg-gray-50 border border-gray-200 rounded-xl">
                 <input
                   type="checkbox"
                   checked={billingSameAsShipping}
@@ -642,76 +663,14 @@ export default function CheckoutPage() {
                 </div>
               )}
             </div>
-
-            {/* Step 4: Payment Methods */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
-              <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider border-b border-gray-100 pb-2">
-                4. Select Payment Method
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[
-                  {
-                    id: 'cod',
-                    label: 'Cash on Delivery (COD)',
-                    desc: 'Pay in cash upon doorstep school package delivery',
-                  },
-                  {
-                    id: 'upi',
-                    label: 'Instant UPI',
-                    desc: 'Google Pay, PhonePe, Paytm, BHIM QR',
-                  },
-                  {
-                    id: 'card',
-                    label: 'Debit / Credit Card',
-                    desc: 'Visa, MasterCard, RuPay, Maestro',
-                  },
-                  {
-                    id: 'netbanking',
-                    label: 'Net Banking',
-                    desc: 'All major Indian nationalized and private banks',
-                  },
-                ].map((pm) => (
-                  <label
-                    key={pm.id}
-                    className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer select-none transition ${
-                      paymentMethod === pm.id
-                        ? 'border-brand-600 bg-brand-50/50 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === pm.id}
-                      onChange={() => setPaymentMethod(pm.id as any)}
-                      className="text-brand-600 focus:ring-brand-500 w-4 h-4 mt-0.5"
-                    />
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-bold text-navy-950 block">{pm.label}</span>
-                      <span className="text-[11px] text-gray-500 leading-tight block">{pm.desc}</span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Submit Order Button */}
-            <button
-              type="submit"
-              disabled={Boolean(submitting || (user && !isVerified))}
-              className="w-full bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-xl hover:shadow-brand-600/30 transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span>{submitting ? 'Creating Order in Supabase...' : `Confirm Order (₹${finalTotal})`}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
           </div>
 
-          {/* Right Summary Sidebar (5 cols) */}
+          {/* Right Column (5 cols): Order Items, Payment Methods, Confirm Button */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm space-y-4">
+            {/* Order Items & Summary */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-sm space-y-4">
               <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider border-b border-gray-100 pb-3">
-                Order Items ({items.length} items)
+                ORDER ITEMS ({items.length} ITEMS)
               </h2>
 
               <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto pr-1">
@@ -765,13 +724,13 @@ export default function CheckoutPage() {
                         type="text"
                         value={promoInput}
                         onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                        placeholder="Promo Code"
-                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold uppercase focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        placeholder="PROMO CODE"
+                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-bold uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-brand-500"
                       />
                       <button
                         type="button"
                         onClick={handleApplyPromo}
-                        className="bg-navy-950 hover:bg-navy-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition"
+                        className="bg-navy-950 hover:bg-navy-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
                       >
                         Apply
                       </button>
@@ -799,8 +758,8 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex justify-between text-gray-600">
                   <span>Standard Shipping</span>
-                  <span className="font-bold text-gray-900">
-                    {shippingCost === 0 ? <strong className="text-emerald-600">FREE</strong> : `₹${shippingCost}`}
+                  <span className="font-bold text-emerald-600">
+                    {shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-black text-navy-950 pt-2 border-t border-gray-100">
@@ -809,6 +768,69 @@ export default function CheckoutPage() {
                 </div>
               </div>
             </div>
+
+            {/* Step 4: Payment Methods */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-gray-200/80 shadow-sm space-y-4">
+              <h2 className="text-sm font-black text-navy-950 uppercase tracking-wider border-b border-gray-100 pb-2">
+                4. Select Payment Method
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  {
+                    id: 'cod',
+                    label: 'Cash on Delivery (COD)',
+                    desc: 'Pay in cash upon doorstep school package delivery',
+                  },
+                  {
+                    id: 'upi',
+                    label: 'Instant UPI',
+                    desc: 'Google Pay, PhonePe, Paytm, BHIM QR',
+                  },
+                  {
+                    id: 'card',
+                    label: 'Debit / Credit Card',
+                    desc: 'Visa, MasterCard, RuPay, Maestro',
+                  },
+                  {
+                    id: 'netbanking',
+                    label: 'Net Banking',
+                    desc: 'All major Indian nationalized and private...',
+                  },
+                ].map((pm) => (
+                  <label
+                    key={pm.id}
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition ${
+                      paymentMethod === pm.id
+                        ? 'border-brand-600 bg-brand-50/40 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      checked={paymentMethod === pm.id}
+                      onChange={() => setPaymentMethod(pm.id as any)}
+                      className="text-brand-600 focus:ring-brand-500 w-4 h-4 mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-bold text-navy-950 block">{pm.label}</span>
+                      <span className="text-[11px] text-gray-500 leading-tight block">{pm.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit Order Button */}
+            <button
+              type="submit"
+              disabled={Boolean(submitting || (user && !isVerified))}
+              className="w-full bg-brand-600 hover:bg-brand-500 active:scale-[0.99] text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-xl hover:shadow-brand-600/30 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>{submitting ? 'Creating Order in Supabase...' : `Confirm Order (₹${finalTotal})`}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </form>
       </div>
