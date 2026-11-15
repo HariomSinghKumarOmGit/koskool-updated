@@ -119,7 +119,7 @@ export default function HeroSlideshow() {
 
   return (
     <div
-      className="relative w-full bg-navy-950 select-none overflow-hidden animate-fadeIn"
+      className="relative w-full bg-gray-100 select-none overflow-hidden animate-fadeIn"
       onMouseEnter={() => setIsPlaying(false)}
       onMouseLeave={() => setIsPlaying(true)}
     >
