@@ -211,7 +211,7 @@ function setCache(key: string, val: any) {
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-1', slug: 'school-shoes', name: 'School Uniform Shoes', description: 'Mandatory assembly & uniform compliant formal shoes', image_url: '/cdn/shop/files/wv502-black-kids_1_1_1_554340d2-d58b-45d0-aa0a-165b3798e5c8-1gswyvf.v_1786513108_width_1200.jpg', display_order: 1, is_active: true, show_on_homepage: true, starting_price: '₹499', badge: 'Morning Assembly' },
   { id: 'cat-2', slug: 'sports-shoes', name: 'PT & Sports Shoes', description: 'Non-marking white sneakers for PT drill & playground', image_url: '/cdn/shop/files/WGE53354-BLACK-GENTS_4d4814a1-64d8-45b9-a7b8-722cf22d3c8e.v_1786511261_width_1600.jpg', display_order: 2, is_active: true, show_on_homepage: true, starting_price: '₹549', badge: 'PT & Drill' },
-  { id: 'cat-3', slug: 'fabric-shoes', name: 'Fabric & Canvas Shoes', description: 'Breathable canvas shoes for daily routine', image_url: '/cdn/shop/files/W1030-BLACK-GENTS_37127caa-12a4-4e9c-914b-f06d017577a5.v_1786513424_width_1600.jpg', display_order: 3, is_active: true, show_on_homepage: false, starting_price: '₹399', badge: 'Summer Light' },
+  { id: 'cat-3', slug: 'fabric-shoes', name: 'Fabric & Canvas Shoes', description: 'Breathable canvas shoes for daily routine', image_url: '/cdn/shop/files/W1030-BLACK-GENTS_37127caa-12a4-4e9c-914b-f06d017577a5.v_1786513424_width_1600.jpg', display_order: 3, is_active: true, show_on_homepage: true, starting_price: '₹399', badge: 'Summer Light' },
   { id: 'cat-4', slug: 'bags', name: 'School Backpacks', description: 'Dual-compartment spine-support student bags', image_url: '/cdn/shop/files/School-Banner_ed631f12-33bd-4c6d-94df-a5ffd9f8ba73.v_1767783342_width_5760.jpg', display_order: 4, is_active: true, show_on_homepage: false, starting_price: '₹649', badge: 'Spine Support' },
   { id: 'cat-5', slug: 'accessories', name: 'Student Accessories', description: 'Water bottles, geometry boxes, pencil pouches, and socks', image_url: '/cdn/shop/files/Kids-Banner.v_1768369268_width_5760.jpg', display_order: 5, is_active: true, show_on_homepage: false, starting_price: '₹99', badge: 'Everyday Kits' },
 ];
@@ -2240,8 +2240,8 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
     features: ['Washable Canvas', 'Flexible Gum Sole', 'Cool Airflow'],
     startingPrice: '₹399',
     display_order: 3,
-    is_active: false,
-    show_on_homepage: false,
+    is_active: true,
+    show_on_homepage: true,
   },
   {
     id: 'girls-ballerinas',
@@ -2253,8 +2253,8 @@ export const DEFAULT_FOOTWEAR_CATEGORIES: FootwearCategoryCard[] = [
     features: ['Padded Collar', 'Arch Support', 'Non-Slip Sole'],
     startingPrice: '₹449',
     display_order: 4,
-    is_active: false,
-    show_on_homepage: false,
+    is_active: true,
+    show_on_homepage: true,
   },
   {
     id: 'kindergarten-velcro',
